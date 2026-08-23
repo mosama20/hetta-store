@@ -254,4 +254,24 @@ export class OrdersService {
 
     return updated;
   }
+
+  async remove(id: string, userId?: string) {
+    const order = await this.prisma.order.findUnique({ where: { id } });
+    if (!order) {
+      throw new NotFoundException(`Order with ID ${id} not found`);
+    }
+
+    await this.prisma.orderItem.deleteMany({ where: { orderId: id } });
+    await this.prisma.order.delete({ where: { id } });
+
+    await this.auditService.log({
+      userId,
+      action: 'ORDER_DELETE',
+      entity: 'Order',
+      entityId: id,
+      oldValues: { orderNumber: order.orderNumber, customerName: order.customerName },
+    });
+
+    return { message: 'Order deleted successfully' };
+  }
 }

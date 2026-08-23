@@ -237,6 +237,37 @@ export class UsersService {
     });
   }
 
+  async remove(id: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      include: { userRoles: { include: { role: true } } },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+
+    const isSuperAdmin = user.userRoles.some((ur) => ur.role.name === 'SUPER_ADMIN');
+    if (isSuperAdmin) {
+      const superAdminCount = await this.prisma.userRole.count({
+        where: {
+          role: { name: 'SUPER_ADMIN' },
+          user: { isActive: true },
+        },
+      });
+      if (superAdminCount <= 1) {
+        throw new ForbiddenException('Cannot delete the last remaining Super Administrator');
+      }
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.userRole.deleteMany({ where: { userId: id } });
+      await tx.user.delete({ where: { id } });
+    });
+
+    return { message: 'User deleted successfully' };
+  }
+
   async listRoles() {
     return this.prisma.role.findMany({
       select: {

@@ -137,6 +137,12 @@ export const ordersApi = {
     customerCity?: string;
     customerAddress?: string;
     notes?: string;
+    subtotal?: number;
+    discountAmount?: number;
+    discountPercent?: number;
+    appliedCoupon?: string;
+    shippingFee?: number;
+    totalAmount?: number;
     items: { variantId: string; quantity: number }[];
   }) =>
     apiClient<{ order: Order; whatsappUrl: string; whatsappMessage: string }>('/orders', {
@@ -150,6 +156,10 @@ export const ordersApi = {
     apiClient<Order>(`/orders/${id}/status`, {
       method: 'PUT',
       body: JSON.stringify({ status }),
+    }),
+  delete: (id: string) =>
+    apiClient<{ message: string }>(`/orders/${id}`, {
+      method: 'DELETE',
     }),
 };
 
@@ -223,6 +233,10 @@ export const usersApi = {
     apiClient<User>(`/users/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    apiClient<{ message: string }>(`/users/${id}`, {
+      method: 'DELETE',
     }),
 };
 

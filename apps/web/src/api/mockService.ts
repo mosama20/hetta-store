@@ -85,9 +85,15 @@ function loadDB(): MockDB {
       return initial;
     }
     const parsed = JSON.parse(raw);
+    const existingCmsKeys = new Set((parsed.cmsSections || []).map((s: CMSSection) => s.key));
+    const mergedCmsSections = [
+      ...(parsed.cmsSections || []),
+      ...INITIAL_CMS_SECTIONS.filter((s) => !existingCmsKeys.has(s.key)),
+    ];
     return {
       ...parsed,
       settings: { ...INITIAL_SETTINGS, ...(parsed.settings || {}) },
+      cmsSections: mergedCmsSections,
     };
   } catch {
     return {
@@ -603,12 +609,18 @@ export class MockService {
     customerCity?: string;
     customerAddress?: string;
     notes?: string;
+    subtotal?: number;
+    discountAmount?: number;
+    discountPercent?: number;
+    appliedCoupon?: string;
+    shippingFee?: number;
+    totalAmount?: number;
     items: { variantId: string; quantity: number }[];
   }) {
     const db = loadDB();
     const orderNumber = `CRF-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    let totalAmount = 0;
+    let computedSubtotal = 0;
     const orderItems: any[] = [];
 
     data.items.forEach((it, idx) => {
@@ -625,8 +637,8 @@ export class MockService {
       }
 
       const unitPrice = foundVariant ? Number(foundVariant.price) : 500;
-      const subtotal = unitPrice * it.quantity;
-      totalAmount += subtotal;
+      const subtotalItem = unitPrice * it.quantity;
+      computedSubtotal += subtotalItem;
 
       orderItems.push({
         id: `ord-it-${Date.now()}-${idx}`,
@@ -641,9 +653,21 @@ export class MockService {
         sizeNameEn: foundVariant?.size.nameEn || '',
         unitPrice,
         quantity: it.quantity,
-        subtotal,
+        subtotal: subtotalItem,
       });
     });
+
+    const subtotal = data.subtotal !== undefined ? Number(data.subtotal) : computedSubtotal;
+    const discountPercent = data.discountPercent !== undefined ? Number(data.discountPercent) : 0;
+    const discountAmount = data.discountAmount !== undefined
+      ? Number(data.discountAmount)
+      : Math.round((subtotal * discountPercent) / 100);
+    const shippingFee = data.shippingFee !== undefined
+      ? Number(data.shippingFee)
+      : (subtotal >= 1000 ? 0 : 50);
+    const totalAmount = data.totalAmount !== undefined
+      ? Number(data.totalAmount)
+      : Math.max(0, subtotal - discountAmount) + shippingFee;
 
     const newOrder: Order = {
       id: 'ord-' + Date.now(),
@@ -654,6 +678,11 @@ export class MockService {
       customerAddress: data.customerAddress,
       notes: data.notes,
       status: 'PENDING',
+      subtotal,
+      discountAmount,
+      discountPercent,
+      appliedCoupon: data.appliedCoupon,
+      shippingFee,
       totalAmount,
       currency: db.settings.currency || 'EGP',
       createdAt: new Date().toISOString(),
@@ -666,7 +695,14 @@ export class MockService {
 
     const whatsappNumber = (db.settings.whatsapp_number || '+201234567890').replace(/[^0-9]/g, '');
     const itemsSummary = orderItems.map((i) => `• ${i.productNameAr} (${i.sizeNameEn} - ${i.colorNameAr}) x${i.quantity} = ${i.subtotal} ج.م`).join('\n');
-    const msg = `مرحباً، أود تأكيد الطلب رقم *${orderNumber}*\n\nالاسم: ${data.customerName}\nالهاتف: ${data.customerPhone}\nالعنوان: ${data.customerCity || ''} ${data.customerAddress || ''}\n\nالمنتجات:\n${itemsSummary}\n\nالإجمالي: *${totalAmount} ج.م*`;
+    
+    let discountLine = '';
+    if (discountAmount > 0) {
+      discountLine = `\nالخصم${data.appliedCoupon ? ` (كوبون ${data.appliedCoupon})` : ''}: -${discountAmount} ج.م`;
+    }
+    const shippingLine = `\nالشحن: ${shippingFee === 0 ? 'مجاني 🔥' : `${shippingFee} ج.م`}`;
+
+    const msg = `مرحباً، أود تأكيد الطلب رقم *${orderNumber}*\n\nالاسم: ${data.customerName}\nالهاتف: ${data.customerPhone}\nالعنوان: ${data.customerCity || ''} - ${data.customerAddress || ''}\n\nالمنتجات المطلوبة:\n${itemsSummary}\n\nالمجموع الفرعي: ${subtotal} ج.م${discountLine}${shippingLine}\n\nالإجمالي المطلوب: *${totalAmount} ج.م*`;
     const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(msg)}`;
 
     return {
@@ -674,6 +710,13 @@ export class MockService {
       whatsappUrl,
       whatsappMessage: msg,
     };
+  }
+
+  static async deleteOrder(id: string) {
+    const db = loadDB();
+    db.orders = db.orders.filter((o) => o.id !== id);
+    saveDB(db);
+    return { message: 'Order deleted successfully' };
   }
 
   static async updateOrderStatus(id: string, status: OrderStatus): Promise<Order> {
@@ -723,11 +766,33 @@ export class MockService {
     const db = loadDB();
     const idx = db.cmsSections.findIndex((s) => s.key === key);
     if (idx !== -1) {
-      db.cmsSections[idx] = { ...db.cmsSections[idx], ...data };
+      db.cmsSections[idx] = {
+        ...db.cmsSections[idx],
+        ...data,
+        payload: {
+          ...(db.cmsSections[idx].payload || {}),
+          ...(data.payload || {}),
+        },
+      };
       saveDB(db);
       return db.cmsSections[idx];
     }
-    throw new Error('Section not found');
+    // If section not found by key, create it
+    const newSec: CMSSection = {
+      id: 'cms-' + Date.now(),
+      key,
+      type: data.type || 'CUSTOM',
+      titleAr: data.titleAr || '',
+      titleEn: data.titleEn || '',
+      subtitleAr: data.subtitleAr,
+      subtitleEn: data.subtitleEn,
+      payload: data.payload || {},
+      displayOrder: data.displayOrder || db.cmsSections.length + 1,
+      isActive: data.isActive !== undefined ? data.isActive : true,
+    };
+    db.cmsSections.push(newSec);
+    saveDB(db);
+    return newSec;
   }
 
   // --- Discounts ---
@@ -762,24 +827,98 @@ export class MockService {
   }
 
   // --- Users ---
-  static async getUsers(_params?: any): Promise<PaginatedResult<User>> {
+  static async getUsers(params?: any): Promise<PaginatedResult<User>> {
     const db = loadDB();
+    let filtered = [...db.users];
+
+    if (params?.search) {
+      const q = params.search.toLowerCase().trim();
+      filtered = filtered.filter(
+        (u) =>
+          u.fullName.toLowerCase().includes(q) ||
+          u.email.toLowerCase().includes(q) ||
+          (u.phone && u.phone.includes(q)),
+      );
+    }
+
+    if (params?.role) {
+      filtered = filtered.filter((u) => {
+        if (Array.isArray(u.roles)) {
+          return u.roles.some((r) => (typeof r === 'string' ? r === params.role : r.name === params.role));
+        }
+        return false;
+      });
+    }
+
+    if (params?.isActive !== undefined) {
+      const activeFilter = params.isActive === 'true' || params.isActive === true;
+      filtered = filtered.filter((u) => u.isActive === activeFilter);
+    }
+
+    const page = Number(params?.page) || 1;
+    const limit = Number(params?.limit) || 20;
+    const total = filtered.length;
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    const items = filtered.slice((page - 1) * limit, page * limit);
+
     return {
-      items: db.users,
-      total: db.users.length,
-      page: 1,
-      limit: 10,
-      totalPages: 1,
-      hasNextPage: false,
-      hasPreviousPage: false,
+      items,
+      total,
+      page,
+      limit,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
     };
+  }
+
+  static async createUser(data: any): Promise<User> {
+    const db = loadDB();
+    const newUser: User = {
+      id: 'usr-' + Date.now(),
+      email: data.email || 'user@fashionstore.com',
+      fullName: data.fullName || 'User',
+      phone: data.phone || '',
+      isActive: data.isActive !== undefined ? data.isActive : true,
+      roles: data.roleIds?.length ? data.roleIds : ['STORE_MANAGER'],
+      permissions: ['*'],
+      createdAt: new Date().toISOString(),
+    };
+    db.users.push(newUser);
+    saveDB(db);
+    return newUser;
+  }
+
+  static async updateUser(id: string, data: any): Promise<User> {
+    const db = loadDB();
+    const idx = db.users.findIndex((u) => u.id === id);
+    if (idx !== -1) {
+      db.users[idx] = {
+        ...db.users[idx],
+        ...data,
+        roles: data.roleIds ? data.roleIds : (data.roles || db.users[idx].roles),
+      };
+      saveDB(db);
+      return db.users[idx];
+    }
+    throw new Error('User not found');
+  }
+
+  static async deleteUser(id: string) {
+    const db = loadDB();
+    if (db.users.length <= 1) {
+      throw new Error('لا يمكن حذف المستخدم الرئيسي الوحيد في النظام');
+    }
+    db.users = db.users.filter((u) => u.id !== id);
+    saveDB(db);
+    return { message: 'User deleted successfully' };
   }
 
   static async getRoles() {
     return [
-      { id: 'r-1', name: 'SUPER_ADMIN', displayNameAr: 'مدير عام', displayNameEn: 'Super Admin' },
-      { id: 'r-2', name: 'STORE_MANAGER', displayNameAr: 'مدير المتجر', displayNameEn: 'Store Manager' },
-      { id: 'r-3', name: 'ORDER_FULFILLER', displayNameAr: 'مسؤول الطلبات', displayNameEn: 'Order Fulfiller' },
+      { id: 'r-1', name: 'SUPER_ADMIN', displayNameAr: 'مدير عام (Super Admin)', displayNameEn: 'Super Admin' },
+      { id: 'r-2', name: 'STORE_MANAGER', displayNameAr: 'مدير متجر (Store Manager)', displayNameEn: 'Store Manager' },
+      { id: 'r-3', name: 'ORDER_FULFILLER', displayNameAr: 'مسؤول الطلبات والمبيعات', displayNameEn: 'Order Fulfiller' },
     ];
   }
 

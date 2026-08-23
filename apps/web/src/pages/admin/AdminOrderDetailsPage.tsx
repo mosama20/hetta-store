@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Order, OrderStatus } from '../../types/index.js';
 import { ordersApi } from '../../api/index.js';
 import { useTheme } from '../../store/themeStore.js';
@@ -9,17 +9,23 @@ import { Card } from '../../components/common/Card.js';
 import { Badge } from '../../components/common/Badge.js';
 import { Button } from '../../components/common/Button.js';
 import { Select } from '../../components/common/Select.js';
+import { Modal } from '../../components/common/Modal.js';
 import { LoadingState } from '../../components/common/LoadingState.js';
-import { MessageCircle, ArrowLeft, Printer } from 'lucide-react';
+import { MessageCircle, ArrowLeft, Printer, Trash2, Tag, Truck, ShieldCheck, AlertTriangle } from 'lucide-react';
 
 export const AdminOrderDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { isArabic } = useTheme();
+  const navigate = useNavigate();
 
   const [order, setOrder] = useState<Order | null>(null);
   const [status, setStatus] = useState<OrderStatus>('PENDING');
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
+
+  // Deletion modal
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -40,6 +46,19 @@ export const AdminOrderDetailsPage: React.FC = () => {
     setIsUpdating(false);
   };
 
+  const handleDeleteOrder = async () => {
+    if (!id) return;
+    setIsDeleting(true);
+    try {
+      await ordersApi.delete(id);
+      navigate('/admin/orders');
+    } catch {
+      // delete error
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const handlePrint = () => {
     window.print();
   };
@@ -52,8 +71,15 @@ export const AdminOrderDetailsPage: React.FC = () => {
     );
   }
 
+  const subtotal = order.subtotal !== undefined
+    ? Number(order.subtotal)
+    : order.items.reduce((sum, item) => sum + Number(item.subtotal), 0);
+
+  const discountAmount = order.discountAmount !== undefined ? Number(order.discountAmount) : 0;
+  const shippingFee = order.shippingFee !== undefined ? Number(order.shippingFee) : (subtotal >= 1000 ? 0 : 50);
+
   const waUrl = `https://wa.me/${order.customerPhone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
-    `مرحباً ${order.customerName}، معك فريق متجر CRAFT بخصوص طلبك رقم ${order.orderNumber} (الحالة الحالية: ${order.status}).`,
+    `مرحباً ${order.customerName}، معك فريق متجرنا بخصوص طلبك رقم ${order.orderNumber} (الحالة الحالية: ${order.status}).`,
   )}`;
 
   return (
@@ -64,16 +90,26 @@ export const AdminOrderDetailsPage: React.FC = () => {
           className="hover:text-zinc-900 dark:hover:text-zinc-100 flex items-center"
         >
           <ArrowLeft className="w-3.5 h-3.5 mr-1 rtl:rotate-180" />
-          <span>{isArabic ? 'العودة للطلبات' : 'Back to Orders'}</span>
+          <span>{isArabic ? 'العودة لقائمة الطلبات' : 'Back to Orders'}</span>
         </Link>
 
-        <button
-          onClick={handlePrint}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition font-bold"
-        >
-          <Printer className="w-3.5 h-3.5" />
-          <span>{isArabic ? 'طباعة الفاتورة / البوليصة' : 'Print Packing Slip'}</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsDeleteModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-200 dark:border-red-900/60 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition font-bold"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>{isArabic ? 'حذف هذه العملية' : 'Delete Order'}</span>
+          </button>
+
+          <button
+            onClick={handlePrint}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition font-bold text-zinc-900 dark:text-zinc-100"
+          >
+            <Printer className="w-3.5 h-3.5" />
+            <span>{isArabic ? 'طباعة الفاتورة / البوليصة' : 'Print Packing Slip'}</span>
+          </button>
+        </div>
       </div>
 
       <AdminPageHeader
@@ -118,7 +154,7 @@ export const AdminOrderDetailsPage: React.FC = () => {
               {order.customerPhone}
             </p>
             <p className="text-zinc-500">
-              {order.customerCity} - {order.customerAddress}
+              {order.customerCity || ''} {order.customerAddress ? `- ${order.customerAddress}` : ''}
             </p>
             {order.notes && <p className="text-amber-600 pt-1 italic">{order.notes}</p>}
           </div>
@@ -145,7 +181,7 @@ export const AdminOrderDetailsPage: React.FC = () => {
               {order.status}
             </Badge>
             <p className="text-xs text-zinc-400">
-              {isArabic ? 'الإجمالي النهائي:' : 'Final Total:'}
+              {isArabic ? 'الإجمالي المطلوب للدفع:' : 'Final Invoice Total:'}
             </p>
             <p className="text-xl font-black text-zinc-900 dark:text-zinc-100">
               {formatPrice(Number(order.totalAmount), 'EGP', isArabic)}
@@ -156,22 +192,25 @@ export const AdminOrderDetailsPage: React.FC = () => {
         {/* Store Stamp / Dispatch Info */}
         <Card className="p-5 space-y-3">
           <h3 className="text-xs font-bold uppercase text-zinc-400 border-b pb-2">
-            {isArabic ? 'معلومات المتجر' : 'Store Dispatch'}
+            {isArabic ? 'معلومات التوصيل' : 'Dispatch Info'}
           </h3>
           <div className="space-y-1 text-xs text-zinc-500">
-            <p className="font-bold text-zinc-900 dark:text-zinc-100">CRAFT Egypt</p>
-            <p>100% Egyptian Combed Cotton</p>
-            <p className="text-[11px] pt-1 text-emerald-600 font-bold">
-              {isArabic ? 'معاينة عند الاستلام ودفع نقدي' : 'Cash on Delivery with Inspection'}
+            <p className="font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1">
+              <Truck className="w-3.5 h-3.5 text-zinc-600" />
+              <span>{isArabic ? 'شحن ومعاينة قبل الاستلام' : 'Delivery with Inspection'}</span>
+            </p>
+            <p className="text-[11px] pt-1 text-emerald-600 font-bold flex items-center gap-1">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>{isArabic ? 'دفع نقدي عند الاستلام' : 'Cash on Delivery'}</span>
             </p>
           </div>
         </Card>
       </div>
 
-      {/* Snapshot Items Table */}
+      {/* Snapshot Items Table with Financial Breakdown */}
       <Card className="p-6 space-y-4">
         <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 pb-2 border-b border-zinc-100 dark:border-zinc-800">
-          {isArabic ? 'المنتجات المطلوبة (لقطة تاريخية محفوظة)' : 'Immutable Order Items Snapshot'}
+          {isArabic ? 'المنتجات المطلوبة (لقطة الفاتورة)' : 'Order Items & Invoice Breakdown'}
         </h3>
         <table className="w-full text-xs">
           <thead className="bg-zinc-50 dark:bg-zinc-800 text-zinc-500 font-bold uppercase">
@@ -181,7 +220,7 @@ export const AdminOrderDetailsPage: React.FC = () => {
               <th className="p-3 text-start">SKU</th>
               <th className="p-3 text-start">{isArabic ? 'سعر الوحدة' : 'Unit Price'}</th>
               <th className="p-3 text-start">{isArabic ? 'الكمية' : 'Qty'}</th>
-              <th className="p-3 text-end">{isArabic ? 'الإجمالي' : 'Subtotal'}</th>
+              <th className="p-3 text-end">{isArabic ? 'المجموع' : 'Subtotal'}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -203,7 +242,76 @@ export const AdminOrderDetailsPage: React.FC = () => {
             ))}
           </tbody>
         </table>
+
+        {/* Totals & Discount Breakdown Box */}
+        <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800 flex justify-end">
+          <div className="w-full sm:w-80 space-y-2 text-xs">
+            <div className="flex justify-between text-zinc-600 dark:text-zinc-400">
+              <span>{isArabic ? 'المجموع الفرعي للمنتجات:' : 'Items Subtotal:'}</span>
+              <span className="font-semibold text-zinc-900 dark:text-zinc-100">{formatPrice(subtotal, 'EGP', isArabic)}</span>
+            </div>
+
+            {discountAmount > 0 && (
+              <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1.5 rounded-lg">
+                <span className="flex items-center gap-1">
+                  <Tag className="w-3 h-3" />
+                  <span>{isArabic ? `خصم الكوبون ${order.appliedCoupon ? `(${order.appliedCoupon})` : ''}:` : `Coupon Discount ${order.appliedCoupon ? `(${order.appliedCoupon})` : ''}:`}</span>
+                </span>
+                <span>-{formatPrice(discountAmount, 'EGP', isArabic)}</span>
+              </div>
+            )}
+
+            <div className="flex justify-between text-zinc-600 dark:text-zinc-400">
+              <span>{isArabic ? 'مصاريف الشحن:' : 'Shipping Fee:'}</span>
+              <span className="font-semibold">{shippingFee === 0 ? (isArabic ? 'مجاني 🔥' : 'Free') : formatPrice(shippingFee, 'EGP', isArabic)}</span>
+            </div>
+
+            <div className="flex justify-between pt-2 border-t border-zinc-200 dark:border-zinc-800 text-sm font-black text-zinc-900 dark:text-zinc-100">
+              <span>{isArabic ? 'الإجمالي المطلوب للتحصيل:' : 'Grand Total Due:'}</span>
+              <span className="text-base">{formatPrice(Number(order.totalAmount), 'EGP', isArabic)}</span>
+            </div>
+          </div>
+        </div>
       </Card>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        title={isArabic ? 'تأكيد حذف الطلب' : 'Confirm Delete Order'}
+      >
+        <div className="space-y-4 text-start">
+          <div className="flex items-center gap-3 p-3.5 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-300">
+            <AlertTriangle className="w-5 h-5 shrink-0" />
+            <p className="text-xs font-semibold">
+              {isArabic
+                ? `هل أنت متأكد من رغبتك في حذف هذا الطلب (${order.orderNumber}) نهائياً من سجل العمليات؟`
+                : `Are you sure you want to permanently delete order (${order.orderNumber})?`}
+            </p>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsDeleteModalOpen(false)}
+            >
+              {isArabic ? 'إلغاء' : 'Cancel'}
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              size="sm"
+              isLoading={isDeleting}
+              onClick={handleDeleteOrder}
+            >
+              <Trash2 className="w-3.5 h-3.5 mr-1" />
+              <span>{isArabic ? 'نعم، احذف العملية' : 'Yes, Delete Order'}</span>
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

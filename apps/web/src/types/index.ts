@@ -128,6 +128,11 @@ export interface Order {
   customerAddress?: string;
   notes?: string;
   status: OrderStatus;
+  subtotal?: number;
+  discountAmount?: number;
+  discountPercent?: number;
+  appliedCoupon?: string;
+  shippingFee?: number;
   totalAmount: number;
   currency: string;
   whatsappMessage?: string;

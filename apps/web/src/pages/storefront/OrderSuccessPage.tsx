@@ -80,8 +80,26 @@ export const OrderSuccessPage: React.FC = () => {
               {order.customerPhone}
             </span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-zinc-500">{isArabic ? 'الإجمالي:' : 'Total Amount:'}</span>
+          {order.subtotal !== undefined && (
+            <div className="flex justify-between">
+              <span className="text-zinc-500">{isArabic ? 'المجموع الفرعي:' : 'Subtotal:'}</span>
+              <span className="font-semibold">{formatPrice(Number(order.subtotal), 'EGP', isArabic)}</span>
+            </div>
+          )}
+          {!!order.discountAmount && order.discountAmount > 0 && (
+            <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold">
+              <span>{isArabic ? `خصم الكوبون ${order.appliedCoupon ? `(${order.appliedCoupon})` : ''}:` : `Discount ${order.appliedCoupon ? `(${order.appliedCoupon})` : ''}:`}</span>
+              <span>-{formatPrice(Number(order.discountAmount), 'EGP', isArabic)}</span>
+            </div>
+          )}
+          {order.shippingFee !== undefined && (
+            <div className="flex justify-between">
+              <span className="text-zinc-500">{isArabic ? 'مصاريف الشحن:' : 'Shipping:'}</span>
+              <span className="font-semibold">{order.shippingFee === 0 ? (isArabic ? 'مجاني' : 'Free') : formatPrice(Number(order.shippingFee), 'EGP', isArabic)}</span>
+            </div>
+          )}
+          <div className="flex justify-between pt-2 border-t border-zinc-200 dark:border-zinc-800">
+            <span className="text-zinc-700 dark:text-zinc-300 font-bold">{isArabic ? 'الإجمالي النهائي المطلوب:' : 'Final Total Amount:'}</span>
             <span className="font-black text-sm text-zinc-900 dark:text-zinc-100">
               {formatPrice(Number(order.totalAmount), 'EGP', isArabic)}
             </span>

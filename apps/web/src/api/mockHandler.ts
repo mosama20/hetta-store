@@ -112,6 +112,9 @@ export async function handleMockRequest<T>(endpoint: string, options: RequestOpt
   }
   if (cleanEndpoint.startsWith('/orders/')) {
     const id = cleanEndpoint.replace('/orders/', '');
+    if (method === 'DELETE') {
+      return (await MockService.deleteOrder(id)) as unknown as T;
+    }
     return (await MockService.getOrderById(id)) as unknown as T;
   }
 
@@ -159,10 +162,22 @@ export async function handleMockRequest<T>(endpoint: string, options: RequestOpt
 
   // --- Users ---
   if (cleanEndpoint === '/users') {
+    if (method === 'POST') {
+      return (await MockService.createUser(body)) as unknown as T;
+    }
     return (await MockService.getUsers(params)) as unknown as T;
   }
   if (cleanEndpoint === '/users/roles') {
     return (await MockService.getRoles()) as unknown as T;
+  }
+  if (cleanEndpoint.startsWith('/users/')) {
+    const id = cleanEndpoint.replace('/users/', '');
+    if (method === 'PUT') {
+      return (await MockService.updateUser(id, body)) as unknown as T;
+    }
+    if (method === 'DELETE') {
+      return (await MockService.deleteUser(id)) as unknown as T;
+    }
   }
 
   // --- Media ---

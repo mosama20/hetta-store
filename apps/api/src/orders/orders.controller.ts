@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { OrderStatus } from '@prisma/client';
 import { OrdersService } from './orders.service';
@@ -56,5 +56,14 @@ export class OrdersController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.ordersService.updateStatus(id, dto, user.id);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('orders.delete')
+  @ApiBearerAuth()
+  @Delete(':id')
+  @ApiOperation({ summary: 'Delete customer order transaction (Admin)' })
+  async remove(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.ordersService.remove(id, user.id);
   }
 }

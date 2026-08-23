@@ -125,6 +125,12 @@ export const CheckoutPage: React.FC = () => {
         customerCity: customerCity.trim() || undefined,
         customerAddress: customerAddress.trim() || undefined,
         notes: orderNotes || undefined,
+        subtotal,
+        discountAmount,
+        discountPercent,
+        appliedCoupon: appliedCoupon || undefined,
+        shippingFee,
+        totalAmount: grandTotal,
         items: items.map((item) => ({
           variantId: item.variantId,
           quantity: item.quantity,
