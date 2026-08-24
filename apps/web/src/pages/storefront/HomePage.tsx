@@ -45,15 +45,6 @@ export const HomePage: React.FC = () => {
 
   useEffect(() => {
     loadData();
-    const handleSync = () => {
-      loadData();
-    };
-    window.addEventListener(STORE_SYNC_EVENT, handleSync);
-    window.addEventListener('storage', handleSync);
-    return () => {
-      window.removeEventListener(STORE_SYNC_EVENT, handleSync);
-      window.removeEventListener('storage', handleSync);
-    };
   }, []);
 
   if (isLoading) {

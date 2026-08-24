@@ -73,10 +73,8 @@ export const ShopPage: React.FC = () => {
 
   useEffect(() => {
     loadData();
-    const handleSync = () => loadData();
-    window.addEventListener(STORE_SYNC_EVENT, handleSync);
-    return () => window.removeEventListener(STORE_SYNC_EVENT, handleSync);
   }, [currentPage, categoryFilter, colorFilter, sizeFilter, searchFilter, minPriceFilter, maxPriceFilter, inStockFilter, sortBy]);
+
 
   const updateParam = (key: string, value: string) => {
     const newParams = new URLSearchParams(searchParams);

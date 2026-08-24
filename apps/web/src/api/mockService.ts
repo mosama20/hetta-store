@@ -135,10 +135,12 @@ function loadDB(): MockDB {
   }
 }
 
-function saveDB(db: MockDB) {
+function saveDB(db: MockDB, shouldSync = false) {
   if (typeof window !== 'undefined') {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
-    triggerStoreSync();
+    if (shouldSync) {
+      triggerStoreSync();
+    }
   }
 }
 
@@ -810,21 +812,41 @@ export class MockService {
     return db.settings;
   }
 
+  static async getPublicSettings(): Promise<StoreSettings> {
+    const db = loadDB();
+    return db.settings;
+  }
+
+  static async getAllSettings(): Promise<{ id: string; key: string; value: string; group: string }[]> {
+    const db = loadDB();
+    return Object.entries(db.settings).map(([key, val], idx) => ({
+      id: 'set-' + idx,
+      key,
+      value: String(val ?? ''),
+      group: 'GENERAL',
+    }));
+  }
+
   static async updateSettings(settings: Partial<StoreSettings>): Promise<StoreSettings> {
     const db = loadDB();
     db.settings = { ...db.settings, ...settings };
-    saveDB(db);
+    saveDB(db, true);
     MockService.addAuditLog('UPDATE', 'SETTINGS', 'global', 'Updated general store settings & branding', { settings });
     return db.settings;
   }
 
-  static async updateSingleSetting(key: string, value: string, _category = 'GENERAL') {
+  static async updateSetting(key: string, value: string, _category = 'GENERAL') {
     const db = loadDB();
     db.settings[key] = value;
-    saveDB(db);
+    saveDB(db, true);
     MockService.addAuditLog('UPDATE', 'SETTINGS', key, `Updated setting '${key}'`, { key, value });
     return { key, value };
   }
+
+  static async updateSingleSetting(key: string, value: string, _category = 'GENERAL') {
+    return MockService.updateSetting(key, value, _category);
+  }
+
 
   // --- CMS ---
   static async getCmsSections(): Promise<CMSSection[]> {

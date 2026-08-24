@@ -66,9 +66,6 @@ export const ProductDetailsPage: React.FC = () => {
 
   useEffect(() => {
     loadProduct();
-    const handleSync = () => loadProduct();
-    window.addEventListener(STORE_SYNC_EVENT, handleSync);
-    return () => window.removeEventListener(STORE_SYNC_EVENT, handleSync);
   }, [slug]);
 
   if (isLoading) {
