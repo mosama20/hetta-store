@@ -43,7 +43,8 @@ export const INITIAL_SETTINGS: StoreSettings = {
   store_name_en: 'My Store',
   currency: 'EGP',
   whatsapp_number: '',
-  whatsapp_order_template_ar: 'مرحباً، أود تأكيد طلبي رقم {orderNumber} بقيمة {totalAmount} {currency}.',
+  whatsapp_order_template_ar:
+    '🛍️ *تأكيد طلب جديد من متجر {storeName}*\n━━━━━━━━━━━━━━━━━━━━\n📦 *رقم الطلب:* #{orderNumber}\n📅 *تاريخ الطلب:* {orderDate}\n\n👤 *بيانات العميل:*\n• *الاسم:* {customerName}\n• *رقم الهاتف:* {customerPhone}\n• *المحافظة:* {city}\n• *العنوان التفصيلي:* {customerAddress}\n{notesSection}\n\n🛒 *تفاصيل المنتجات المطلوبة:*\n{itemsSummary}\n\n━━━━━━━━━━━━━━━━━━━━\n💰 *ملخص الفاتورة:*\n• *المجموع الفرعي:* {subtotal} {currency}\n{couponSection}\n• *تكلفة الشحن:* {shippingFee} {currency}\n━━━━━━━━━━━━━━━━━━━━\n💵 *الإجمالي النهائي المطلوب دفعه عند الاستلام:* \n👉 *{total} {currency}*\n━━━━━━━━━━━━━━━━━━━━\n🚚 *طريقة الدفع:* الدفع عند الاستلام (COD)\n\nيرجى تأكيد الطلب للبدء في تجهيز الشحن فوراً ⚡',
   support_email: '',
   announcement_bar_enabled: 'true',
   announcement_text_ar: '🔥 خصومات وعروض حصرية لفترة محدودة | 🚚 شحن سريع لكافة محافظات مصر | ⚡ دفع عند الاستلام مع المعاينة',

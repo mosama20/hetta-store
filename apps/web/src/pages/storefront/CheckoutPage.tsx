@@ -8,6 +8,7 @@ import { Button } from '../../components/common/Button.js';
 import { Input } from '../../components/common/Input.js';
 import { EmptyState } from '../../components/common/EmptyState.js';
 import { MessageCircle, ShieldCheck, Tag, X, Truck } from 'lucide-react';
+import { analyticsTracker } from '../../utils/analyticsTracker.js';
 
 const EGYPT_GOVERNORATES = [
   'القاهرة (Cairo)',
@@ -66,6 +67,12 @@ export const CheckoutPage: React.FC = () => {
   // Shipping Calculation: Free above 1000 EGP, otherwise 50 EGP
   const shippingFee = subtotal >= 1000 ? 0 : 50;
   const grandTotal = finalTotal + shippingFee;
+
+  useEffect(() => {
+    if (items.length > 0) {
+      analyticsTracker.trackInitiateCheckout(items, grandTotal);
+    }
+  }, []);
 
   if (items.length === 0) {
     return (
@@ -138,6 +145,7 @@ export const CheckoutPage: React.FC = () => {
       };
 
       const res = await ordersApi.create(orderPayload);
+      analyticsTracker.trackPurchase(res.order);
       clearCart();
 
       // Navigate to success page with full order response

@@ -13,6 +13,12 @@ import {
   DashboardStats,
   PaginatedResult,
   User,
+  CartItem,
+  AuditLog,
+  VisitorSession,
+  AnalyticsEvent,
+  AbandonedCart,
+  AnalyticsSummary,
 } from '../types/index.js';
 
 export * from './client.js';
@@ -262,22 +268,86 @@ export const mediaApi = {
 };
 
 // Dashboard API
+// Dashboard API
 export const dashboardApi = {
   getStats: () => apiClient<DashboardStats>('/dashboard/stats'),
 };
 
 // Audit API
 export const auditApi = {
-  getAll: (params?: { page?: number; limit?: number; entity?: string; action?: string }) =>
-    apiClient<
-      PaginatedResult<{
-        id: string;
-        action: string;
-        entity: string;
-        entityId: string;
-        user?: User;
-        createdAt: string;
-        ipAddress?: string;
-      }>
-    >('/audit', { params }),
+  getAll: (params?: { page?: number; limit?: number; entity?: string; action?: string; search?: string }) =>
+    apiClient<PaginatedResult<AuditLog>>('/audit', { params }),
+  clearAll: () =>
+    apiClient<{ message: string }>('/audit', {
+      method: 'DELETE',
+    }),
 };
+
+// Analytics & Visitor Tracking API
+export const analyticsApi = {
+  recordHit: (data: {
+    sessionId: string;
+    visitorId: string;
+    ipAddress: string;
+    deviceType: string;
+    browser: string;
+    os: string;
+    screenResolution?: string;
+    referrer: string;
+    utmSource?: string;
+    utmMedium?: string;
+    utmCampaign?: string;
+    utmContent?: string;
+    utmTerm?: string;
+    currentPath: string;
+  }) =>
+    apiClient<{ success: boolean }>('/analytics/hit', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  recordEvent: (data: {
+    sessionId: string;
+    visitorId: string;
+    ipAddress: string;
+    eventType: string;
+    path: string;
+    payload?: Record<string, unknown>;
+  }) =>
+    apiClient<{ success: boolean }>('/analytics/event', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  recordAbandonedCart: (data: {
+    sessionId: string;
+    visitorId: string;
+    ipAddress: string;
+    deviceType: string;
+    items: CartItem[];
+    itemsCount: number;
+    totalValue: number;
+  }) =>
+    apiClient<{ success: boolean }>('/analytics/abandoned-cart', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  getSummary: (timeRange?: 'today' | 'week' | 'month' | 'all') =>
+    apiClient<AnalyticsSummary>('/analytics/summary', { params: { timeRange } }),
+
+  getSessions: (params?: { page?: number; limit?: number; search?: string; source?: string }) =>
+    apiClient<PaginatedResult<VisitorSession>>('/analytics/sessions', { params }),
+
+  getEvents: (params?: { page?: number; limit?: number; eventType?: string }) =>
+    apiClient<PaginatedResult<AnalyticsEvent>>('/analytics/events', { params }),
+
+  getAbandonedCarts: (params?: { page?: number; limit?: number }) =>
+    apiClient<PaginatedResult<AbandonedCart>>('/analytics/abandoned-carts', { params }),
+
+  clearLogs: () =>
+    apiClient<{ message: string }>('/analytics/clear', {
+      method: 'DELETE',
+    }),
+};
+

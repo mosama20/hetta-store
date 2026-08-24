@@ -9,7 +9,7 @@ import { AdminStatCard } from '../../components/admin/AdminStatCard.js';
 import { Card } from '../../components/common/Card.js';
 import { Badge } from '../../components/common/Badge.js';
 import { LoadingState } from '../../components/common/LoadingState.js';
-import { Package, ShoppingCart, DollarSign, AlertTriangle, ArrowUpRight } from 'lucide-react';
+import { Package, ShoppingCart, DollarSign, AlertTriangle, ArrowUpRight, BarChart3 } from 'lucide-react';
 
 export const AdminDashboardPage: React.FC = () => {
   const { isArabic } = useTheme();
@@ -74,6 +74,34 @@ export const AdminDashboardPage: React.FC = () => {
           subtitle={isArabic ? 'أقل من 5 قطع بالمخزن' : 'Items under 5 units'}
         />
       </div>
+
+      {/* Visitor Analytics Quick Access Banner */}
+      <Link
+        to="/admin/analytics"
+        className="block p-4 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-lg hover:shadow-xl hover:opacity-95 transition"
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3 rtl:space-x-reverse">
+            <div className="p-2.5 rounded-xl bg-white/20">
+              <BarChart3 className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h3 className="text-sm font-black">
+                {isArabic ? 'لوحة تحليلات الزوار وسلوك التصفح والحملات (Live Analytics)' : 'Visitor Traffic & Ad Attribution Dashboard'}
+              </h3>
+              <p className="text-xs text-blue-100 mt-0.5">
+                {isArabic
+                  ? 'عرض زوار الموقع المباشرين، عناوين الـ IP، ومصادر الزيارات وحملات فيسبوك وتيك توك'
+                  : 'Track live visitors, IP logs, marketing attribution, and conversion funnels'}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center text-xs font-bold bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-xl transition">
+            <span>{isArabic ? 'عرض التحليلات' : 'Open Analytics'}</span>
+            <ArrowUpRight className="w-4 h-4 ml-1 rtl:mr-1 rtl:ml-0" />
+          </div>
+        </div>
+      </Link>
 
       {/* Tables Section: Recent Orders & Products */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

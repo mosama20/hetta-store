@@ -12,6 +12,12 @@ import {
   User,
   DashboardStats,
   PaginatedResult,
+  CartItem,
+  AuditLog,
+  VisitorSession,
+  AnalyticsEvent,
+  AbandonedCart,
+  AnalyticsSummary,
 } from '../types/index.js';
 import {
   INITIAL_CATEGORIES,
@@ -24,6 +30,7 @@ import {
   INITIAL_CMS_SECTIONS,
   INITIAL_USER,
 } from './mockData.js';
+import { triggerStoreSync } from '../store/settingsStore.js';
 
 const STORAGE_KEY = 'fashion_store_production_db_v2';
 
@@ -38,14 +45,10 @@ interface MockDB {
   cmsSections: CMSSection[];
   users: User[];
   media: { id: string; url: string; mimeType: string; fileSize: number; createdAt: string }[];
-  auditLogs: {
-    id: string;
-    action: string;
-    entity: string;
-    entityId: string;
-    createdAt: string;
-    ipAddress?: string;
-  }[];
+  auditLogs: AuditLog[];
+  visitorSessions: VisitorSession[];
+  analyticsEvents: AnalyticsEvent[];
+  abandonedCarts: AbandonedCart[];
 }
 
 function loadDB(): MockDB {
@@ -62,6 +65,9 @@ function loadDB(): MockDB {
       users: [INITIAL_USER],
       media: [],
       auditLogs: [],
+      visitorSessions: [],
+      analyticsEvents: [],
+      abandonedCarts: [],
     };
   }
 
@@ -80,6 +86,9 @@ function loadDB(): MockDB {
         users: [INITIAL_USER],
         media: [],
         auditLogs: [],
+        visitorSessions: [],
+        analyticsEvents: [],
+        abandonedCarts: [],
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(initial));
       return initial;
@@ -91,9 +100,20 @@ function loadDB(): MockDB {
       ...INITIAL_CMS_SECTIONS.filter((s) => !existingCmsKeys.has(s.key)),
     ];
     return {
-      ...parsed,
+      categories: Array.isArray(parsed.categories) ? parsed.categories : INITIAL_CATEGORIES,
+      colors: Array.isArray(parsed.colors) ? parsed.colors : INITIAL_COLORS,
+      sizes: Array.isArray(parsed.sizes) ? parsed.sizes : INITIAL_SIZES,
+      products: Array.isArray(parsed.products) ? parsed.products : INITIAL_PRODUCTS,
+      orders: Array.isArray(parsed.orders) ? parsed.orders : INITIAL_ORDERS,
       settings: { ...INITIAL_SETTINGS, ...(parsed.settings || {}) },
+      discounts: Array.isArray(parsed.discounts) ? parsed.discounts : INITIAL_DISCOUNTS,
       cmsSections: mergedCmsSections,
+      users: Array.isArray(parsed.users) && parsed.users.length ? parsed.users : [INITIAL_USER],
+      media: Array.isArray(parsed.media) ? parsed.media : [],
+      auditLogs: Array.isArray(parsed.auditLogs) ? parsed.auditLogs : [],
+      visitorSessions: Array.isArray(parsed.visitorSessions) ? parsed.visitorSessions : [],
+      analyticsEvents: Array.isArray(parsed.analyticsEvents) ? parsed.analyticsEvents : [],
+      abandonedCarts: Array.isArray(parsed.abandonedCarts) ? parsed.abandonedCarts : [],
     };
   } catch {
     return {
@@ -108,11 +128,12 @@ function loadDB(): MockDB {
       users: [INITIAL_USER],
       media: [],
       auditLogs: [],
+      visitorSessions: [],
+      analyticsEvents: [],
+      abandonedCarts: [],
     };
   }
 }
-
-import { triggerStoreSync } from '../store/settingsStore.js';
 
 function saveDB(db: MockDB) {
   if (typeof window !== 'undefined') {
@@ -125,7 +146,6 @@ function applyActiveDiscounts(product: Product, discounts: Discount[]): Product 
   const activeDiscounts = discounts.filter((d) => d.isActive);
   if (activeDiscounts.length === 0) return product;
 
-  // Find matching discount
   const matchingDiscount = activeDiscounts.find((d) => {
     if (d.applyToAll) return true;
     if (d.discountCategories?.some((dc) => dc.category?.id === product.categoryId || (dc as any).categoryId === product.categoryId)) return true;
@@ -167,6 +187,43 @@ function applyActiveDiscounts(product: Product, discounts: Discount[]): Product 
 }
 
 export class MockService {
+  // --- Central Audit Logging Helper ---
+  static addAuditLog(
+    action: string,
+    entity: string,
+    entityId: string,
+    details?: string,
+    payload?: Record<string, unknown>,
+    user?: { id?: string; fullName?: string; email?: string },
+    ipAddress?: string,
+  ) {
+    try {
+      const db = loadDB();
+      const currentUser = user || (db.users.length ? { id: db.users[0].id, fullName: db.users[0].fullName, email: db.users[0].email } : { fullName: 'Admin / المدير' });
+      
+      const newLog: AuditLog = {
+        id: 'aud-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+        action,
+        entity,
+        entityId,
+        details: details || `${action} on ${entity} (#${entityId})`,
+        payload,
+        user: currentUser,
+        ipAddress: ipAddress || '127.0.0.1',
+        createdAt: new Date().toISOString(),
+      };
+
+      db.auditLogs.unshift(newLog);
+      // Keep up to 200 recent logs
+      if (db.auditLogs.length > 200) {
+        db.auditLogs = db.auditLogs.slice(0, 200);
+      }
+      saveDB(db);
+    } catch {
+      // Ignore logging failures
+    }
+  }
+
   // --- Auth ---
   static async login(credentials: { email: string; password?: string }) {
     const db = loadDB();
@@ -174,6 +231,7 @@ export class MockService {
       ...INITIAL_USER,
       email: credentials.email,
     };
+    MockService.addAuditLog('USER_LOGIN', 'AUTH', user.id, `User logged in: ${user.email}`, { email: user.email });
     return {
       accessToken: 'mock-access-token-' + Date.now(),
       refreshToken: 'mock-refresh-token-' + Date.now(),
@@ -196,7 +254,6 @@ export class MockService {
     const db = loadDB();
     const found = db.categories.find((c) => c.slug === slug);
     if (!found) {
-      // Auto-fallback: if slug doesn't exist, generate a placeholder
       const generated: Category = {
         id: 'cat-' + slug,
         slug,
@@ -225,6 +282,7 @@ export class MockService {
     };
     db.categories.push(newCat);
     saveDB(db);
+    MockService.addAuditLog('CREATE', 'CATEGORY', newCat.id, `Created category: ${newCat.nameAr}`, { category: newCat });
     return newCat;
   }
 
@@ -234,6 +292,7 @@ export class MockService {
     if (idx !== -1) {
       db.categories[idx] = { ...db.categories[idx], ...data };
       saveDB(db);
+      MockService.addAuditLog('UPDATE', 'CATEGORY', id, `Updated category: ${db.categories[idx].nameAr}`, { updates: data });
       return db.categories[idx];
     }
     throw new Error('Category not found');
@@ -241,8 +300,10 @@ export class MockService {
 
   static async deleteCategory(id: string) {
     const db = loadDB();
+    const cat = db.categories.find((c) => c.id === id);
     db.categories = db.categories.filter((c) => c.id !== id);
     saveDB(db);
+    MockService.addAuditLog('DELETE', 'CATEGORY', id, `Deleted category: ${cat?.nameAr || id}`);
     return { message: 'Deleted successfully' };
   }
 
@@ -252,38 +313,28 @@ export class MockService {
     return db.colors.filter((c) => c.isActive);
   }
 
-  static async createColor(data: { nameAr: string; nameEn: string; hexCode: string; displayOrder?: number }): Promise<Color> {
-    const db = loadDB();
-    const newCol: Color = {
-      id: 'col-' + Date.now(),
-      nameAr: data.nameAr,
-      nameEn: data.nameEn,
-      hexCode: data.hexCode,
-      displayOrder: data.displayOrder || db.colors.length + 1,
-      isActive: true,
-    };
-    db.colors.push(newCol);
-    saveDB(db);
-    return newCol;
-  }
-
-  static async updateColor(id: string, data: Partial<Color>): Promise<Color> {
-    const db = loadDB();
-    const idx = db.colors.findIndex((c) => c.id === id);
-    if (idx !== -1) {
-      db.colors[idx] = { ...db.colors[idx], ...data };
-      saveDB(db);
-      return db.colors[idx];
-    }
-    throw new Error('Color not found');
-  }
-
   static async getSizes(): Promise<Size[]> {
     const db = loadDB();
     return db.sizes.filter((s) => s.isActive);
   }
 
-  static async createSize(data: { nameAr: string; nameEn: string; displayOrder?: number }): Promise<Size> {
+  static async createColor(data: any): Promise<Color> {
+    const db = loadDB();
+    const newColor: Color = {
+      id: 'col-' + Date.now(),
+      nameAr: data.nameAr,
+      nameEn: data.nameEn,
+      hexCode: data.hexCode || '#000000',
+      displayOrder: data.displayOrder || db.colors.length + 1,
+      isActive: true,
+    };
+    db.colors.push(newColor);
+    saveDB(db);
+    MockService.addAuditLog('CREATE', 'COLOR', newColor.id, `Created color: ${newColor.nameAr}`);
+    return newColor;
+  }
+
+  static async createSize(data: any): Promise<Size> {
     const db = loadDB();
     const newSize: Size = {
       id: 'sz-' + Date.now(),
@@ -294,46 +345,17 @@ export class MockService {
     };
     db.sizes.push(newSize);
     saveDB(db);
+    MockService.addAuditLog('CREATE', 'SIZE', newSize.id, `Created size: ${newSize.nameAr}`);
     return newSize;
   }
 
-  static async updateSize(id: string, data: Partial<Size>): Promise<Size> {
-    const db = loadDB();
-    const idx = db.sizes.findIndex((s) => s.id === id);
-    if (idx !== -1) {
-      db.sizes[idx] = { ...db.sizes[idx], ...data };
-      saveDB(db);
-      return db.sizes[idx];
-    }
-    throw new Error('Size not found');
-  }
-
   // --- Products ---
-  static async getProducts(params?: {
-    page?: number;
-    limit?: number;
-    search?: string;
-    category?: string;
-    colorId?: string;
-    sizeId?: string;
-    minPrice?: number;
-    maxPrice?: number;
-    isFeatured?: boolean;
-    inStock?: boolean;
-    sortBy?: 'newest' | 'price_asc' | 'price_desc' | 'popular';
-    all?: boolean;
-  }): Promise<PaginatedResult<Product>> {
+  static async getProducts(params?: any): Promise<PaginatedResult<Product>> {
     const db = loadDB();
-    let filtered = allItems(db.products);
+    let filtered = [...db.products];
 
     if (!params?.all) {
       filtered = filtered.filter((p) => p.isActive);
-    }
-
-    if (params?.category) {
-      filtered = filtered.filter(
-        (p) => p.category?.slug === params.category || p.categoryId === params.category,
-      );
     }
 
     if (params?.search) {
@@ -342,41 +364,47 @@ export class MockService {
         (p) =>
           p.nameAr.toLowerCase().includes(q) ||
           p.nameEn.toLowerCase().includes(q) ||
-          p.descriptionAr?.toLowerCase().includes(q) ||
-          p.descriptionEn?.toLowerCase().includes(q),
+          (p.descriptionAr && p.descriptionAr.toLowerCase().includes(q)) ||
+          p.variants.some((v) => v.sku.toLowerCase().includes(q)),
       );
     }
 
-    if (params?.colorId) {
-      filtered = filtered.filter((p) =>
-        p.variants.some((v) => v.colorId === params.colorId && v.isActive),
+    if (params?.category) {
+      filtered = filtered.filter(
+        (p) => p.category?.slug === params.category || p.categoryId === params.category,
       );
     }
 
-    if (params?.sizeId) {
-      filtered = filtered.filter((p) =>
-        p.variants.some((v) => v.sizeId === params.sizeId && v.isActive),
-      );
+    if (params?.minPrice !== undefined && params.minPrice !== '') {
+      filtered = filtered.filter((p) => p.basePrice >= Number(params.minPrice));
+    }
+    if (params?.maxPrice !== undefined && params.maxPrice !== '') {
+      filtered = filtered.filter((p) => p.basePrice <= Number(params.maxPrice));
     }
 
-    if (params?.minPrice !== undefined) {
-      filtered = filtered.filter((p) => p.basePrice >= (params.minPrice || 0));
+    if (params?.isFeatured !== undefined) {
+      const isF = params.isFeatured === 'true' || params.isFeatured === true;
+      filtered = filtered.filter((p) => p.isFeatured === isF);
     }
 
-    if (params?.maxPrice !== undefined) {
-      filtered = filtered.filter((p) => p.basePrice <= (params.maxPrice || Infinity));
-    }
-
-    // Sort
-    if (params?.sortBy === 'price_asc') {
-      filtered.sort((a, b) => a.basePrice - b.basePrice);
-    } else if (params?.sortBy === 'price_desc') {
-      filtered.sort((a, b) => b.basePrice - a.basePrice);
-    } else {
-      // Default: newest
-      filtered.sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-      );
+    if (params?.sortBy) {
+      switch (params.sortBy) {
+        case 'price_asc':
+          filtered.sort((a, b) => a.basePrice - b.basePrice);
+          break;
+        case 'price_desc':
+          filtered.sort((a, b) => b.basePrice - a.basePrice);
+          break;
+        case 'popular':
+          filtered.sort((a, b) => (b.isFeatured ? 1 : 0) - (a.isFeatured ? 1 : 0));
+          break;
+        case 'newest':
+        default:
+          filtered.sort(
+            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+          );
+          break;
+      }
     }
 
     const page = Number(params?.page) || 1;
@@ -402,7 +430,6 @@ export class MockService {
     const db = loadDB();
     const found = db.products.find((p) => p.slug === slug);
     if (!found) {
-      // Return first product as fallback
       if (db.products.length > 0) {
         return applyActiveDiscounts(db.products[0], db.discounts);
       }
@@ -426,45 +453,52 @@ export class MockService {
     const category = db.categories.find((c) => c.id === data.categoryId) || db.categories[0];
     const newProd: Product = {
       id: 'prod-' + Date.now(),
-      categoryId: data.categoryId || category?.id || 'cat-tshirts',
+      categoryId: data.categoryId || category?.id || 'cat-default',
       category,
       nameAr: data.nameAr || 'منتج جديد',
       nameEn: data.nameEn || 'New Product',
-      slug: data.slug || `prod-${Date.now()}`,
+      slug: data.slug || `product-${Date.now()}`,
       descriptionAr: data.descriptionAr,
       descriptionEn: data.descriptionEn,
-      basePrice: Number(data.basePrice) || 500,
+      basePrice: Number(data.basePrice) || 0,
       isFeatured: !!data.isFeatured,
       isActive: data.isActive !== undefined ? data.isActive : true,
+      seoTitleAr: data.seoTitleAr,
+      seoTitleEn: data.seoTitleEn,
+      seoDescAr: data.seoDescAr,
+      seoDescEn: data.seoDescEn,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      images: data.images || [
-        {
-          id: 'img-' + Date.now(),
-          productId: 'prod-' + Date.now(),
-          url: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800&q=80',
-          displayOrder: 1,
-          isPrimary: true,
-        },
-      ],
-      variants: data.variants || [
-        {
-          id: 'var-' + Date.now(),
-          productId: 'prod-' + Date.now(),
-          colorId: db.colors[0]?.id || 'col-black',
-          sizeId: db.sizes[1]?.id || 'sz-m',
-          sku: `CRF-${Date.now()}`,
-          price: Number(data.basePrice) || 500,
-          stockQuantity: 20,
-          lowStockThreshold: 5,
-          isActive: true,
-          color: db.colors[0] || INITIAL_COLORS[0],
-          size: db.sizes[1] || INITIAL_SIZES[1],
-        },
-      ],
+      images: Array.isArray(data.images)
+        ? data.images.map((img: any, idx: number) => ({
+            id: 'img-' + Date.now() + '-' + idx,
+            productId: 'prod-' + Date.now(),
+            url: typeof img === 'string' ? img : img.url,
+            isPrimary: idx === 0,
+            displayOrder: idx + 1,
+          }))
+        : [],
+      variants: Array.isArray(data.variants)
+        ? data.variants.map((v: any, idx: number) => ({
+            id: 'var-' + Date.now() + '-' + idx,
+            productId: 'prod-' + Date.now(),
+            colorId: v.colorId,
+            sizeId: v.sizeId,
+            sku: v.sku || `SKU-${Date.now()}-${idx}`,
+            price: Number(v.price) || Number(data.basePrice) || 0,
+            compareAtPrice: v.compareAtPrice ? Number(v.compareAtPrice) : undefined,
+            stockQuantity: Number(v.stockQuantity) || 0,
+            lowStockThreshold: Number(v.lowStockThreshold) || 5,
+            isActive: v.isActive !== undefined ? v.isActive : true,
+            color: db.colors.find((c) => c.id === v.colorId) || db.colors[0] || { id: 'col-1', nameAr: 'افتراضي', nameEn: 'Default', hexCode: '#000' },
+            size: db.sizes.find((s) => s.id === v.sizeId) || db.sizes[0] || { id: 'sz-1', nameAr: 'موحد', nameEn: 'One Size' },
+          }))
+        : [],
     };
+
     db.products.unshift(newProd);
     saveDB(db);
+    MockService.addAuditLog('CREATE', 'PRODUCT', newProd.id, `Created product: ${newProd.nameAr} (${newProd.basePrice} EGP)`, { product: newProd });
     return newProd;
   }
 
@@ -472,17 +506,19 @@ export class MockService {
     const db = loadDB();
     const idx = db.products.findIndex((p) => p.id === id);
     if (idx !== -1) {
+      const existing = db.products[idx];
       const category = data.categoryId
-        ? db.categories.find((c) => c.id === data.categoryId)
-        : db.products[idx].category;
+        ? db.categories.find((c) => c.id === data.categoryId) || existing.category
+        : existing.category;
 
       db.products[idx] = {
-        ...db.products[idx],
+        ...existing,
         ...data,
         category,
         updatedAt: new Date().toISOString(),
       };
       saveDB(db);
+      MockService.addAuditLog('UPDATE', 'PRODUCT', id, `Updated product: ${db.products[idx].nameAr}`, { updates: data });
       return db.products[idx];
     }
     throw new Error('Product not found');
@@ -490,75 +526,53 @@ export class MockService {
 
   static async deleteProduct(id: string) {
     const db = loadDB();
+    const prod = db.products.find((p) => p.id === id);
     db.products = db.products.filter((p) => p.id !== id);
     saveDB(db);
-    return { message: 'Product deleted' };
+    MockService.addAuditLog('DELETE', 'PRODUCT', id, `Deleted product: ${prod?.nameAr || id}`);
+    return { message: 'Product deleted successfully' };
   }
 
-  static async adjustStock(variantId: string, quantityChange: number): Promise<ProductVariant> {
+  static async bulkImportProducts(products: any[]) {
     const db = loadDB();
-    for (const prod of db.products) {
-      const variant = prod.variants.find((v) => v.id === variantId);
-      if (variant) {
-        variant.stockQuantity = Math.max(0, variant.stockQuantity + quantityChange);
-        saveDB(db);
-        return variant;
-      }
-    }
-    throw new Error('Variant not found');
-  }
-
-  static async bulkImport(items: any[]): Promise<{ success: boolean; importedCount: number }> {
-    const db = loadDB();
-    let count = 0;
-
-    for (const item of items) {
-      const category = db.categories.find(
-        (c) => c.nameAr === item.categoryName || c.nameEn === item.categoryName || c.id === item.categoryId,
-      ) || db.categories[0];
-
+    let importedCount = 0;
+    products.forEach((p) => {
+      const category = db.categories.find((c) => c.id === p.categoryId) || db.categories[0];
       const newProd: Product = {
-        id: 'prod-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
-        categoryId: category ? category.id : 'cat-tshirts',
+        id: 'prod-' + Date.now() + '-' + Math.random().toString(36).substring(2, 5),
+        categoryId: category?.id || 'cat-default',
         category,
-        nameAr: item.nameAr || 'منتج مستورد',
-        nameEn: item.nameEn || 'Imported Product',
-        slug: (item.nameEn || 'prod').toLowerCase().replace(/\s+/g, '-') + '-' + Date.now().toString().slice(-4),
-        descriptionAr: item.descriptionAr,
-        descriptionEn: item.descriptionEn,
-        basePrice: Number(item.basePrice) || 500,
+        nameAr: p.nameAr || 'منتج مستورد',
+        nameEn: p.nameEn || 'Imported Product',
+        slug: p.slug || `imported-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
+        descriptionAr: p.descriptionAr,
+        descriptionEn: p.descriptionEn,
+        basePrice: Number(p.basePrice) || 0,
         isFeatured: false,
         isActive: true,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        images: item.imageUrl ? [{ id: 'img-' + Date.now(), productId: 'prod-0', url: item.imageUrl, displayOrder: 1, isPrimary: true }] : [{ id: 'img-' + Date.now(), productId: 'prod-0', url: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800&q=80', displayOrder: 1, isPrimary: true }],
-        variants: [
-          {
-            id: 'var-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
-            productId: 'prod-0',
-            colorId: db.colors[0]?.id || 'col-black',
-            sizeId: db.sizes[1]?.id || 'sz-m',
-            sku: item.sku || `CRF-IMP-${Date.now()}`,
-            price: Number(item.basePrice) || 500,
-            stockQuantity: Number(item.stockQuantity) || 20,
-            lowStockThreshold: 5,
-            isActive: true,
-            color: db.colors[0],
-            size: db.sizes[1],
-          },
-        ],
+        images: Array.isArray(p.images)
+          ? p.images.map((url: string, idx: number) => ({
+              id: 'img-' + Date.now() + '-' + idx,
+              productId: 'prod-' + Date.now(),
+              url,
+              isPrimary: idx === 0,
+              displayOrder: idx + 1,
+            }))
+          : [],
+        variants: Array.isArray(p.variants) ? p.variants : [],
       };
-
       db.products.unshift(newProd);
-      count++;
-    }
-
+      importedCount++;
+    });
     saveDB(db);
-    return { success: true, importedCount: count };
+    MockService.addAuditLog('BULK_IMPORT', 'PRODUCT', 'bulk', `Imported ${importedCount} products in bulk`);
+    return { count: importedCount, message: `Successfully imported ${importedCount} products` };
   }
 
   // --- Orders ---
-  static async getOrders(params?: { page?: number; limit?: number; status?: OrderStatus; search?: string }): Promise<PaginatedResult<Order>> {
+  static async getOrders(params?: any): Promise<PaginatedResult<Order>> {
     const db = loadDB();
     let filtered = [...db.orders];
 
@@ -567,14 +581,18 @@ export class MockService {
     }
 
     if (params?.search) {
-      const q = params.search.toLowerCase();
+      const q = params.search.toLowerCase().trim();
       filtered = filtered.filter(
         (o) =>
           o.orderNumber.toLowerCase().includes(q) ||
           o.customerName.toLowerCase().includes(q) ||
-          o.customerPhone.toLowerCase().includes(q),
+          o.customerPhone.includes(q),
       );
     }
+
+    filtered.sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
 
     const page = Number(params?.page) || 1;
     const limit = Number(params?.limit) || 10;
@@ -595,12 +613,23 @@ export class MockService {
 
   static async getOrderById(id: string): Promise<Order> {
     const db = loadDB();
-    const found = db.orders.find((o) => o.id === id);
-    if (!found) {
-      if (db.orders.length > 0) return db.orders[0];
-      throw new Error('Order not found');
-    }
+    const found = db.orders.find((o) => o.id === id || o.orderNumber === id);
+    if (!found) throw new Error('Order not found');
     return found;
+  }
+
+  static async updateOrderStatus(id: string, status: OrderStatus): Promise<Order> {
+    const db = loadDB();
+    const idx = db.orders.findIndex((o) => o.id === id || o.orderNumber === id);
+    if (idx !== -1) {
+      const oldStatus = db.orders[idx].status;
+      db.orders[idx].status = status;
+      db.orders[idx].updatedAt = new Date().toISOString();
+      saveDB(db);
+      MockService.addAuditLog('UPDATE_STATUS', 'ORDER', id, `Changed order #${db.orders[idx].orderNumber} status from ${oldStatus} to ${status}`, { oldStatus, newStatus: status });
+      return db.orders[idx];
+    }
+    throw new Error('Order not found');
   }
 
   static async createOrder(data: {
@@ -616,7 +645,7 @@ export class MockService {
     shippingFee?: number;
     totalAmount?: number;
     items: { variantId: string; quantity: number }[];
-  }) {
+  }): Promise<{ order: Order; whatsappUrl: string; whatsappMessage: string }> {
     const db = loadDB();
     const orderNumber = `CRF-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
@@ -669,6 +698,17 @@ export class MockService {
       ? Number(data.totalAmount)
       : Math.max(0, subtotal - discountAmount) + shippingFee;
 
+    const currency = db.settings.currency || 'EGP';
+    const storeName = db.settings.store_name_ar || 'متجري';
+    const now = new Date();
+    const orderDate = now.toLocaleDateString('ar-EG', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
     const newOrder: Order = {
       id: 'ord-' + Date.now(),
       orderNumber,
@@ -684,76 +724,106 @@ export class MockService {
       appliedCoupon: data.appliedCoupon,
       shippingFee,
       totalAmount,
-      currency: db.settings.currency || 'EGP',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      currency,
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
       items: orderItems,
     };
 
     db.orders.unshift(newOrder);
     saveDB(db);
 
-    const whatsappNumber = (db.settings.whatsapp_number || '+201234567890').replace(/[^0-9]/g, '');
-    const itemsSummary = orderItems.map((i) => `• ${i.productNameAr} (${i.sizeNameEn} - ${i.colorNameAr}) x${i.quantity} = ${i.subtotal} ج.م`).join('\n');
-    
-    let discountLine = '';
-    if (discountAmount > 0) {
-      discountLine = `\nالخصم${data.appliedCoupon ? ` (كوبون ${data.appliedCoupon})` : ''}: -${discountAmount} ج.م`;
-    }
-    const shippingLine = `\nالشحن: ${shippingFee === 0 ? 'مجاني 🔥' : `${shippingFee} ج.م`}`;
+    // Build comprehensive itemized summary
+    const itemsSummary = orderItems
+      .map(
+        (i, idx) =>
+          `🔹 *${idx + 1}. ${i.productNameAr}*\n   • اللون: ${i.colorNameAr || '—'} | المقاس: ${i.sizeNameAr || '—'}\n   • الكمية: ${i.quantity} قطعة × ${i.unitPrice} ${currency} = *${i.subtotal} ${currency}*`,
+      )
+      .join('\n\n');
 
-    const msg = `مرحباً، أود تأكيد الطلب رقم *${orderNumber}*\n\nالاسم: ${data.customerName}\nالهاتف: ${data.customerPhone}\nالعنوان: ${data.customerCity || ''} - ${data.customerAddress || ''}\n\nالمنتجات المطلوبة:\n${itemsSummary}\n\nالمجموع الفرعي: ${subtotal} ج.م${discountLine}${shippingLine}\n\nالإجمالي المطلوب: *${totalAmount} ج.م*`;
-    const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(msg)}`;
+    const couponSection =
+      discountAmount > 0
+        ? `• *خصم الكوبون ${data.appliedCoupon ? `(${data.appliedCoupon})` : ''}:* -${discountAmount} ${currency}`
+        : '';
+
+    const notesSection = data.notes ? `• *ملاحظات التوصيل:* ${data.notes}` : '';
+
+    const rawTemplate =
+      db.settings.whatsapp_order_template_ar ||
+      '🛍️ *تأكيد طلب جديد من متجر {storeName}*\n━━━━━━━━━━━━━━━━━━━━\n📦 *رقم الطلب:* #{orderNumber}\n📅 *تاريخ الطلب:* {orderDate}\n\n👤 *بيانات العميل:*\n• *الاسم:* {customerName}\n• *رقم الهاتف:* {customerPhone}\n• *المحافظة:* {city}\n• *العنوان التفصيلي:* {customerAddress}\n{notesSection}\n\n🛒 *تفاصيل المنتجات المطلوبة:*\n{itemsSummary}\n\n━━━━━━━━━━━━━━━━━━━━\n💰 *ملخص الفاتورة:*\n• *المجموع الفرعي:* {subtotal} {currency}\n{couponSection}\n• *تكلفة الشحن:* {shippingFee} {currency}\n━━━━━━━━━━━━━━━━━━━━\n💵 *الإجمالي النهائي المطلوب دفعه عند الاستلام:* \n👉 *{total} {currency}*\n━━━━━━━━━━━━━━━━━━━━\n🚚 *طريقة الدفع:* الدفع عند الاستلام (COD)\n\nيرجى تأكيد الطلب للبدء في تجهيز الشحن فوراً ⚡';
+
+    const fullAddress = [data.customerCity, data.customerAddress].filter(Boolean).join(' - ') || 'غير محدد';
+
+    const formattedMessage = rawTemplate
+      .replace(/\{storeName\}/gi, storeName)
+      .replace(/\{orderNumber\}/gi, orderNumber)
+      .replace(/\{orderDate\}/gi, orderDate)
+      .replace(/\{customerName\}/gi, data.customerName || '')
+      .replace(/\{customerPhone\}/gi, data.customerPhone || '')
+      .replace(/\{phone\}/gi, data.customerPhone || '')
+      .replace(/\{customerAddress\}/gi, fullAddress)
+      .replace(/\{address\}/gi, fullAddress)
+      .replace(/\{city\}/gi, data.customerCity || 'غير محدد')
+      .replace(/\{notesSection\}/gi, notesSection)
+      .replace(/\{notes\}/gi, data.notes || 'لا يوجد')
+      .replace(/\{itemsSummary\}/gi, itemsSummary)
+      .replace(/\{items\}/gi, itemsSummary)
+      .replace(/\{subtotal\}/gi, subtotal.toString())
+      .replace(/\{couponSection\}/gi, couponSection)
+      .replace(/\{discount\}/gi, discountAmount.toString())
+      .replace(/\{shippingFee\}/gi, shippingFee === 0 ? 'مجاني 🔥' : `${shippingFee}`)
+      .replace(/\{totalAmount\}/gi, totalAmount.toString())
+      .replace(/\{total\}/gi, totalAmount.toString())
+      .replace(/\{currency\}/gi, currency)
+      .replace(/\{supportEmail\}/gi, db.settings.support_email || 'الدعم الفني');
+
+    const cleanWaNumber = (db.settings.whatsapp_number || '+201012345678').replace(/[^0-9]/g, '');
+    const whatsappUrl = `https://wa.me/${cleanWaNumber}?text=${encodeURIComponent(formattedMessage)}`;
+
+    MockService.addAuditLog(
+      'CREATE',
+      'ORDER',
+      newOrder.id,
+      `New order #${orderNumber} placed by ${data.customerName} for ${totalAmount} ${currency}`,
+      { orderNumber, totalAmount, customerName: data.customerName, itemsCount: orderItems.length },
+    );
 
     return {
       order: newOrder,
       whatsappUrl,
-      whatsappMessage: msg,
+      whatsappMessage: formattedMessage,
     };
   }
 
   static async deleteOrder(id: string) {
     const db = loadDB();
+    const ord = db.orders.find((o) => o.id === id);
     db.orders = db.orders.filter((o) => o.id !== id);
     saveDB(db);
+    MockService.addAuditLog('DELETE', 'ORDER', id, `Deleted order #${ord?.orderNumber || id}`);
     return { message: 'Order deleted successfully' };
   }
 
-  static async updateOrderStatus(id: string, status: OrderStatus): Promise<Order> {
-    const db = loadDB();
-    const idx = db.orders.findIndex((o) => o.id === id);
-    if (idx !== -1) {
-      db.orders[idx].status = status;
-      db.orders[idx].updatedAt = new Date().toISOString();
-      saveDB(db);
-      return db.orders[idx];
-    }
-    throw new Error('Order not found');
-  }
-
   // --- Settings ---
-  static async getPublicSettings(): Promise<StoreSettings> {
+  static async getSettings(): Promise<StoreSettings> {
     const db = loadDB();
-    return { ...INITIAL_SETTINGS, ...(db.settings || {}) };
+    return db.settings;
   }
 
-  static async getAllSettings(): Promise<{ id: string; key: string; value: string; group: string }[]> {
+  static async updateSettings(settings: Partial<StoreSettings>): Promise<StoreSettings> {
     const db = loadDB();
-    const merged = { ...INITIAL_SETTINGS, ...(db.settings || {}) };
-    return Object.entries(merged).map(([key, value], idx) => ({
-      id: 'set-' + idx,
-      key,
-      value: value !== undefined && value !== null ? String(value) : '',
-      group: 'GENERAL',
-    }));
+    db.settings = { ...db.settings, ...settings };
+    saveDB(db);
+    MockService.addAuditLog('UPDATE', 'SETTINGS', 'global', 'Updated general store settings & branding', { settings });
+    return db.settings;
   }
 
-  static async updateSetting(key: string, value: string) {
+  static async updateSingleSetting(key: string, value: string, _category = 'GENERAL') {
     const db = loadDB();
-    if (!db.settings) db.settings = { ...INITIAL_SETTINGS };
     db.settings[key] = value;
     saveDB(db);
-    return { success: true };
+    MockService.addAuditLog('UPDATE', 'SETTINGS', key, `Updated setting '${key}'`, { key, value });
+    return { key, value };
   }
 
   // --- CMS ---
@@ -766,18 +836,11 @@ export class MockService {
     const db = loadDB();
     const idx = db.cmsSections.findIndex((s) => s.key === key);
     if (idx !== -1) {
-      db.cmsSections[idx] = {
-        ...db.cmsSections[idx],
-        ...data,
-        payload: {
-          ...(db.cmsSections[idx].payload || {}),
-          ...(data.payload || {}),
-        },
-      };
+      db.cmsSections[idx] = { ...db.cmsSections[idx], ...data };
       saveDB(db);
+      MockService.addAuditLog('UPDATE', 'CMS', key, `Updated CMS section '${key}'`, { data });
       return db.cmsSections[idx];
     }
-    // If section not found by key, create it
     const newSec: CMSSection = {
       id: 'cms-' + Date.now(),
       key,
@@ -792,6 +855,7 @@ export class MockService {
     };
     db.cmsSections.push(newSec);
     saveDB(db);
+    MockService.addAuditLog('CREATE', 'CMS', key, `Created CMS section '${key}'`, { data });
     return newSec;
   }
 
@@ -816,13 +880,16 @@ export class MockService {
     };
     db.discounts.push(newDisc);
     saveDB(db);
+    MockService.addAuditLog('CREATE', 'DISCOUNT', newDisc.id, `Created discount '${newDisc.nameAr}' (${newDisc.value}%)`, { discount: newDisc });
     return newDisc;
   }
 
   static async deleteDiscount(id: string) {
     const db = loadDB();
-    db.discounts = db.discounts.filter((d) => d.id !== id);
+    const d = db.discounts.find((disc) => disc.id === id);
+    db.discounts = db.discounts.filter((disc) => disc.id !== id);
     saveDB(db);
+    MockService.addAuditLog('DELETE', 'DISCOUNT', id, `Deleted discount '${d?.nameAr || id}'`);
     return { message: 'Discount deleted' };
   }
 
@@ -839,20 +906,6 @@ export class MockService {
           u.email.toLowerCase().includes(q) ||
           (u.phone && u.phone.includes(q)),
       );
-    }
-
-    if (params?.role) {
-      filtered = filtered.filter((u) => {
-        if (Array.isArray(u.roles)) {
-          return u.roles.some((r) => (typeof r === 'string' ? r === params.role : r.name === params.role));
-        }
-        return false;
-      });
-    }
-
-    if (params?.isActive !== undefined) {
-      const activeFilter = params.isActive === 'true' || params.isActive === true;
-      filtered = filtered.filter((u) => u.isActive === activeFilter);
     }
 
     const page = Number(params?.page) || 1;
@@ -886,6 +939,7 @@ export class MockService {
     };
     db.users.push(newUser);
     saveDB(db);
+    MockService.addAuditLog('CREATE', 'USER', newUser.id, `Created admin user '${newUser.fullName}' (${newUser.email})`);
     return newUser;
   }
 
@@ -899,6 +953,7 @@ export class MockService {
         roles: data.roleIds ? data.roleIds : (data.roles || db.users[idx].roles),
       };
       saveDB(db);
+      MockService.addAuditLog('UPDATE', 'USER', id, `Updated user '${db.users[idx].fullName}'`);
       return db.users[idx];
     }
     throw new Error('User not found');
@@ -909,8 +964,10 @@ export class MockService {
     if (db.users.length <= 1) {
       throw new Error('لا يمكن حذف المستخدم الرئيسي الوحيد في النظام');
     }
-    db.users = db.users.filter((u) => u.id !== id);
+    const u = db.users.find((user) => user.id === id);
+    db.users = db.users.filter((user) => user.id !== id);
     saveDB(db);
+    MockService.addAuditLog('DELETE', 'USER', id, `Deleted user '${u?.fullName || id}'`);
     return { message: 'User deleted successfully' };
   }
 
@@ -950,7 +1007,7 @@ export class MockService {
       completedOrders,
       totalCategories: db.categories.length,
       totalUsers: db.users.length,
-      totalRevenue: totalRevenue || 1300,
+      totalRevenue: totalRevenue,
       currency: db.settings.currency || 'EGP',
       recentOrders: db.orders.slice(0, 5).map((o) => ({
         id: o.id,
@@ -975,7 +1032,7 @@ export class MockService {
     };
   }
 
-  // --- Media & Audit ---
+  // --- Media ---
   static async getMedia(_params?: any) {
     const db = loadDB();
     return {
@@ -1000,6 +1057,7 @@ export class MockService {
     };
     db.media.unshift(item);
     saveDB(db);
+    MockService.addAuditLog('CREATE', 'MEDIA', item.id, `Uploaded media: ${item.url}`);
     return item;
   }
 
@@ -1007,25 +1065,458 @@ export class MockService {
     const db = loadDB();
     db.media = db.media.filter((m) => m.id !== id);
     saveDB(db);
+    MockService.addAuditLog('DELETE', 'MEDIA', id, `Deleted media item #${id}`);
     return { message: 'Deleted' };
   }
 
-  static async getAuditLogs(_params?: any) {
+  // --- Audit Logs ---
+  static async getAuditLogs(params?: any): Promise<PaginatedResult<AuditLog>> {
     const db = loadDB();
+    let filtered = [...db.auditLogs];
+
+    if (params?.entity) {
+      filtered = filtered.filter((l) => l.entity.toLowerCase() === params.entity.toLowerCase());
+    }
+    if (params?.action) {
+      filtered = filtered.filter((l) => l.action.toLowerCase() === params.action.toLowerCase());
+    }
+    if (params?.search) {
+      const q = params.search.toLowerCase().trim();
+      filtered = filtered.filter(
+        (l) =>
+          l.entity.toLowerCase().includes(q) ||
+          l.action.toLowerCase().includes(q) ||
+          (l.details && l.details.toLowerCase().includes(q)) ||
+          (l.user?.fullName && l.user.fullName.toLowerCase().includes(q)) ||
+          (l.ipAddress && l.ipAddress.includes(q)),
+      );
+    }
+
+    const page = Number(params?.page) || 1;
+    const limit = Number(params?.limit) || 20;
+    const total = filtered.length;
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    const items = filtered.slice((page - 1) * limit, page * limit);
+
     return {
-      items: db.auditLogs,
-      total: db.auditLogs.length,
-      page: 1,
-      limit: 20,
-      totalPages: 1,
-      hasNextPage: false,
-      hasPreviousPage: false,
+      items,
+      total,
+      page,
+      limit,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
     };
+  }
+
+  static async clearAuditLogs() {
+    const db = loadDB();
+    db.auditLogs = [];
+    saveDB(db);
+    return { message: 'تم مسح سجل العمليات بنجاح' };
+  }
+
+  // --- Analytics & Visitor Tracking ---
+  static async recordVisitorHit(data: {
+    sessionId: string;
+    visitorId: string;
+    ipAddress: string;
+    deviceType: string;
+    browser: string;
+    os: string;
+    screenResolution?: string;
+    referrer: string;
+    utmSource?: string;
+    utmMedium?: string;
+    utmCampaign?: string;
+    utmContent?: string;
+    utmTerm?: string;
+    currentPath: string;
+  }) {
+    const db = loadDB();
+    const now = new Date().toISOString();
+    const existingIdx = db.visitorSessions.findIndex((s) => s.id === data.sessionId);
+
+    if (existingIdx !== -1) {
+      const session = db.visitorSessions[existingIdx];
+      if (!session.pagesVisited.includes(data.currentPath)) {
+        session.pagesVisited.push(data.currentPath);
+      }
+      session.totalPageViews += 1;
+      session.lastSeenAt = now;
+      session.durationSeconds = Math.max(
+        5,
+        Math.round((new Date(now).getTime() - new Date(session.firstSeenAt).getTime()) / 1000),
+      );
+      db.visitorSessions[existingIdx] = session;
+    } else {
+      const newSession: VisitorSession = {
+        id: data.sessionId,
+        visitorId: data.visitorId,
+        ipAddress: data.ipAddress || '127.0.0.1',
+        country: 'مصر (EG)',
+        city: 'القاهرة / الجيزة',
+        deviceType: (data.deviceType as any) || 'mobile',
+        browser: data.browser || 'Chrome',
+        os: data.os || 'Android',
+        screenResolution: data.screenResolution,
+        referrer: data.referrer || 'Direct / مباشر',
+        utmSource: data.utmSource,
+        utmMedium: data.utmMedium,
+        utmCampaign: data.utmCampaign,
+        utmContent: data.utmContent,
+        utmTerm: data.utmTerm,
+        pagesVisited: [data.currentPath || '/'],
+        totalPageViews: 1,
+        durationSeconds: 10,
+        hasOrder: false,
+        firstSeenAt: now,
+        lastSeenAt: now,
+      };
+      db.visitorSessions.unshift(newSession);
+      if (db.visitorSessions.length > 500) {
+        db.visitorSessions = db.visitorSessions.slice(0, 500);
+      }
+    }
+
+    saveDB(db);
+    return { success: true };
+  }
+
+  static async recordAnalyticsEvent(data: {
+    sessionId: string;
+    visitorId: string;
+    ipAddress: string;
+    eventType: string;
+    path: string;
+    payload?: Record<string, unknown>;
+  }) {
+    const db = loadDB();
+    const now = new Date().toISOString();
+
+    const newEvent: AnalyticsEvent = {
+      id: 'ev-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+      sessionId: data.sessionId,
+      visitorId: data.visitorId,
+      ipAddress: data.ipAddress || '127.0.0.1',
+      eventType: data.eventType as any,
+      path: data.path,
+      payload: data.payload,
+      createdAt: now,
+    };
+
+    db.analyticsEvents.unshift(newEvent);
+    if (db.analyticsEvents.length > 1000) {
+      db.analyticsEvents = db.analyticsEvents.slice(0, 1000);
+    }
+
+    // If purchase event, update session
+    if (data.eventType === 'purchase' && data.payload?.orderNumber) {
+      const sIdx = db.visitorSessions.findIndex((s) => s.id === data.sessionId);
+      if (sIdx !== -1) {
+        db.visitorSessions[sIdx].hasOrder = true;
+        db.visitorSessions[sIdx].orderNumber = String(data.payload.orderNumber);
+      }
+    }
+
+    saveDB(db);
+    return { success: true };
+  }
+
+  static async recordAbandonedCart(data: {
+    sessionId: string;
+    visitorId: string;
+    ipAddress: string;
+    deviceType: string;
+    items: CartItem[];
+    itemsCount: number;
+    totalValue: number;
+  }) {
+    const db = loadDB();
+    const now = new Date().toISOString();
+
+    const existingIdx = db.abandonedCarts.findIndex((c) => c.sessionId === data.sessionId);
+    if (existingIdx !== -1) {
+      db.abandonedCarts[existingIdx] = {
+        ...db.abandonedCarts[existingIdx],
+        items: data.items,
+        itemsCount: data.itemsCount,
+        totalValue: data.totalValue,
+        lastActiveAt: now,
+      };
+    } else {
+      const newAbandoned: AbandonedCart = {
+        id: 'abn-' + Date.now(),
+        sessionId: data.sessionId,
+        visitorId: data.visitorId,
+        ipAddress: data.ipAddress || '127.0.0.1',
+        deviceType: data.deviceType || 'mobile',
+        items: data.items,
+        itemsCount: data.itemsCount,
+        totalValue: data.totalValue,
+        currency: db.settings.currency || 'EGP',
+        createdAt: now,
+        lastActiveAt: now,
+        isRecovered: false,
+      };
+      db.abandonedCarts.unshift(newAbandoned);
+      if (db.abandonedCarts.length > 200) {
+        db.abandonedCarts = db.abandonedCarts.slice(0, 200);
+      }
+    }
+
+    saveDB(db);
+    return { success: true };
+  }
+
+  static async getAnalyticsSummary(_timeRange?: string): Promise<AnalyticsSummary> {
+    const db = loadDB();
+    const sessions = db.visitorSessions;
+    const events = db.analyticsEvents;
+
+    const totalVisitors = sessions.length;
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const uniqueVisitorsToday = new Set(
+      sessions.filter((s) => s.firstSeenAt.startsWith(todayStr)).map((s) => s.visitorId || s.ipAddress),
+    ).size;
+
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const uniqueVisitorsThisWeek = new Set(
+      sessions.filter((s) => s.firstSeenAt >= sevenDaysAgo).map((s) => s.visitorId || s.ipAddress),
+    ).size;
+
+    const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    const liveVisitorsNow = sessions.filter((s) => s.lastSeenAt >= fiveMinsAgo).length;
+
+    const totalPageViews = sessions.reduce((acc, s) => acc + (s.totalPageViews || 1), 0);
+    const singlePageSessions = sessions.filter((s) => (s.pagesVisited?.length || 1) <= 1).length;
+    const bounceRate = totalVisitors > 0 ? Math.round((singlePageSessions / totalVisitors) * 100) : 0;
+
+    const totalDuration = sessions.reduce((acc, s) => acc + (s.durationSeconds || 10), 0);
+    const avgSessionDurationSeconds = totalVisitors > 0 ? Math.round(totalDuration / totalVisitors) : 0;
+
+    // Abandoned carts
+    const pendingAbandoned = db.abandonedCarts.filter((c) => !c.isRecovered);
+    const abandonedCartsCount = pendingAbandoned.length;
+    const abandonedCartsValue = pendingAbandoned.reduce((sum, c) => sum + (c.totalValue || 0), 0);
+
+    // Top Visited Pages
+    const pageCounts: Record<string, number> = {};
+    sessions.forEach((s) => {
+      s.pagesVisited.forEach((p) => {
+        pageCounts[p] = (pageCounts[p] || 0) + 1;
+      });
+    });
+    const topVisitedPages = Object.entries(pageCounts)
+      .map(([path, views]) => ({ path, views }))
+      .sort((a, b) => b.views - a.views)
+      .slice(0, 8);
+
+    // Top Viewed Products
+    const productViews: Record<string, { nameAr: string; views: number; addToCartCount: number }> = {};
+    events.forEach((ev) => {
+      if (ev.eventType === 'view_product' && ev.payload?.productId) {
+        const pid = String(ev.payload.productId);
+        if (!productViews[pid]) {
+          productViews[pid] = { nameAr: String(ev.payload.productNameAr || 'منتج'), views: 0, addToCartCount: 0 };
+        }
+        productViews[pid].views += 1;
+      }
+      if (ev.eventType === 'add_to_cart' && ev.payload?.productId) {
+        const pid = String(ev.payload.productId);
+        if (!productViews[pid]) {
+          productViews[pid] = { nameAr: String(ev.payload.productName || 'منتج'), views: 0, addToCartCount: 0 };
+        }
+        productViews[pid].addToCartCount += 1;
+      }
+    });
+
+    const topViewedProducts = Object.entries(productViews)
+      .map(([productId, data]) => ({ productId, ...data }))
+      .sort((a, b) => b.views - a.views)
+      .slice(0, 6);
+
+    // Traffic Sources
+    const sourceCounts: Record<string, { visitors: number; ordersCount: number }> = {};
+    sessions.forEach((s) => {
+      const src = s.referrer || 'Direct / مباشر';
+      if (!sourceCounts[src]) sourceCounts[src] = { visitors: 0, ordersCount: 0 };
+      sourceCounts[src].visitors += 1;
+      if (s.hasOrder) sourceCounts[src].ordersCount += 1;
+    });
+
+    const trafficSources = Object.entries(sourceCounts).map(([source, data]) => ({
+      source,
+      visitors: data.visitors,
+      ordersCount: data.ordersCount,
+      percentage: totalVisitors > 0 ? Math.round((data.visitors / totalVisitors) * 100) : 0,
+    })).sort((a, b) => b.visitors - a.visitors);
+
+    // Campaigns (UTM)
+    const campaignCounts: Record<string, { source: string; visitors: number; ordersCount: number; revenue: number }> = {};
+    sessions.forEach((s) => {
+      if (s.utmCampaign) {
+        const cKey = s.utmCampaign;
+        if (!campaignCounts[cKey]) {
+          campaignCounts[cKey] = { source: s.utmSource || 'Campaign', visitors: 0, ordersCount: 0, revenue: 0 };
+        }
+        campaignCounts[cKey].visitors += 1;
+        if (s.hasOrder) {
+          campaignCounts[cKey].ordersCount += 1;
+          const matchedOrder = db.orders.find((o) => o.orderNumber === s.orderNumber);
+          if (matchedOrder) campaignCounts[cKey].revenue += Number(matchedOrder.totalAmount);
+        }
+      }
+    });
+
+    const campaigns = Object.entries(campaignCounts).map(([campaign, data]) => ({
+      campaign,
+      ...data,
+    })).sort((a, b) => b.visitors - a.visitors);
+
+    // Devices, OS, Browsers Breakdown
+    const devMap: Record<string, number> = {};
+    const osMap: Record<string, number> = {};
+    const broMap: Record<string, number> = {};
+
+    sessions.forEach((s) => {
+      devMap[s.deviceType] = (devMap[s.deviceType] || 0) + 1;
+      osMap[s.os] = (osMap[s.os] || 0) + 1;
+      broMap[s.browser] = (broMap[s.browser] || 0) + 1;
+    });
+
+    const deviceBreakdown = Object.entries(devMap).map(([device, count]) => ({
+      device,
+      count,
+      percentage: totalVisitors > 0 ? Math.round((count / totalVisitors) * 100) : 0,
+    }));
+
+    const osBreakdown = Object.entries(osMap).map(([os, count]) => ({
+      os,
+      count,
+      percentage: totalVisitors > 0 ? Math.round((count / totalVisitors) * 100) : 0,
+    }));
+
+    const browserBreakdown = Object.entries(broMap).map(([browser, count]) => ({
+      browser,
+      count,
+      percentage: totalVisitors > 0 ? Math.round((count / totalVisitors) * 100) : 0,
+    }));
+
+    return {
+      totalVisitors,
+      uniqueVisitorsToday,
+      uniqueVisitorsThisWeek,
+      liveVisitorsNow,
+      totalPageViews,
+      bounceRate,
+      avgSessionDurationSeconds,
+      abandonedCartsCount,
+      abandonedCartsValue,
+      topVisitedPages,
+      topViewedProducts,
+      trafficSources,
+      campaigns,
+      deviceBreakdown,
+      osBreakdown,
+      browserBreakdown,
+    };
+  }
+
+  static async getVisitorSessions(params?: any): Promise<PaginatedResult<VisitorSession>> {
+    const db = loadDB();
+    let filtered = [...db.visitorSessions];
+
+    if (params?.source) {
+      filtered = filtered.filter((s) => s.referrer.toLowerCase().includes(params.source.toLowerCase()));
+    }
+
+    if (params?.search) {
+      const q = params.search.toLowerCase().trim();
+      filtered = filtered.filter(
+        (s) =>
+          s.ipAddress.includes(q) ||
+          s.browser.toLowerCase().includes(q) ||
+          s.os.toLowerCase().includes(q) ||
+          s.referrer.toLowerCase().includes(q) ||
+          (s.utmCampaign && s.utmCampaign.toLowerCase().includes(q)),
+      );
+    }
+
+    const page = Number(params?.page) || 1;
+    const limit = Number(params?.limit) || 20;
+    const total = filtered.length;
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    const items = filtered.slice((page - 1) * limit, page * limit);
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
+    };
+  }
+
+  static async getAnalyticsEvents(params?: any): Promise<PaginatedResult<AnalyticsEvent>> {
+    const db = loadDB();
+    let filtered = [...db.analyticsEvents];
+
+    if (params?.eventType) {
+      filtered = filtered.filter((e) => e.eventType === params.eventType);
+    }
+
+    const page = Number(params?.page) || 1;
+    const limit = Number(params?.limit) || 25;
+    const total = filtered.length;
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    const items = filtered.slice((page - 1) * limit, page * limit);
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
+    };
+  }
+
+  static async getAbandonedCarts(params?: any): Promise<PaginatedResult<AbandonedCart>> {
+    const db = loadDB();
+    const page = Number(params?.page) || 1;
+    const limit = Number(params?.limit) || 20;
+    const total = db.abandonedCarts.length;
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    const items = db.abandonedCarts.slice((page - 1) * limit, page * limit);
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
+    };
+  }
+
+  static async clearAnalyticsLogs() {
+    const db = loadDB();
+    db.visitorSessions = [];
+    db.analyticsEvents = [];
+    db.abandonedCarts = [];
+    saveDB(db);
+    return { message: 'تم مسح سجلات وبيانات الزوار بنجاح' };
   }
 
   // --- Backup & Restore ---
   static async exportBackup() {
     const db = loadDB();
+    MockService.addAuditLog('EXPORT_BACKUP', 'SYSTEM', 'backup', 'Exported complete store database backup');
     return {
       version: '1.0.0',
       exportedAt: new Date().toISOString(),
@@ -1053,9 +1544,13 @@ export class MockService {
       users: Array.isArray(importedData.users) ? importedData.users : [INITIAL_USER],
       media: Array.isArray(importedData.media) ? importedData.media : [],
       auditLogs: Array.isArray(importedData.auditLogs) ? importedData.auditLogs : [],
+      visitorSessions: Array.isArray(importedData.visitorSessions) ? importedData.visitorSessions : [],
+      analyticsEvents: Array.isArray(importedData.analyticsEvents) ? importedData.analyticsEvents : [],
+      abandonedCarts: Array.isArray(importedData.abandonedCarts) ? importedData.abandonedCarts : [],
     };
 
     saveDB(newDb);
+    MockService.addAuditLog('RESTORE_BACKUP', 'SYSTEM', 'backup', 'Restored store from backup file');
     return {
       success: true,
       message: 'Backup restored successfully',
@@ -1081,12 +1576,12 @@ export class MockService {
       users: [INITIAL_USER],
       media: [],
       auditLogs: [],
+      visitorSessions: [],
+      analyticsEvents: [],
+      abandonedCarts: [],
     };
     saveDB(initial);
+    MockService.addAuditLog('RESET_DEFAULTS', 'SYSTEM', 'reset', 'Reset store to initial factory defaults');
     return { success: true, message: 'Database reset to factory defaults' };
   }
-}
-
-function allItems<T>(arr: T[]): T[] {
-  return [...arr];
 }

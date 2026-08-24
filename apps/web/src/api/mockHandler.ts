@@ -194,8 +194,38 @@ export async function handleMockRequest<T>(endpoint: string, options: RequestOpt
 
   // --- Audit ---
   if (cleanEndpoint === '/audit') {
+    if (method === 'DELETE') {
+      return (await MockService.clearAuditLogs()) as unknown as T;
+    }
     return (await MockService.getAuditLogs(params)) as unknown as T;
+  }
+
+  // --- Analytics & Visitor Tracking ---
+  if (cleanEndpoint === '/analytics/hit' && method === 'POST') {
+    return (await MockService.recordVisitorHit(body)) as unknown as T;
+  }
+  if (cleanEndpoint === '/analytics/event' && method === 'POST') {
+    return (await MockService.recordAnalyticsEvent(body)) as unknown as T;
+  }
+  if (cleanEndpoint === '/analytics/abandoned-cart' && method === 'POST') {
+    return (await MockService.recordAbandonedCart(body)) as unknown as T;
+  }
+  if (cleanEndpoint === '/analytics/summary') {
+    return (await MockService.getAnalyticsSummary(params.timeRange)) as unknown as T;
+  }
+  if (cleanEndpoint === '/analytics/sessions') {
+    return (await MockService.getVisitorSessions(params)) as unknown as T;
+  }
+  if (cleanEndpoint === '/analytics/events') {
+    return (await MockService.getAnalyticsEvents(params)) as unknown as T;
+  }
+  if (cleanEndpoint === '/analytics/abandoned-carts') {
+    return (await MockService.getAbandonedCarts(params)) as unknown as T;
+  }
+  if (cleanEndpoint === '/analytics/clear' && method === 'DELETE') {
+    return (await MockService.clearAnalyticsLogs()) as unknown as T;
   }
 
   throw new Error(`Unhandled mock route: ${cleanEndpoint}`);
 }
+

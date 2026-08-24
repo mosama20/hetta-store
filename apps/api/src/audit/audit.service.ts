@@ -78,4 +78,10 @@ export class AuditService {
       hasPreviousPage: page > 1,
     };
   }
+
+  async clearAll() {
+    await this.prisma.auditLog.deleteMany({});
+    return { message: 'Audit logs cleared successfully' };
+  }
 }
+

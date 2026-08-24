@@ -228,6 +228,95 @@ export interface PaginatedResult<T> {
   hasPreviousPage: boolean;
 }
 
+export interface VisitorSession {
+  id: string;
+  visitorId: string;
+  ipAddress: string;
+  country?: string;
+  city?: string;
+  deviceType: 'mobile' | 'desktop' | 'tablet';
+  browser: string;
+  os: string;
+  screenResolution?: string;
+  referrer: string;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
+  utmContent?: string;
+  utmTerm?: string;
+  pagesVisited: string[];
+  totalPageViews: number;
+  durationSeconds: number;
+  hasOrder: boolean;
+  orderNumber?: string;
+  firstSeenAt: string;
+  lastSeenAt: string;
+}
+
+export interface AnalyticsEvent {
+  id: string;
+  sessionId: string;
+  visitorId: string;
+  ipAddress: string;
+  eventType:
+    | 'page_view'
+    | 'view_product'
+    | 'add_to_cart'
+    | 'remove_from_cart'
+    | 'initiate_checkout'
+    | 'purchase'
+    | 'abandoned_cart';
+  path: string;
+  payload?: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface AbandonedCart {
+  id: string;
+  sessionId: string;
+  visitorId: string;
+  ipAddress: string;
+  deviceType: string;
+  items: CartItem[];
+  itemsCount: number;
+  totalValue: number;
+  currency: string;
+  lastActiveAt: string;
+  createdAt: string;
+  isRecovered: boolean;
+}
+
+export interface AnalyticsSummary {
+  totalVisitors: number;
+  uniqueVisitorsToday: number;
+  uniqueVisitorsThisWeek: number;
+  liveVisitorsNow: number;
+  totalPageViews: number;
+  bounceRate: number;
+  avgSessionDurationSeconds: number;
+  abandonedCartsCount: number;
+  abandonedCartsValue: number;
+  topVisitedPages: { path: string; views: number }[];
+  topViewedProducts: { productId: string; nameAr: string; views: number; addToCartCount: number }[];
+  trafficSources: { source: string; visitors: number; percentage: number; ordersCount: number }[];
+  campaigns: { campaign: string; source: string; visitors: number; ordersCount: number; revenue: number }[];
+  deviceBreakdown: { device: string; count: number; percentage: number }[];
+  osBreakdown: { os: string; count: number; percentage: number }[];
+  browserBreakdown: { browser: string; count: number; percentage: number }[];
+}
+
+export interface AuditLog {
+  id: string;
+  action: string;
+  entity: string;
+  entityId: string;
+  details?: string;
+  payload?: Record<string, unknown>;
+  user?: { id?: string; fullName?: string; email?: string };
+  ipAddress?: string;
+  createdAt: string;
+}
+
 export interface ApiResponse<T> {
   success: boolean;
   data: T;
@@ -238,3 +327,4 @@ export interface ApiResponse<T> {
   };
   timestamp: string;
 }
+

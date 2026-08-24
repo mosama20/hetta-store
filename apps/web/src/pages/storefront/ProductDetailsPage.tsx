@@ -12,6 +12,7 @@ import { EmptyState } from '../../components/common/EmptyState.js';
 import { ProductCard } from '../../components/storefront/ProductCard.js';
 import { SizeGuideModal } from '../../components/storefront/SizeGuideModal.js';
 import { ShoppingBag, Check, ShieldCheck, Truck, RefreshCw, ChevronRight, Ruler } from 'lucide-react';
+import { analyticsTracker } from '../../utils/analyticsTracker.js';
 
 import { STORE_SYNC_EVENT } from '../../store/settingsStore.js';
 
@@ -37,6 +38,7 @@ export const ProductDetailsPage: React.FC = () => {
       .getBySlug(slug)
       .then((data) => {
         setProduct(data);
+        analyticsTracker.trackViewProduct(data);
         if (data.images.length > 0) {
           const primary = data.images.find((img) => img.isPrimary) || data.images[0];
           setSelectedImage(primary.url);
@@ -121,6 +123,14 @@ export const ProductDetailsPage: React.FC = () => {
     const color = colorMap.get(selectedColorId)!;
     const size = sizeMap.get(selectedSizeId)!;
     addItem(product, currentVariant, color, size, quantity);
+    analyticsTracker.trackAddToCart({
+      variantId: currentVariant.id,
+      product,
+      variant: currentVariant,
+      selectedColor: color,
+      selectedSize: size,
+      quantity,
+    });
     setIsAdded(true);
     setTimeout(() => setIsAdded(false), 2000);
   };

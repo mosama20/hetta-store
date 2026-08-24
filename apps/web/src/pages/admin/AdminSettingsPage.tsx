@@ -351,20 +351,39 @@ export const AdminSettingsPage: React.FC = () => {
           </div>
 
           <div className="space-y-2">
-            <label className="block text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-300">
-              {isArabic ? 'قالب رسالة تأكيد الطلب على واتساب' : 'WhatsApp Order Message Template'}
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-300">
+                {isArabic ? 'قالب رسالة تأكيد الطلب على واتساب (WhatsApp Template)' : 'WhatsApp Order Message Template'}
+              </label>
+              <span className="text-[10px] text-zinc-400">
+                {isArabic ? 'يدعم كافة بيانات الطلب والعميل' : 'Supports all order & customer variables'}
+              </span>
+            </div>
             <textarea
-              rows={5}
+              rows={8}
               value={whatsappTemplate}
               onChange={(e) => setWhatsappTemplate(e.target.value)}
-              placeholder={
-                isArabic
-                  ? 'مرحباً، أود تأكيد طلبي من المتجر:\nالطلب رقم: {orderNumber}\nالاسم: {customerName}\nالعنوان: {customerAddress}\n\nالمنتجات:\n{itemsSummary}\n\nالإجمالي: {total} {currency}'
-                  : 'Hello, I want to confirm my order:\nOrder: {orderNumber}\nName: {customerName}\nAddress: {customerAddress}\n\nItems:\n{itemsSummary}\n\nTotal: {total} {currency}'
-              }
-              className="w-full font-mono text-xs px-3.5 py-2.5 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-xl text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 transition"
+              placeholder="🛍️ تأكيد طلب جديد من متجر {storeName}..."
+              className="w-full font-mono text-xs px-3.5 py-2.5 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-xl text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 transition leading-relaxed"
             />
+            <div className="p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl space-y-1.5 border border-zinc-200 dark:border-zinc-800">
+              <span className="text-[11px] font-bold text-zinc-600 dark:text-zinc-300 block">
+                {isArabic ? '💡 المتغيرات التلقائية المتاحة:' : 'Available Dynamic Variables:'}
+              </span>
+              <div className="flex flex-wrap gap-1.5 font-mono text-[10px]">
+                {['{storeName}', '{orderNumber}', '{orderDate}', '{customerName}', '{customerPhone}', '{city}', '{customerAddress}', '{notesSection}', '{itemsSummary}', '{subtotal}', '{couponSection}', '{shippingFee}', '{total}', '{currency}'].map((token) => (
+                  <button
+                    key={token}
+                    type="button"
+                    onClick={() => setWhatsappTemplate((prev) => prev + ` ${token} `)}
+                    className="px-2 py-0.5 rounded bg-zinc-200 dark:bg-zinc-700 text-zinc-800 dark:text-zinc-200 hover:bg-amber-500 hover:text-black transition"
+                    title={isArabic ? 'انقر للإضافة' : 'Click to insert'}
+                  >
+                    {token}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           <Input

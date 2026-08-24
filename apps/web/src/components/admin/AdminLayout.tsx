@@ -12,6 +12,7 @@ import {
   Settings,
   Image,
   ScrollText,
+  BarChart3,
   LogOut,
   Globe,
   Sun,
@@ -38,6 +39,12 @@ export const AdminLayout: React.FC = () => {
 
   const navItems = [
     { label: isArabic ? 'نظرة عامة' : 'Dashboard', path: '/admin', icon: LayoutDashboard },
+    {
+      label: isArabic ? 'إحصائيات الزوار والتسويق' : 'Visitor Analytics',
+      path: '/admin/analytics',
+      icon: BarChart3,
+      perm: 'audit.read',
+    },
     {
       label: isArabic ? 'المنتجات والمخزون' : 'Products',
       path: '/admin/products',

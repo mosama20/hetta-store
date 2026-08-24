@@ -36,6 +36,8 @@ import { AdminCmsPage } from '../pages/admin/AdminCmsPage.js';
 import { AdminSettingsPage } from '../pages/admin/AdminSettingsPage.js';
 import { AdminMediaPage } from '../pages/admin/AdminMediaPage.js';
 import { AdminAuditLogsPage } from '../pages/admin/AdminAuditLogsPage.js';
+import { AdminAnalyticsPage } from '../pages/admin/AdminAnalyticsPage.js';
+import { useAnalyticsTracker } from '../hooks/useAnalyticsTracker.js';
 
 // Scroll to top helper
 function ScrollToTop() {
@@ -71,6 +73,9 @@ function ProtectedAdminRoute() {
 }
 
 export const AppRoutes: React.FC = () => {
+  // Global automatic visitor and behavioral analytics tracker
+  useAnalyticsTracker();
+
   return (
     <>
       <ScrollToTop />
@@ -97,6 +102,7 @@ export const AppRoutes: React.FC = () => {
         {/* Protected Admin Routes */}
         <Route path="/admin" element={<ProtectedAdminRoute />}>
           <Route index element={<AdminDashboardPage />} />
+          <Route path="analytics" element={<AdminAnalyticsPage />} />
           <Route path="products" element={<AdminProductsPage />} />
           <Route path="products/new" element={<AdminProductFormPage />} />
           <Route path="products/:id" element={<AdminProductFormPage />} />

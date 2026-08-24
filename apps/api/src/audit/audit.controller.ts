@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Delete, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuditService } from './audit.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -23,4 +23,12 @@ export class AuditController {
   ) {
     return this.auditService.findAll({ page, limit, entity, action });
   }
+
+  @Delete()
+  @RequirePermissions('audit.delete')
+  @ApiOperation({ summary: 'Clear administrative audit trail' })
+  async clearAll() {
+    return this.auditService.clearAll();
+  }
 }
+
