@@ -10,7 +10,8 @@ import { Select } from '../../components/common/Select.js';
 import { Card } from '../../components/common/Card.js';
 import { Modal } from '../../components/common/Modal.js';
 import { LoadingState } from '../../components/common/LoadingState.js';
-import { Plus, Trash2, Edit2 } from 'lucide-react';
+import { ImageUploader } from '../../components/common/ImageUploader.js';
+import { Plus, Trash2, Edit2, Image as ImageIcon } from 'lucide-react';
 import { triggerStoreSync } from '../../store/settingsStore.js';
 
 export const AdminCategoriesPage: React.FC = () => {
@@ -24,6 +25,7 @@ export const AdminCategoriesPage: React.FC = () => {
   const [nameEn, setNameEn] = useState('');
   const [slug, setSlug] = useState('');
   const [parentId, setParentId] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
 
   const fetchCategories = () => {
     setIsLoading(true);
@@ -46,6 +48,7 @@ export const AdminCategoriesPage: React.FC = () => {
     setNameEn('');
     setSlug('');
     setParentId('');
+    setImageUrl('');
     setModalOpen(true);
   };
 
@@ -55,6 +58,7 @@ export const AdminCategoriesPage: React.FC = () => {
     setNameEn(cat.nameEn);
     setSlug(cat.slug);
     setParentId(cat.parentId || '');
+    setImageUrl(cat.imageUrl || '');
     setModalOpen(true);
   };
 
@@ -65,6 +69,7 @@ export const AdminCategoriesPage: React.FC = () => {
       nameEn,
       slug: slug || nameEn.toLowerCase().replace(/\s+/g, '-'),
       parentId: parentId || undefined,
+      imageUrl: imageUrl || undefined,
     };
 
     if (editingCat) {
@@ -125,8 +130,15 @@ export const AdminCategoriesPage: React.FC = () => {
             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
               {categories.map((c) => (
                 <tr key={c.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/40">
-                  <td className="p-3.5 font-bold text-zinc-900 dark:text-zinc-100">
-                    {getLocalized(c.nameAr, c.nameEn, isArabic)}
+                  <td className="p-3.5 font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2.5">
+                    {c.imageUrl ? (
+                      <img src={c.imageUrl} alt="" className="w-8 h-8 rounded-lg object-cover border border-zinc-200 dark:border-zinc-700 shrink-0" />
+                    ) : (
+                      <div className="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-400 shrink-0">
+                        <ImageIcon className="w-4 h-4" />
+                      </div>
+                    )}
+                    <span>{getLocalized(c.nameAr, c.nameEn, isArabic)}</span>
                   </td>
                   <td className="p-3.5 font-mono text-zinc-400">/{c.slug}</td>
                   <td className="p-3.5 text-zinc-500">
@@ -207,6 +219,13 @@ export const AdminCategoriesPage: React.FC = () => {
                 </option>
               ))}
           </Select>
+          <ImageUploader
+            label={isArabic ? 'صورة القسم (اختياري)' : 'Category Image (Optional)'}
+            value={imageUrl}
+            onChange={setImageUrl}
+            folder="categories"
+            compact
+          />
           <div className="pt-2 flex justify-end space-x-2 rtl:space-x-reverse">
             <Button type="button" variant="outline" onClick={() => setModalOpen(false)}>
               {isArabic ? 'إلغاء' : 'Cancel'}

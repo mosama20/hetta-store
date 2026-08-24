@@ -8,13 +8,14 @@ import { Card } from '../../components/common/Card.js';
 import { Button } from '../../components/common/Button.js';
 import { Input } from '../../components/common/Input.js';
 import { LoadingState } from '../../components/common/LoadingState.js';
+import { ImageUploader } from '../../components/common/ImageUploader.js';
+import { SupabaseConfigModal } from '../../components/admin/SupabaseConfigModal.js';
 import {
   Save,
   CheckCircle2,
   Sparkles,
   LayoutTemplate,
   Sliders,
-  Image as ImageIcon,
   Flame,
   Grid,
   ShieldCheck,
@@ -22,6 +23,7 @@ import {
   BookOpen,
   Eye,
   EyeOff,
+  Database,
 } from 'lucide-react';
 
 export const AdminCmsPage: React.FC = () => {
@@ -30,6 +32,7 @@ export const AdminCmsPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
+  const [showSupabaseModal, setShowSupabaseModal] = useState(false);
 
   const loadSections = () => {
     setIsLoading(true);
@@ -210,10 +213,22 @@ export const AdminCmsPage: React.FC = () => {
             : 'Toggle on/off and fully configure every homepage section (Hero, New Arrivals, Categories, Promos)'
         }
         action={
-          <Button variant="gold" size="sm" isLoading={isSaving} onClick={handleSaveAll}>
-            <Save className="w-4 h-4 mr-1.5 rtl:ml-1.5 rtl:mr-0" />
-            <span>{isArabic ? 'حفظ كافة الأقسام' : 'Save & Publish All'}</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              type="button"
+              onClick={() => setShowSupabaseModal(true)}
+              className="gap-1.5 text-xs"
+            >
+              <Database className="w-3.5 h-3.5 text-emerald-500" />
+              <span>{isArabic ? 'إعدادات Supabase' : 'Supabase Storage'}</span>
+            </Button>
+            <Button variant="gold" size="sm" isLoading={isSaving} onClick={handleSaveAll}>
+              <Save className="w-4 h-4 mr-1.5 rtl:ml-1.5 rtl:mr-0" />
+              <span>{isArabic ? 'حفظ كافة الأقسام' : 'Save & Publish All'}</span>
+            </Button>
+          </div>
         }
       />
 
@@ -294,39 +309,20 @@ export const AdminCmsPage: React.FC = () => {
               {/* HERO BANNER SPECIAL FIELDS */}
               {isHero && (
                 <div className="space-y-4 pt-1">
-                  {/* Hero Photo / Image Control */}
-                  <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 space-y-3">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
-                      <ImageIcon className="w-4 h-4 text-amber-500" />
-                      <span>{isArabic ? 'صورة الهيرو (Hero Banner Image URL)' : 'Hero Banner Image URL'}</span>
-                    </label>
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <Input
-                        placeholder="https://images.unsplash.com/... or /images/hero.jpg"
-                        value={String(payload.imageUrl || '')}
-                        onChange={(e) => updatePayloadField(section.key, 'imageUrl', e.target.value)}
-                        className="flex-1"
-                      />
-                    </div>
-                    {payload.imageUrl ? (
-                      <div className="flex items-center gap-3 pt-1">
-                        <img
-                          src={String(payload.imageUrl)}
-                          alt="Hero preview"
-                          className="w-20 h-14 object-cover rounded-lg border border-zinc-300 dark:border-zinc-700 shadow-sm"
-                        />
-                        <div className="text-[11px] text-zinc-500">
-                          <span className="text-emerald-600 font-bold">✓ {isArabic ? 'تم تعيين الصورة وتظهر بالهيرو' : 'Image configured'}</span>
-                          <p>{isArabic ? 'ستظهر هذه الصورة في الجانب الآخر من الهيرو تلقائياً.' : 'Will display beside the hero text.'}</p>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-[11px] text-zinc-400">
-                        {isArabic
-                          ? '💡 نصيحة: إذا تركت حقل الصورة فارغاً، سيتمدد النص ليملأ الهيرو بتصميم بطاقة عريض وأنيق.'
-                          : '💡 Tip: If left empty, hero text will expand in a clean, full-width layout.'}
-                      </p>
-                    )}
+                  {/* Hero Photo / Image Control via Supabase */}
+                  <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 space-y-2">
+                    <ImageUploader
+                      label={isArabic ? 'صورة الهيرو الرئيسية (Hero Banner Image)' : 'Hero Banner Image'}
+                      value={String(payload.imageUrl || '')}
+                      onChange={(url) => updatePayloadField(section.key, 'imageUrl', url)}
+                      folder="banners"
+                      aspectRatio="video"
+                    />
+                    <p className="text-[11px] text-zinc-400">
+                      {isArabic
+                        ? '💡 ملاحظة: يتم رفع الصورة مباشرة إلى Supabase CDN بدون استهلاك سيرفر المتجر. إذا تركتها فارغة سيتمدد النص بمرونة.'
+                        : '💡 Note: Uploaded directly to Supabase Storage CDN. If left blank, hero text stretches full-width.'}
+                    </p>
                   </div>
 
                   {/* Hero Badge & Buttons */}
@@ -414,10 +410,12 @@ export const AdminCmsPage: React.FC = () => {
                       value={String(payload.badgeAr || '')}
                       onChange={(e) => updatePayloadField(section.key, 'badgeAr', e.target.value)}
                     />
-                    <Input
-                      label={isArabic ? 'صورة العرض (اختياري)' : 'Promo Image URL (Optional)'}
+                    <ImageUploader
+                      label={isArabic ? 'صورة البانر الترويجي (اختياري)' : 'Promo Banner Image (Optional)'}
                       value={String(payload.imageUrl || '')}
-                      onChange={(e) => updatePayloadField(section.key, 'imageUrl', e.target.value)}
+                      onChange={(url) => updatePayloadField(section.key, 'imageUrl', url)}
+                      folder="banners"
+                      compact
                     />
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -481,6 +479,11 @@ export const AdminCmsPage: React.FC = () => {
           );
         })}
       </div>
+
+      <SupabaseConfigModal
+        isOpen={showSupabaseModal}
+        onClose={() => setShowSupabaseModal(false)}
+      />
     </div>
   );
 };

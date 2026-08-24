@@ -10,7 +10,8 @@ import { Input } from '../../components/common/Input.js';
 import { Select } from '../../components/common/Select.js';
 import { Card } from '../../components/common/Card.js';
 import { LoadingState } from '../../components/common/LoadingState.js';
-import { Plus, Trash2, Save } from 'lucide-react';
+import { MultiImageUploader, ProductImageItem } from '../../components/common/MultiImageUploader.js';
+import { Save } from 'lucide-react';
 
 export const AdminProductFormPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -286,45 +287,17 @@ export const AdminProductFormPage: React.FC = () => {
 
       {/* 2. Image Gallery */}
       <Card className="p-6 space-y-4">
-        <div className="flex items-center justify-between pb-2 border-b border-zinc-100 dark:border-zinc-800">
-          <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
-            {isArabic ? 'معرض صور المنتج' : 'Product Image Gallery'}
-          </h3>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setImages([...images, { url: '' }])}
-          >
-            <Plus className="w-3.5 h-3.5 mr-1" />
-            <span>{isArabic ? 'إضافة صورة' : 'Add Image URL'}</span>
-          </Button>
-        </div>
-
-        <div className="space-y-3">
-          {images.map((img, idx) => (
-            <div key={idx} className="flex items-center space-x-3 rtl:space-x-reverse">
-              <Input
-                placeholder="https://images.unsplash.com/..."
-                value={img.url}
-                onChange={(e) => {
-                  const updated = [...images];
-                  updated[idx].url = e.target.value;
-                  setImages(updated);
-                }}
-              />
-              {images.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => setImages(images.filter((_, i) => i !== idx))}
-                  className="p-2.5 text-zinc-400 hover:text-red-500"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
+        <MultiImageUploader
+          images={images as ProductImageItem[]}
+          onChange={(newImages) => setImages(newImages)}
+          folder="products"
+          label={isArabic ? 'معرض صور المنتج' : 'Product Image Gallery'}
+          description={
+            isArabic
+              ? 'ارفع صور المنتج مباشرة من هاتفك أو جهازك المحمول/المكتبي إلى Supabase Storage بدون تحميل على السيرفر.'
+              : 'Upload product images directly from phone or laptop to Supabase Storage with zero server load.'
+          }
+        />
       </Card>
 
       {/* 3. Variant Matrix Generator */}
