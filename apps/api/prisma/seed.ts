@@ -66,7 +66,7 @@ async function main() {
 
   // 3. Super Admin User
   const hashedPassword = await bcrypt.hash('Admin@Fashion2026!', 12);
-  const adminEmails = ['admin@fashionstore.com', 'admin@craftwear.com'];
+  const adminEmails = ['aymanmossad08@gmail.com', 'admin@fashionstore.com', 'admin@craftwear.com'];
   for (const adminEmail of adminEmails) {
     const superAdmin = await prisma.user.upsert({
       where: { email: adminEmail },
