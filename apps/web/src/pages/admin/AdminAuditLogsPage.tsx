@@ -14,7 +14,6 @@ import {
   Trash2,
   RefreshCw,
   Search,
-  Filter,
   ShieldCheck,
   Eye,
   CheckCircle2,
@@ -213,7 +212,7 @@ export const AdminAuditLogsPage: React.FC = () => {
           <div className="p-8 text-center">
             <EmptyState
               title={isArabic ? 'لا توجد سجلات مطابقة' : 'No Audit Logs Found'}
-              description={
+              message={
                 isArabic
                   ? 'لم يتم تسجيل أي عمليات بعد أو لا توجد نتائج مطابقة لخيارات الفلترة الحالية.'
                   : 'No administrative actions have been logged yet matching your filters.'

@@ -1,5 +1,3 @@
-import { handleMockRequest } from './mockHandler.js';
-
 const API_BASE_URL =
   import.meta.env.VITE_API_URL ||
   (typeof window !== 'undefined'
@@ -105,15 +103,10 @@ export async function apiClient<T>(endpoint: string, options: RequestOptions = {
   }
 
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2500); // 2.5s quick timeout for offline fallback
-
     const response = await fetch(url, {
       ...options,
       headers,
-      signal: controller.signal,
     });
-    clearTimeout(timeoutId);
 
     // Handle 401 Unauthorized token refresh
     if (response.status === 401 && refreshToken && !endpoint.includes('/auth/')) {
@@ -132,11 +125,6 @@ export async function apiClient<T>(endpoint: string, options: RequestOptions = {
     }
 
     if (!response.ok) {
-      // If server returns 404/500/502/503 or backend is not ready, fallback to mock
-      if (response.status >= 500 || response.status === 404) {
-        return await handleMockRequest<T>(endpoint, options);
-      }
-
       let errorMsg = `HTTP Error ${response.status}: ${response.statusText}`;
       let errorCode = 'HTTP_ERROR';
       let errorDetails: unknown = undefined;
@@ -162,8 +150,15 @@ export async function apiClient<T>(endpoint: string, options: RequestOptions = {
     const json = await response.json();
     return json.data !== undefined ? json.data : json;
   } catch (err: unknown) {
-    // If network error, abort, connection refused -> Transparently fallback to Mock Service
-    return await handleMockRequest<T>(endpoint, options);
+    if (err instanceof ApiError) {
+      throw err;
+    }
+    throw new ApiError(
+      0,
+      err instanceof Error ? err.message : 'Network error or service unavailable',
+      'NETWORK_ERROR',
+      err,
+    );
   }
 }
 

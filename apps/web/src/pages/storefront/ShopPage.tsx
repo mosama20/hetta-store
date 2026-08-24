@@ -12,8 +12,6 @@ import { Select } from '../../components/common/Select.js';
 import { Input } from '../../components/common/Input.js';
 import { SlidersHorizontal, RotateCcw } from 'lucide-react';
 
-import { STORE_SYNC_EVENT } from '../../store/settingsStore.js';
-
 export const ShopPage: React.FC = () => {
   const { isArabic } = useTheme();
   const [searchParams, setSearchParams] = useSearchParams();

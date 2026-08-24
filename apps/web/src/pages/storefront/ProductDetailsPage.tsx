@@ -14,8 +14,6 @@ import { SizeGuideModal } from '../../components/storefront/SizeGuideModal.js';
 import { ShoppingBag, Check, ShieldCheck, Truck, RefreshCw, ChevronRight, Ruler } from 'lucide-react';
 import { analyticsTracker } from '../../utils/analyticsTracker.js';
 
-import { STORE_SYNC_EVENT } from '../../store/settingsStore.js';
-
 export const ProductDetailsPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const { isArabic } = useTheme();

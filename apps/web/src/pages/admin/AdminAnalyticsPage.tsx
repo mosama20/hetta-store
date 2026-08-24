@@ -26,9 +26,7 @@ import {
   Clock,
   Laptop,
   Compass,
-  DollarSign,
   AlertCircle,
-  ExternalLink,
 } from 'lucide-react';
 import {
   AnalyticsSummary,
@@ -426,7 +424,7 @@ export const AdminAnalyticsPage: React.FC = () => {
                   <div className="p-8 text-center">
                     <EmptyState
                       title={isArabic ? 'لا توجد زيارات مسجلة' : 'No Visitor Sessions Found'}
-                      description={isArabic ? 'لم يتم تسجيل أي جلسات زوار مطابقة للبحث.' : 'No visitor sessions match your current query.'}
+                      message={isArabic ? 'لم يتم تسجيل أي جلسات زوار مطابقة للبحث.' : 'No visitor sessions match your current query.'}
                       icon={<Users className="w-12 h-12 text-zinc-400" />}
                     />
                   </div>
@@ -568,7 +566,7 @@ export const AdminAnalyticsPage: React.FC = () => {
                   <div className="p-8 text-center">
                     <EmptyState
                       title={isArabic ? 'لا توجد سلات متروكة' : 'No Abandoned Carts'}
-                      description={isArabic ? 'رائع! لا توجد سلات تسوق متروكة حالياً دون إتمام الطلب.' : 'No shopping carts have been abandoned yet.'}
+                      message={isArabic ? 'رائع! لا توجد سلات تسوق متروكة حالياً دون إتمام الطلب.' : 'No shopping carts have been abandoned yet.'}
                       icon={<CheckCircle2 className="w-12 h-12 text-emerald-500" />}
                     />
                   </div>

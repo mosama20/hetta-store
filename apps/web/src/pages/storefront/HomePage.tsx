@@ -13,7 +13,7 @@ import {
 import { Product, Category, CMSSection } from '../../types/index.js';
 import { productsApi, categoriesApi, cmsApi } from '../../api/index.js';
 import { useTheme } from '../../store/themeStore.js';
-import { useStoreSettings, STORE_SYNC_EVENT } from '../../store/settingsStore.js';
+import { useStoreSettings } from '../../store/settingsStore.js';
 import { getLocalized } from '../../utils/formatters.js';
 import { ProductCard } from '../../components/storefront/ProductCard.js';
 import { MarqueeBanner } from '../../components/storefront/MarqueeBanner.js';
