@@ -66,22 +66,25 @@ async function main() {
 
   // 3. Super Admin User
   const hashedPassword = await bcrypt.hash('Admin@Fashion2026!', 12);
-  const superAdmin = await prisma.user.upsert({
-    where: { email: 'admin@craftwear.com' },
-    update: { fullName: 'CRAFT Super Admin', isActive: true },
-    create: {
-      email: 'admin@craftwear.com',
-      passwordHash: hashedPassword,
-      fullName: 'CRAFT Super Admin',
-      isActive: true,
-    },
-  });
+  const adminEmails = ['admin@fashionstore.com', 'admin@craftwear.com'];
+  for (const adminEmail of adminEmails) {
+    const superAdmin = await prisma.user.upsert({
+      where: { email: adminEmail },
+      update: { fullName: 'Store Super Admin', passwordHash: hashedPassword, isActive: true },
+      create: {
+        email: adminEmail,
+        passwordHash: hashedPassword,
+        fullName: 'Store Super Admin',
+        isActive: true,
+      },
+    });
 
-  await prisma.userRole.upsert({
-    where: { userId_roleId: { userId: superAdmin.id, roleId: createdRoles['SUPER_ADMIN'] } },
-    update: {},
-    create: { userId: superAdmin.id, roleId: createdRoles['SUPER_ADMIN'] },
-  });
+    await prisma.userRole.upsert({
+      where: { userId_roleId: { userId: superAdmin.id, roleId: createdRoles['SUPER_ADMIN'] } },
+      update: {},
+      create: { userId: superAdmin.id, roleId: createdRoles['SUPER_ADMIN'] },
+    });
+  }
 
   // 4. Categories
   const categoriesData = [

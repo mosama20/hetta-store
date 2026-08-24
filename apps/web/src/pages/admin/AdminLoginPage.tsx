@@ -26,9 +26,22 @@ export const AdminLoginPage: React.FC = () => {
       await login({ email, password });
       navigate('/admin');
     } catch (err: unknown) {
-      setErrorMsg(
-        (err as Error).message || (isArabic ? 'فشل تسجيل الدخول' : 'Invalid credentials'),
-      );
+      const msg = (err as Error)?.message || '';
+      if (msg.includes('Network error') || msg.includes('Failed to fetch')) {
+        setErrorMsg(
+          isArabic
+            ? 'سيرفر الـ API غير متصل حالياً. يرجى التأكد من تشغيل السيرفر وقاعدة البيانات (npm run dev).'
+            : 'API server is unreachable. Please make sure the backend server is running.',
+        );
+      } else if (msg.includes('Invalid') || msg.includes('Unauthorized') || msg.includes('credentials')) {
+        setErrorMsg(
+          isArabic
+            ? 'بيانات الدخول غير صحيحة. يرجى التحقق من البريد الإلكتروني وكلمة المرور.'
+            : 'Invalid email or password. Please verify your credentials.',
+        );
+      } else {
+        setErrorMsg(msg || (isArabic ? 'فشل تسجيل الدخول' : 'Login failed'));
+      }
       setIsLoading(false);
     }
   };
