@@ -63,7 +63,7 @@ export const ReturnsPolicyPage: React.FC = () => {
             <li>{isArabic ? 'أن يتم تقديم طلب الاستبدال أو الاسترجاع خلال 14 يوماً من تاريخ استلام الشحنة.' : 'Requests must be made within 14 days of delivery receipt.'}</li>
             <li>{isArabic ? 'أن تكون المنتجات غير ملبوسة، غير مغسولة، وخالية من أي عطور أو أضرار.' : 'Items must be unwashed, unworn, scent-free, and undamaged.'}</li>
             <li>{isArabic ? 'وجود جميع البطاقات والتكتات الأصلية (Tags) المرفقة بالملابس.' : 'All original brand tags and labels must remain attached.'}</li>
-            <li>{isArabic ? 'في حالة وجود عيب صناعة أو استلام مقاس خاطئ، يتحمل المتجر كافة مصاريف الشحن.' : 'If an item is defective or incorrect, CRAFT covers all return shipping fees.'}</li>
+            <li>{isArabic ? 'في حالة وجود عيب صناعة أو استلام مقاس خاطئ، يتحمل المتجر كافة مصاريف الشحن.' : 'If an item is defective or incorrect, the store covers all return shipping fees.'}</li>
           </ul>
         </div>
 

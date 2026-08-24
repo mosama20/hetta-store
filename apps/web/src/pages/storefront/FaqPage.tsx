@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useTheme } from '../../store/themeStore.js';
+import { useStoreSettings } from '../../store/settingsStore.js';
 import { HelpCircle, ChevronDown } from 'lucide-react';
 
 interface FaqItem {
@@ -11,14 +12,18 @@ interface FaqItem {
 
 export const FaqPage: React.FC = () => {
   const { isArabic } = useTheme();
+  const { settings } = useStoreSettings();
   const [openIndex, setOpenIndex] = useState<number | null>(0);
+
+  const storeNameAr = settings.store_name_ar || 'المتجر';
+  const storeNameEn = settings.store_name_en || 'Our Store';
 
   const faqs: FaqItem[] = [
     {
       qAr: 'كيف أعرف المقاس المناسب لي؟',
       qEn: 'How do I pick the right size for me?',
-      aAr: 'قصات CRAFT مصممة بنمط أوفر سايز (Oversized Fit) مريح. يمكنك الاطلاع على دليل المقاسات المفصل بالسنتيمتر في صفحة كل منتج، أو اختيار مقاسك المعتاد للحصول على مظهر أوفر سايز، أو مقاس أقل بدرجة لمظهر مضبوط.',
-      aEn: 'CRAFT silhouettes feature a modern oversized fit. Check the Size Guide on each product page with exact measurements in centimeters, or order your normal size for an oversized look.',
+      aAr: `قصات ${storeNameAr} مصممة بنمط أوفر سايز (Oversized Fit) مريح. يمكنك الاطلاع على دليل المقاسات المفصل بالسنتيمتر في صفحة كل منتج، أو اختيار مقاسك المعتاد للحصول على مظهر أوفر سايز، أو مقاس أقل بدرجة لمظهر مضبوط.`,
+      aEn: `${storeNameEn} silhouettes feature a modern oversized fit. Check the Size Guide on each product page with exact measurements in centimeters, or order your normal size for an oversized look.`,
     },
     {
       qAr: 'ما هي طرق الدفع المتاحة؟',
@@ -39,8 +44,8 @@ export const FaqPage: React.FC = () => {
       aEn: 'Yes, all customers have the right to inspect fabric quality and finishing with the courier prior to payment.',
     },
     {
-      qAr: 'ما هي خامات الملابس المستخدمة في CRAFT؟',
-      qEn: 'What fabrics do you use in CRAFT garments?',
+      qAr: `ما هي خامات الملابس المستخدمة في ${storeNameAr}؟`,
+      qEn: `What fabrics do you use in ${storeNameEn} garments?`,
       aAr: 'نستخدم خامات قطن مصري 100% عالي الكثافة (Combed Cotton) معالج ضد الانكماش والوبر بصبغات بيئية ثابتة تدوم طويلاً.',
       aEn: 'We exclusively use premium 100% Egyptian combed cotton with anti-pilling and pre-shrunk treatments.',
     },

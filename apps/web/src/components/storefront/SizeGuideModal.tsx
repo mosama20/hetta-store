@@ -157,7 +157,7 @@ export const SizeGuideModal: React.FC<SizeGuideModalProps> = ({ isOpen, onClose 
           </div>
           <p className="text-zinc-500 leading-relaxed">
             {isArabic
-              ? 'قصات CRAFT مصممة بنمط أوفر سايز (Oversized Fit) مريح وعصري. إذا كنت تفضل مظهراً مضبوطاً بالضبط على مقاسك (Regular Fit)، ننصحك باختيار مقاس أقل بدرجة واحدة.'
+              ? 'قصاتنا مصممة بنمط أوفر سايز (Oversized Fit) مريح وعصري. إذا كنت تفضل مظهراً مضبوطاً بالضبط على مقاسك (Regular Fit)، ننصحك باختيار مقاس أقل بدرجة واحدة.'
               : 'Our garments are tailored with a relaxed oversized streetwear fit. If you prefer a standard regular fit, we recommend ordering one size down.'}
           </p>
         </div>

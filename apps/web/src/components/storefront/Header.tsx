@@ -203,7 +203,7 @@ export const Header: React.FC = () => {
                 location.pathname === '/about' ? 'text-black dark:text-white font-bold' : ''
               }`}
             >
-              {isArabic ? 'عن CRAFT' : 'About CRAFT'}
+              {isArabic ? `عن ${storeName}` : `About ${storeName}`}
             </Link>
           </nav>
 
@@ -412,7 +412,7 @@ export const Header: React.FC = () => {
               onClick={() => setMobileMenuOpen(false)}
               className="py-1.5 hover:text-black dark:hover:text-white"
             >
-              {isArabic ? 'عن CRAFT' : 'About CRAFT'}
+              {isArabic ? `عن ${storeName}` : `About ${storeName}`}
             </Link>
           </nav>
         </div>
