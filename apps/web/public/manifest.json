@@ -1,0 +1,26 @@
+{
+  "name": "CRAFT Fashion Store",
+  "short_name": "CRAFT",
+  "description": "تسوق أحدث صيحات الموضة والأزياء العصرية مع كرافت",
+  "start_url": "/",
+  "id": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["shopping", "lifestyle", "fashion"]
+}

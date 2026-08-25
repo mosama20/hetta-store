@@ -171,6 +171,10 @@ export interface Discount {
 export interface StoreSettings {
   store_name_ar?: string;
   store_name_en?: string;
+  store_title_ar?: string;
+  store_title_en?: string;
+  store_logo?: string;
+  favicon_url?: string;
   currency?: string;
   whatsapp_number?: string;
   whatsapp_order_template_ar?: string;
@@ -191,16 +195,25 @@ export interface DashboardStats {
   lowStockCount: number;
   totalOrders: number;
   pendingOrders: number;
+  contactedOrders?: number;
+  confirmedOrders?: number;
+  processingOrders?: number;
   completedOrders: number;
+  cancelledOrders?: number;
   totalCategories: number;
   totalUsers: number;
   totalRevenue: number;
+  completedRevenue?: number;
+  todayRevenue?: number;
+  todayOrdersCount?: number;
+  averageOrderValue?: number;
   currency: string;
   recentOrders: {
     id: string;
     orderNumber: string;
     customerName: string;
     customerPhone: string;
+    customerCity?: string;
     totalAmount: number;
     currency: string;
     status: OrderStatus;

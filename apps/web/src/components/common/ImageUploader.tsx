@@ -52,27 +52,56 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
   const handleFileSelect = async (file: File) => {
     if (!file) return;
 
-    if (!configured) {
-      setShowConfigModal(true);
+    // Validate image format
+    if (!file.type.startsWith('image/')) {
+      setErrorMessage(isArabic ? 'يرجى اختيار ملف صورة صالح (JPG, PNG, WebP)' : 'Please select a valid image file');
       return;
     }
 
     try {
       setIsUploading(true);
-      setUploadProgress(10);
+      setUploadProgress(20);
       setErrorMessage(null);
 
-      const result = await uploadImageToSupabase(file, folder, (progress) => {
-        setUploadProgress(progress);
-      });
-
-      onChange(result.url);
+      // If Supabase is configured, upload directly to Supabase Storage CDN
+      if (configured) {
+        const result = await uploadImageToSupabase(file, folder, (progress) => {
+          setUploadProgress(progress);
+        });
+        onChange(result.url);
+      } else {
+        // Fallback: Convert to optimized Data URL if Supabase is not configured yet
+        setUploadProgress(60);
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const dataUrl = e.target?.result as string;
+          if (dataUrl) {
+            onChange(dataUrl);
+            setUploadProgress(100);
+          }
+        };
+        reader.readAsDataURL(file);
+      }
     } catch (err: unknown) {
       console.error(err);
-      setErrorMessage(err instanceof Error ? err.message : 'فشل رفع الصورة');
+      // If Supabase upload fails, fall back to local reader
+      try {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const dataUrl = e.target?.result as string;
+          if (dataUrl) {
+            onChange(dataUrl);
+          }
+        };
+        reader.readAsDataURL(file);
+      } catch {
+        setErrorMessage(err instanceof Error ? err.message : 'فشل رفع الصورة');
+      }
     } finally {
-      setIsUploading(false);
-      setUploadProgress(0);
+      setTimeout(() => {
+        setIsUploading(false);
+        setUploadProgress(0);
+      }, 400);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -93,6 +122,36 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
       }
     }
   };
+
+  const [showPresets, setShowPresets] = useState(false);
+
+  const FASHION_PRESETS = [
+    {
+      titleAr: 'أزياء عصرية راقية',
+      titleEn: 'Modern High Fashion',
+      url: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=1600&q=80',
+    },
+    {
+      titleAr: 'أناقة كلاسيكية فاخرة',
+      titleEn: 'Classic Elegance',
+      url: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=1600&q=80',
+    },
+    {
+      titleAr: 'ستوديو أزياء مينيمال',
+      titleEn: 'Minimalist Studio',
+      url: 'https://images.unsplash.com/photo-1445205170230-053b83016050?w=1600&q=80',
+    },
+    {
+      titleAr: 'تشكيلة ستريتوير وشبابية',
+      titleEn: 'Urban & Streetwear',
+      url: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=1600&q=80',
+    },
+    {
+      titleAr: 'إطلالة عصرية أنثوية',
+      titleEn: 'Chic Modern Wear',
+      url: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=1600&q=80',
+    },
+  ];
 
   const handlePaste = (e: React.ClipboardEvent) => {
     if (disabled || isUploading) return;
@@ -122,7 +181,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
   };
 
   return (
-    <div className={`space-y-2 ${className}`} onPaste={handlePaste}>
+    <div className={`space-y-2.5 ${className}`} onPaste={handlePaste}>
       {/* Label and Actions Bar */}
       <div className="flex items-center justify-between">
         {label && (
@@ -131,6 +190,17 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
           </label>
         )}
         <div className="flex items-center gap-1.5 ms-auto">
+          {/* Quick Presets Toggle */}
+          <button
+            type="button"
+            onClick={() => setShowPresets(!showPresets)}
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800/50 hover:bg-amber-100 transition"
+            title={isArabic ? 'اختيار من صور ونماذج مقترحة' : 'Pick from presets'}
+          >
+            <Camera className="w-2.5 h-2.5" />
+            <span>{isArabic ? 'نماذج جاهزة' : 'Presets'}</span>
+          </button>
+
           {/* Supabase Status Indicator / Config Button */}
           <button
             type="button"
@@ -138,19 +208,23 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
             className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium transition-all ${
               configured
                 ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40 hover:bg-emerald-100'
-                : 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800/40 hover:bg-amber-100 animate-pulse'
+                : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-200'
             }`}
             title={isArabic ? 'إعدادات Supabase Storage' : 'Supabase Storage Settings'}
           >
             <Settings className="w-2.5 h-2.5" />
-            <span>{configured ? 'Supabase CDN' : (isArabic ? 'ربط سوبابيز' : 'Connect Supabase')}</span>
+            <span>{configured ? 'Supabase CDN' : (isArabic ? 'سوبابيز' : 'Supabase')}</span>
           </button>
 
           {/* Toggle URL input fallback */}
           <button
             type="button"
             onClick={() => setShowManualUrl(!showManualUrl)}
-            className="p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            className={`p-1 rounded-md transition-colors ${
+              showManualUrl
+                ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-800 dark:text-zinc-100'
+                : 'text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+            }`}
             title={isArabic ? 'إدخال رابط صورة يدوياً' : 'Enter URL manually'}
           >
             <LinkIcon className="w-3.5 h-3.5" />
@@ -158,9 +232,42 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
         </div>
       </div>
 
-      {/* Manual URL Input Bar (When opened) */}
+      {/* Preset Picker Gallery (When opened) */}
+      {showPresets && (
+        <div className="p-3 bg-zinc-100 dark:bg-zinc-900/90 rounded-2xl border border-zinc-200 dark:border-zinc-800 space-y-2 animate-fade-in">
+          <p className="text-[11px] font-bold text-zinc-600 dark:text-zinc-400">
+            {isArabic ? 'اختر صورة من النماذج الاحترافية الجاهزة للمتجر:' : 'Pick a ready luxury photo preset:'}
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+            {FASHION_PRESETS.map((preset, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => {
+                  onChange(preset.url);
+                  setShowPresets(false);
+                }}
+                className="group relative rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-700 aspect-video hover:ring-2 hover:ring-amber-500 transition"
+              >
+                <img
+                  src={preset.url}
+                  alt={isArabic ? preset.titleAr : preset.titleEn}
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                />
+                <div className="absolute inset-0 bg-black/40 flex items-end p-1">
+                  <span className="text-[9px] font-bold text-white truncate w-full text-start">
+                    {isArabic ? preset.titleAr : preset.titleEn}
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Manual URL Input Bar (When opened or always available) */}
       {showManualUrl && (
-        <div className="flex items-center gap-2 p-2 bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800">
+        <div className="flex items-center gap-2 p-2 bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 animate-fade-in">
           <Input
             value={value}
             onChange={(e) => onChange(e.target.value)}
@@ -215,7 +322,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
               disabled={disabled || isUploading}
               className="text-xs shadow-md"
             >
-              <Camera className="w-3.5 h-3.5 mr-1" />
+              <Camera className="w-3.5 h-3.5 mr-1 rtl:ml-1 rtl:mr-0" />
               <span>{isArabic ? 'تغيير الصورة' : 'Replace Image'}</span>
             </Button>
 
@@ -232,13 +339,18 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
             </Button>
           </div>
 
-          {/* Supabase Storage Verified Badge */}
-          {value.includes('supabase.co') && (
+          {/* Storage Verified Badge */}
+          {value.includes('supabase.co') ? (
             <div className="absolute bottom-2 end-2 bg-emerald-950/80 text-emerald-300 text-[10px] font-semibold px-2 py-0.5 rounded-full backdrop-blur-md flex items-center gap-1 border border-emerald-500/30">
               <CheckCircle2 className="w-2.5 h-2.5 text-emerald-400" />
               <span>Supabase</span>
             </div>
-          )}
+          ) : value.startsWith('data:image') ? (
+            <div className="absolute bottom-2 end-2 bg-amber-950/80 text-amber-300 text-[10px] font-semibold px-2 py-0.5 rounded-full backdrop-blur-md flex items-center gap-1 border border-amber-500/30">
+              <CheckCircle2 className="w-2.5 h-2.5 text-amber-400" />
+              <span>{isArabic ? 'صورة محلية' : 'Local File'}</span>
+            </div>
+          ) : null}
         </div>
       ) : (
         /* Upload Area */
@@ -249,47 +361,41 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
           }}
           onDragLeave={() => setIsDragOver(false)}
           onDrop={handleDrop}
-          onClick={() => {
-            if (!configured) {
-              setShowConfigModal(true);
-            } else {
-              fileInputRef.current?.click();
-            }
-          }}
+          onClick={() => fileInputRef.current?.click()}
           className={`relative border-2 border-dashed rounded-2xl transition-all cursor-pointer flex flex-col items-center justify-center p-4 text-center ${getAspectClass()} ${
             isDragOver
-              ? 'border-primary-500 bg-primary-50/50 dark:bg-primary-950/20'
-              : 'border-zinc-300 dark:border-zinc-700/80 hover:border-primary-400 dark:hover:border-primary-500 bg-zinc-50/70 dark:bg-zinc-900/40 hover:bg-zinc-100/70 dark:hover:bg-zinc-900/70'
+              ? 'border-amber-500 bg-amber-50/50 dark:bg-amber-950/20'
+              : 'border-zinc-300 dark:border-zinc-700/80 hover:border-amber-400 dark:hover:border-amber-500 bg-zinc-50/70 dark:bg-zinc-900/40 hover:bg-zinc-100/70 dark:hover:bg-zinc-900/70'
           } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           {isUploading ? (
             <div className="flex flex-col items-center gap-2">
-              <Loader2 className="w-8 h-8 text-primary-500 animate-spin" />
+              <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
               <div className="space-y-1">
                 <p className="text-xs font-bold text-zinc-800 dark:text-zinc-200">
-                  {isArabic ? 'جارٍ رفع الصورة إلى Supabase...' : 'Uploading to Supabase CDN...'}
+                  {isArabic ? 'جارٍ معالجة ورفع الصورة...' : 'Processing & uploading image...'}
                 </p>
                 <div className="w-36 h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-primary-500 transition-all duration-300 rounded-full"
+                    className="h-full bg-amber-500 transition-all duration-300 rounded-full"
                     style={{ width: `${uploadProgress}%` }}
                   />
                 </div>
               </div>
             </div>
           ) : (
-            <div className="flex flex-col items-center gap-2 max-w-[260px]">
-              <div className="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-950/60 text-primary-600 dark:text-primary-400 flex items-center justify-center shadow-inner">
+            <div className="flex flex-col items-center gap-2 max-w-[280px]">
+              <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shadow-inner">
                 <Upload className="w-5 h-5" />
               </div>
               <div className="space-y-0.5">
                 <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
-                  {isArabic ? 'اضغط لاختيار صورة من جهازك أو اسحبها هنا' : 'Click to upload or drag & drop'}
+                  {isArabic ? 'اضغط لاختيار صورة من جهازك أو اسحبها هنا' : 'Click to choose image or drag & drop'}
                 </p>
                 <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
                   {isArabic
-                    ? 'يدعم الهاتف واللابتوب (JPG, PNG, WebP)'
-                    : 'From phone camera, gallery or desktop (JPG, PNG, WebP)'}
+                    ? 'يدعم الهاتف والكمبيوتر (JPG, PNG, WebP)'
+                    : 'From phone camera, gallery or PC (JPG, PNG, WebP)'}
                 </p>
               </div>
             </div>

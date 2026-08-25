@@ -103,6 +103,11 @@ export const categoriesApi = {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
+  reorder: (items: { id: string; displayOrder: number }[]) =>
+    apiClient<Category[]>('/categories/reorder', {
+      method: 'PUT',
+      body: JSON.stringify({ items }),
+    }),
   delete: (id: string) =>
     apiClient<{ message: string }>(`/categories/${id}`, {
       method: 'DELETE',
@@ -143,12 +148,6 @@ export const ordersApi = {
     customerCity?: string;
     customerAddress?: string;
     notes?: string;
-    subtotal?: number;
-    discountAmount?: number;
-    discountPercent?: number;
-    appliedCoupon?: string;
-    shippingFee?: number;
-    totalAmount?: number;
     items: { variantId: string; quantity: number }[];
   }) =>
     apiClient<{ order: Order; whatsappUrl: string; whatsappMessage: string }>('/orders', {

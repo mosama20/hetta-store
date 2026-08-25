@@ -14,3 +14,13 @@ ReactDOM.createRoot(rootElement).render(
     <App />
   </React.StrictMode>,
 );
+
+// Register Service Worker for PWA / Mobile Add to Home Screen support
+if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch((err) => {
+      console.log('SW registration note:', err);
+    });
+  });
+}
+

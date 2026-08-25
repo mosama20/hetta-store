@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Phone, Mail, MapPin } from 'lucide-react';
+import { ArrowRight, Phone, Mail, MapPin, Smartphone } from 'lucide-react';
 import { useTheme } from '../../store/themeStore.js';
 import { useStoreSettings } from '../../store/settingsStore.js';
+import { triggerAppInstallPrompt } from './MobileAppInstallPrompt.js';
 
 export const Footer: React.FC = () => {
   const { isArabic } = useTheme();
@@ -32,6 +33,16 @@ export const Footer: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-5 gap-8 lg:gap-12 text-start">
           {/* Newsletter Signup (2 Columns) */}
           <div className="md:col-span-2 space-y-3">
+            {settings.store_logo ? (
+              <img
+                src={settings.store_logo}
+                alt={storeName}
+                className="h-8 md:h-9 w-auto max-w-[160px] object-contain mb-1"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+            ) : null}
             <h3 className="text-sm font-black text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
               {storeName}
             </h3>
@@ -95,6 +106,16 @@ export const Footer: React.FC = () => {
               <li><Link to="/returns" className="hover:text-black dark:hover:text-white">{isArabic ? 'سياسة الإرجاع' : 'Returns Policy'}</Link></li>
               <li><Link to="/faq" className="hover:text-black dark:hover:text-white">{isArabic ? 'الأسئلة الشائعة' : 'FAQs'}</Link></li>
               <li><Link to="/about" className="hover:text-black dark:hover:text-white">{isArabic ? 'عن المتجر' : 'About Us'}</Link></li>
+              <li>
+                <button
+                  type="button"
+                  onClick={() => triggerAppInstallPrompt()}
+                  className="hover:text-amber-500 font-semibold transition inline-flex items-center gap-1.5"
+                >
+                  <Smartphone className="w-3.5 h-3.5 text-amber-500" />
+                  <span>{isArabic ? 'تثبيت تطبيق المتجر' : 'Install Store App'}</span>
+                </button>
+              </li>
             </ul>
           </div>
 

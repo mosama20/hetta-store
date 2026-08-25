@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../store/authStore.js';
 import { useTheme } from '../../store/themeStore.js';
+import { useStoreSettings } from '../../store/settingsStore.js';
 import { Button } from '../../components/common/Button.js';
 import { Input } from '../../components/common/Input.js';
 import { Card } from '../../components/common/Card.js';
@@ -10,6 +11,7 @@ import { Lock, Shield } from 'lucide-react';
 export const AdminLoginPage: React.FC = () => {
   const { login } = useAuth();
   const { isArabic } = useTheme();
+  const { settings } = useStoreSettings();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('admin@fashionstore.com');
@@ -46,14 +48,26 @@ export const AdminLoginPage: React.FC = () => {
     }
   };
 
+  const storeName = isArabic ? settings.store_name_ar || 'FASHION STORE' : settings.store_name_en || 'FASHION STORE';
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-zinc-950 text-white">
       <Card className="w-full max-w-md p-8 bg-zinc-900 border-zinc-800 space-y-6 shadow-2xl">
         <div className="text-center space-y-2">
-          <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center mx-auto mb-3">
-            <Shield className="w-6 h-6" />
-          </div>
-          <h1 className="text-2xl font-black tracking-tight">FASHION STORE</h1>
+          {settings.store_logo ? (
+            <div className="flex justify-center mb-3">
+              <img
+                src={settings.store_logo}
+                alt={storeName}
+                className="h-12 w-auto max-w-[200px] object-contain rounded"
+              />
+            </div>
+          ) : (
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center mx-auto mb-3">
+              <Shield className="w-6 h-6" />
+            </div>
+          )}
+          <h1 className="text-2xl font-black tracking-tight">{storeName}</h1>
           <p className="text-xs text-zinc-400">
             {isArabic ? 'تسجيل الدخول إلى لوحة الإدارة' : 'Sign in to management console'}
           </p>

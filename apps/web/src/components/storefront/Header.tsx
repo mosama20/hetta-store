@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Search, User, ShoppingBag, Menu, X, Sun, Moon, ChevronDown, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Search, User, ShoppingBag, Menu, X, Sun, Moon, ChevronDown, Sparkles, CheckCircle2, Smartphone } from 'lucide-react';
 import { useCart, CART_ITEM_ADDED_EVENT } from '../../store/cartStore.js';
 import { useTheme } from '../../store/themeStore.js';
 import { useStoreSettings, STORE_SYNC_EVENT } from '../../store/settingsStore.js';
 import { categoriesApi } from '../../api/index.js';
 import { Category } from '../../types/index.js';
 import { getLocalized } from '../../utils/formatters.js';
+import { triggerAppInstallPrompt } from './MobileAppInstallPrompt.js';
 
 export const Header: React.FC = () => {
   const { totalItems } = useCart();
@@ -116,8 +117,26 @@ export const Header: React.FC = () => {
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
 
-            <Link to="/" className="flex items-center">
-              <span className="text-xl sm:text-2xl lg:text-3xl font-black tracking-widest text-zinc-900 dark:text-zinc-100 font-sans uppercase">
+            <Link to="/" className="flex items-center gap-2 group">
+              {settings.store_logo ? (
+                <img
+                  src={settings.store_logo}
+                  alt={storeName}
+                  className="h-8 sm:h-10 lg:h-11 w-auto max-w-[150px] sm:max-w-[200px] object-contain transition-transform group-hover:scale-105"
+                  onError={(e) => {
+                    // Fallback to text if image fails
+                    e.currentTarget.style.display = 'none';
+                    const fallbackEl = document.getElementById('header-store-text-fallback');
+                    if (fallbackEl) fallbackEl.style.display = 'block';
+                  }}
+                />
+              ) : null}
+              <span
+                id="header-store-text-fallback"
+                className={`text-xl sm:text-2xl lg:text-3xl font-black tracking-widest text-zinc-900 dark:text-zinc-100 font-sans uppercase ${
+                  settings.store_logo ? 'hidden' : 'block'
+                }`}
+              >
                 {storeName}
               </span>
             </Link>
@@ -414,6 +433,26 @@ export const Header: React.FC = () => {
             >
               {isArabic ? `عن ${storeName}` : `About ${storeName}`}
             </Link>
+
+            {/* Quick Install App Button */}
+            <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800">
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  triggerAppInstallPrompt();
+                }}
+                className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition text-zinc-900 dark:text-zinc-100 font-bold text-xs"
+              >
+                <span className="flex items-center gap-2">
+                  <Smartphone className="w-4 h-4 text-amber-500" />
+                  <span>{isArabic ? 'تثبيت التطبيق على هاتفك' : 'Install Mobile App'}</span>
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px] font-extrabold">
+                  {isArabic ? 'اختصار سريع' : 'Shortcut'}
+                </span>
+              </button>
+            </div>
           </nav>
         </div>
       )}

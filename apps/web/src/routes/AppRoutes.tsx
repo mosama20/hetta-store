@@ -4,6 +4,7 @@ import { useAuth } from '../store/authStore.js';
 import { AnnouncementBar } from '../components/storefront/AnnouncementBar.js';
 import { Header } from '../components/storefront/Header.js';
 import { Footer } from '../components/storefront/Footer.js';
+import { MobileAppInstallPrompt } from '../components/storefront/MobileAppInstallPrompt.js';
 import { AdminLayout } from '../components/admin/AdminLayout.js';
 
 // Storefront Pages
@@ -58,6 +59,7 @@ function StorefrontLayout() {
         <Outlet />
       </main>
       <Footer />
+      <MobileAppInstallPrompt />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { AdminPageHeader } from '../../components/admin/AdminPageHeader.js';
 import { Card } from '../../components/common/Card.js';
 import { Button } from '../../components/common/Button.js';
 import { Input } from '../../components/common/Input.js';
+import { ImageUploader } from '../../components/common/ImageUploader.js';
 import { LoadingState } from '../../components/common/LoadingState.js';
 import {
   Save,
@@ -15,14 +16,23 @@ import {
   RotateCcw,
   CheckCircle2,
   AlertTriangle,
+  Image as ImageIcon,
+  Globe,
+  Sparkles,
 } from 'lucide-react';
 
 export const AdminSettingsPage: React.FC = () => {
   const { isArabic } = useTheme();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Branding & Identity
   const [storeNameAr, setStoreNameAr] = useState('');
   const [storeNameEn, setStoreNameEn] = useState('');
+  const [storeTitleAr, setStoreTitleAr] = useState('');
+  const [storeTitleEn, setStoreTitleEn] = useState('');
+  const [storeLogo, setStoreLogo] = useState('');
+  const [faviconUrl, setFaviconUrl] = useState('');
+
   const [currency, setCurrency] = useState('EGP');
   const [whatsappNumber, setWhatsappNumber] = useState('');
   const [whatsappTemplate, setWhatsappTemplate] = useState('');
@@ -50,6 +60,10 @@ export const AdminSettingsPage: React.FC = () => {
       data.forEach((s) => {
         if (s.key === 'store_name_ar') setStoreNameAr(s.value);
         if (s.key === 'store_name_en') setStoreNameEn(s.value);
+        if (s.key === 'store_title_ar') setStoreTitleAr(s.value);
+        if (s.key === 'store_title_en') setStoreTitleEn(s.value);
+        if (s.key === 'store_logo') setStoreLogo(s.value);
+        if (s.key === 'favicon_url') setFaviconUrl(s.value);
         if (s.key === 'currency') setCurrency(s.value);
         if (s.key === 'whatsapp_number') setWhatsappNumber(s.value);
         if (s.key === 'whatsapp_order_template_ar') setWhatsappTemplate(s.value);
@@ -74,6 +88,10 @@ export const AdminSettingsPage: React.FC = () => {
     await Promise.all([
       settingsApi.update('store_name_ar', storeNameAr, 'BRANDING'),
       settingsApi.update('store_name_en', storeNameEn, 'BRANDING'),
+      settingsApi.update('store_title_ar', storeTitleAr, 'BRANDING'),
+      settingsApi.update('store_title_en', storeTitleEn, 'BRANDING'),
+      settingsApi.update('store_logo', storeLogo, 'BRANDING'),
+      settingsApi.update('favicon_url', faviconUrl, 'BRANDING'),
       settingsApi.update('currency', currency, 'GENERAL'),
       settingsApi.update('whatsapp_number', whatsappNumber, 'WHATSAPP'),
       settingsApi.update('whatsapp_order_template_ar', whatsappTemplate, 'WHATSAPP'),
@@ -304,31 +322,193 @@ export const AdminSettingsPage: React.FC = () => {
           2. STORE BRANDING & SETTINGS FORM
       ======================================================== */}
       <form onSubmit={handleSave} className="space-y-6">
-        {/* Branding & Name */}
-        <Card className="p-6 space-y-4">
-          <div className="flex items-center justify-between pb-2 border-b border-zinc-100 dark:border-zinc-800">
-            <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
-              {isArabic ? 'اسم وهوية المتجر' : 'Store Branding'}
-            </h3>
-            <Button type="submit" variant="gold" size="sm" isLoading={isSaving}>
+        {/* ========================================================
+            BRANDING, LOGO, FAVICON & BROWSER TITLE SECTION
+        ======================================================== */}
+        <Card className="p-6 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-zinc-100 dark:border-zinc-800">
+            <div className="flex items-center space-x-2.5 rtl:space-x-reverse">
+              <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-zinc-900 dark:text-zinc-100">
+                  {isArabic ? 'هوية المتجر، اللوجو، وعنوان المتصفح (Branding & Identity)' : 'Store Branding, Logo & Browser Identity'}
+                </h3>
+                <p className="text-[11px] text-zinc-500">
+                  {isArabic
+                    ? 'تخصيص لوجو البراند، أيقونة المتصفح (Favicon)، وعنوان الموقع المكتوب في التبويب'
+                    : 'Customize brand logo, browser favicon, and browser tab title'}
+                </p>
+              </div>
+            </div>
+
+            <Button type="submit" variant="gold" size="sm" isLoading={isSaving} className="shadow-md">
               <Save className="w-4 h-4 mr-1.5 rtl:ml-1.5 rtl:mr-0" />
               <span>{isArabic ? 'حفظ الإعدادات' : 'Save Settings'}</span>
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input
-              label={isArabic ? 'اسم المتجر (بالعربية)' : 'Store Name (Arabic)'}
-              value={storeNameAr}
-              onChange={(e) => setStoreNameAr(e.target.value)}
-              required
-            />
-            <Input
-              label={isArabic ? 'اسم المتجر (بالإنجليزية)' : 'Store Name (English)'}
-              value={storeNameEn}
-              onChange={(e) => setStoreNameEn(e.target.value)}
-              required
-            />
+          {/* Logo & Favicon Uploaders Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* 1. Brand Logo Uploader */}
+            <div className="space-y-2 p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ImageIcon className="w-4 h-4 text-amber-500" />
+                  <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
+                    {isArabic ? 'لوجو المتجر (Brand Logo)' : 'Brand Logo'}
+                  </span>
+                </div>
+                <span className="text-[10px] text-zinc-400">
+                  {isArabic ? 'يظهر في الهيدر والفوتر' : 'Header & Footer'}
+                </span>
+              </div>
+              <p className="text-[11px] text-zinc-500 leading-snug">
+                {isArabic
+                  ? 'يُفضل صورة بخلفية شفافة PNG أو WebP أو SVG (أبعاد مقترحة 400x120)'
+                  : 'Recommended transparent PNG/WebP/SVG (around 400x120px)'}
+              </p>
+              <ImageUploader
+                value={storeLogo}
+                onChange={(url) => setStoreLogo(url)}
+                folder="branding"
+                aspectRatio="banner"
+                compact
+              />
+            </div>
+
+            {/* 2. Favicon Uploader */}
+            <div className="space-y-2 p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Globe className="w-4 h-4 text-amber-500" />
+                  <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
+                    {isArabic ? 'أيقونة التبويب (Favicon)' : 'Browser Favicon'}
+                  </span>
+                </div>
+                <span className="text-[10px] text-zinc-400">
+                  {isArabic ? 'أيقونة المتصفح بجانب التايتل' : 'Browser tab icon'}
+                </span>
+              </div>
+              <p className="text-[11px] text-zinc-500 leading-snug">
+                {isArabic
+                  ? 'الأيقونة الصغيرة التي تظهر في شريط المتصفح والمفضلة (مربعة 32x32 أو 64x64 أو SVG)'
+                  : 'Small icon shown in browser tab and bookmarks (square PNG/ICO/SVG)'}
+              </p>
+              <ImageUploader
+                value={faviconUrl}
+                onChange={(url) => setFaviconUrl(url)}
+                folder="branding"
+                aspectRatio="square"
+                compact
+              />
+            </div>
+          </div>
+
+          {/* Titles & Names Inputs */}
+          <div className="space-y-4 pt-2">
+            {/* Store Names */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                label={isArabic ? 'اسم المتجر (بالعربية)' : 'Store Name (Arabic)'}
+                value={storeNameAr}
+                onChange={(e) => setStoreNameAr(e.target.value)}
+                placeholder="كرافت"
+                required
+              />
+              <Input
+                label={isArabic ? 'اسم المتجر (بالإنجليزية)' : 'Store Name (English)'}
+                value={storeNameEn}
+                onChange={(e) => setStoreNameEn(e.target.value)}
+                placeholder="CRAFT"
+                required
+              />
+            </div>
+
+            {/* Browser Tab Titles */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                label={isArabic ? 'عنوان المتجر في تبويب المتصفح (بالعربية - Browser Title)' : 'Browser Tab Title (Arabic)'}
+                value={storeTitleAr}
+                onChange={(e) => setStoreTitleAr(e.target.value)}
+                placeholder="كرافت | براند الأزياء والملابس العصرية"
+              />
+              <Input
+                label={isArabic ? 'عنوان المتجر في تبويب المتصفح (بالإنجليزية - Browser Title)' : 'Browser Tab Title (English)'}
+                value={storeTitleEn}
+                onChange={(e) => setStoreTitleEn(e.target.value)}
+                placeholder="CRAFT | Premium Streetwear & Modern Apparel"
+              />
+            </div>
+          </div>
+
+          {/* ========================================================
+              LIVE REAL-TIME PREVIEW (محاكاة شكل التبويب والهيدر)
+          ======================================================== */}
+          <div className="mt-4 p-4 rounded-2xl bg-zinc-900 text-white border border-zinc-800 space-y-3">
+            <div className="flex items-center justify-between text-xs text-zinc-400 border-b border-zinc-800 pb-2">
+              <span className="font-bold text-amber-400 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5" />
+                {isArabic ? 'معاينة حية ومباشرة (Live Preview)' : 'Live Real-time Preview'}
+              </span>
+              <span className="text-[10px]">
+                {isArabic ? 'كيف سيظهر للمستخدم في المتصفح' : 'How it appears to users'}
+              </span>
+            </div>
+
+            {/* 1. Simulated Browser Tab */}
+            <div className="space-y-1.5">
+              <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider block text-start">
+                {isArabic ? '1. شكل التبويب في شريط المتصفح (Browser Tab)' : '1. Browser Tab Appearance'}
+              </span>
+              <div className="max-w-md bg-zinc-800/90 rounded-t-xl px-3.5 py-2 flex items-center space-x-2 rtl:space-x-reverse border border-zinc-700 shadow-inner">
+                {faviconUrl ? (
+                  <img
+                    src={faviconUrl}
+                    alt="Favicon"
+                    className="w-4 h-4 rounded object-contain shrink-0"
+                  />
+                ) : (
+                  <div className="w-4 h-4 rounded bg-amber-500/20 text-amber-400 flex items-center justify-center text-[10px] font-black shrink-0">
+                    C
+                  </div>
+                )}
+                <span className="text-xs font-semibold text-zinc-200 truncate flex-1 text-start">
+                  {isArabic
+                    ? storeTitleAr || `${storeNameAr || 'CRAFT'} | متجر الأزياء`
+                    : storeTitleEn || `${storeNameEn || 'CRAFT'} | Modern Fashion`}
+                </span>
+                <span className="text-[10px] text-zinc-500 font-mono">✕</span>
+              </div>
+            </div>
+
+            {/* 2. Simulated Storefront Header */}
+            <div className="space-y-1.5 pt-2">
+              <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider block text-start">
+                {isArabic ? '2. شكل لوجو الهيدر في الموقع (Storefront Header)' : '2. Storefront Header Logo'}
+              </span>
+              <div className="p-3 bg-zinc-950 rounded-xl border border-zinc-800 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {storeLogo ? (
+                    <img
+                      src={storeLogo}
+                      alt={storeNameAr || 'Logo'}
+                      className="h-8 max-w-[140px] object-contain rounded"
+                    />
+                  ) : (
+                    <span className="text-lg font-black tracking-widest text-white uppercase">
+                      {isArabic ? storeNameAr || 'CRAFT' : storeNameEn || 'CRAFT'}
+                    </span>
+                  )}
+                </div>
+                <div className="hidden sm:flex items-center gap-3 text-[11px] text-zinc-400 font-medium">
+                  <span>{isArabic ? 'الرئيسية' : 'Home'}</span>
+                  <span>{isArabic ? 'المنتجات' : 'Products'}</span>
+                  <span>{isArabic ? 'عن المتجر' : 'About'}</span>
+                </div>
+              </div>
+            </div>
           </div>
         </Card>
 

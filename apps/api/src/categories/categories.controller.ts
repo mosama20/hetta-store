@@ -47,6 +47,18 @@ export class CategoriesController {
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions('categories.update')
   @ApiBearerAuth()
+  @Put('reorder')
+  @ApiOperation({ summary: 'Batch reorder categories displayOrder (Admin)' })
+  async reorder(
+    @Body() body: { items: { id: string; displayOrder: number }[] },
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.categoriesService.reorder(body.items, user.id);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('categories.update')
+  @ApiBearerAuth()
   @Put(':id')
   @ApiOperation({ summary: 'Update an existing category (Admin)' })
   async update(

@@ -175,4 +175,25 @@ export class CategoriesService {
 
     return { message: 'Category deleted successfully' };
   }
+
+  async reorder(items: { id: string; displayOrder: number }[], userId?: string) {
+    await this.prisma.$transaction(
+      items.map((item) =>
+        this.prisma.category.update({
+          where: { id: item.id },
+          data: { displayOrder: item.displayOrder },
+        }),
+      ),
+    );
+
+    await this.auditService.log({
+      userId,
+      action: 'CATEGORY_REORDER',
+      entity: 'Category',
+      entityId: 'batch',
+      newValues: { itemsCount: items.length },
+    });
+
+    return this.findAll(true);
+  }
 }
