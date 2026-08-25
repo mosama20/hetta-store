@@ -1,6 +1,6 @@
-# 🛍️ Fashion Store Platform (CRAFT)
+# 🛍️ Fashion Store Platform (Hetta / CRAFT)
 
-> منصة تجارة إلكترونية متكاملة وعصرية للأزياء (متجر إلكتروني + لوحة تحكم إدارية متقدمة + تطبيق ويب تقدمي PWA + نظام تحليلات + طلب مباشر عبر واتساب).
+> منصة تجارة إلكترونية متكاملة وعصرية للأزياء (متجر إلكتروني + لوحة تحكم إدارية متقدمة + تطبيق ويب تقدمي PWA + نظام تحليلات وتتبع الزوار + سلة مشتريات وطلب مباشر عبر واتساب + دعم كامل للرفع السحابي على Vercel و Supabase).
 
 ---
 
@@ -9,21 +9,19 @@
 2. [المميزات الرئيسية (Key Features)](#-المميزات-الرئيسية-key-features)
 3. [التقنيات المستخدمة (Tech Stack)](#-التقنيات-المستخدمة-tech-stack)
 4. [هيكلية المشروع (Project Structure)](#-هيكلية-المشروع-project-structure)
-5. [متطلبات التشغيل (Prerequisites)](#-متطلبات-التشغيل-prerequisites)
-6. [خطوات التثبيت والتشغيل السريع (Quick Start)](#-خطوات-التثبيت-والتشغيل-السريع-quick-start)
-7. [إعداد المتغيرات البيئية (Environment Variables)](#-إعداد-المتغيرات-البيئية-environment-variables)
-8. [إعداد وتجهيز قاعدة البيانات (Database & Prisma)](#-إعداد-وتجهيز-قاعدة-البيانات-database--prisma)
-9. [تشغيل السيرفرات (Running the App)](#-تشغيل-السيرفرات-running-the-app)
-10. [فتح الموقع وتجربته من الموبايل (Mobile Testing)](#-فتح-الموقع-من-الموبايل-mobile-testing)
-11. [بيانات تسجيل دخول لوحة الإدارة (Admin Credentials)](#-بيانات-تسجيل-الدخول-admin-credentials)
-12. [التوثيق البرمجي وواجهة الـ API (Swagger)](#-توثيق-الـ-api-swagger)
-13. [أوامر الصيانة والبناء (Build & Scripts)](#-أوامر-الصيانة-والبناء-scripts)
+5. [خطوات التثبيت والتشغيل المحلي (Local Development)](#-خطوات-التثبيت-والتشغيل-المحلي-local-development)
+6. [إعداد المتغيرات البيئية (Environment Variables)](#-إعداد-المتغيرات-البيئية-environment-variables)
+7. [إعداد وتجهيز قاعدة البيانات (Database & Prisma)](#-إعداد-وتجهيز-قاعدة-البيانات-database--prisma)
+8. [بيانات تسجيل دخول لوحة الإدارة (Admin Credentials)](#-بيانات-تسجيل-الدخول-admin-credentials)
+9. [دليل النشر السحابي الشامل (Vercel & Supabase Deployment)](#-دليل-النشر-السحابي-الشامل-vercel--supabase-deployment)
+10. [التوثيق البرمجي وواجهة الـ API (Swagger)](#-توثيق-الـ-api-swagger)
+11. [أوامر الصيانة والبناء (Build & Scripts)](#-أوامر-الصيانة-والبناء-scripts)
 
 ---
 
 ## 🌟 نظرة عامة (Overview)
 
-تم بناء المنصة كـ **Monorepo** موحد وعالي الأداء لتوفير تجربة تسوق شبابية وسريعة، تدعم اللغتين **العربية (RTL)** و **الإنجليزية (LTR)** مع التبديل الفوري بين **الثيم الداكن والفاتح (Dark & Light Mode)**، ولوحة تحكم شاملة للمديرين لإدارة المنتجات، الطلبات، الكوبونات، المحتوى الإعلاني، وسجلات التتبع والتحليلات.
+تم بناء المنصة كـ **Monorepo** موحد وعالي الأداء لتوفير تجربة تسوق شبابية وسريعة، تدعم اللغتين **العربية (RTL)** و **الإنجليزية (LTR)** مع التبديل الفوري بين **الثيم الداكن والفاتح (Dark & Light Mode)**، ولوحة تحكم شاملة للمديرين لإدارة المنتجات، الطلبات، الكوبونات، المحتوى الإعلاني، وسجلات التتبع والتحليلات، مع قابلية العمل كـ **Serverless Fullstack Application** بالكامل على **Vercel** مدعوماً بقاعدة بيانات **Supabase PostgreSQL**.
 
 ---
 
@@ -31,10 +29,10 @@
 
 ### 🛒 1. واجهة المتجر للعملاء (Storefront)
 - **واجهة عصرية تفاعلية**: سلايدر رئيسي (Hero Slider)، بانرات ترويجية، عداد خصومات الفلاش سيل، وشريط إعلاني متحرك (Marquee & Announcement Bar).
-- **نظام فلترة وتصفح متقدم**: فلترة فورية حسب التصنيف، المقاس، اللون، ونطاق السعر مع ترتيب حسب الأحدث أو الأكثر مبيعاً.
-- **تفاصيل المنتج المتقدمة**: معرض صور متعدد الزوايا، اختيار الألوان والمقاسات، دليل المقاسات التفاعلي (Size Guide Modal)، وحساب الخصومات آلياً.
-- **سلة مشتريات تفاعلية**: تنبيهات متحركة عند إضافة المنتجات، وتطبيق كوبونات الخصم فورياً.
-- **إتمام الطلب عبر الواتساب & الدفع عند الاستلام**: توليد رسالة واتساب منسقة ومفصلة ببيانات العميل والمنتجات والمقاسات والأسعار بضغطة زر.
+- **نظام فلترة وتصفح متقدم**: فلترة فورية حسب التصنيف، المقاس، اللون، ونطاق السعر مع ترتيب حسب الأحدث أو الأكثر مبيعاً أو السعر.
+- **تفاصيل المنتج المتقدمة**: معرض صور متعدد الزوايا، اختيار الألوان والمقاسات التفاعلي، دليل المقاسات الذكي (Size Guide Modal)، وحساب الخصومات آلياً.
+- **سلة مشتريات تفاعلية**: شريط سلة جانبي سريع (Quick Drawer)، تنبيهات متحركة عند إضافة المنتجات، وحساب إجمالي الطلب فورياً.
+- **إتمام الطلب عبر الواتساب & الدفع عند الاستلام**: توليد رسالة واتساب منسقة ومفصلة ببيانات العميل والمنتجات والمقاسات والألوان والأسعار بضغطة زر.
 - **تطبيق ويب تقدمي (PWA / Mobile Install Prompt)**: ويدجت ذكية تظهر لمستخدمي الموبايل لإنشاء اختصار وتثبيت التطبيق على الشاشة الرئيسية مباشرة بشعار وهوية المتجر.
 
 ### 🛡️ 2. لوحة التحكم الإدارية (Admin Dashboard)
@@ -62,10 +60,11 @@
 - **Forms & Validation**: React Hook Form + Zod
 - **Excel Processing**: SheetJS (XLSX)
 
-### ⚙️ الواجهة الخلفية (Backend - `apps/api`)
+### ⚙️ الواجهة الخلفية (Backend - `apps/api` & `api/index.ts`)
 - **Framework**: NestJS 11 + Express + TypeScript
-- **Database & ORM**: PostgreSQL + Prisma ORM
-- **Authentication**: JWT + Argon2 Password Hashing + Role-Based Access Control (RBAC)
+- **Serverless Adapter**: ExpressAdapter مهيأ للتشغيل السحابي كـ Vercel Serverless Function
+- **Database & ORM**: PostgreSQL + Prisma ORM (مع دعم الـ Connection Pooling عبر `directUrl`)
+- **Authentication**: JWT + Bcrypt Password Hashing + Role-Based Access Control (RBAC)
 - **Validation**: class-validator + class-transformer
 - **Documentation**: Swagger / OpenAPI
 
@@ -79,6 +78,8 @@
 
 ```text
 fashion-store/
+├── api/
+│   └── index.ts                      # نقطة انطلاق السيرفرلس لـ Vercel (Serverless Handler)
 ├── apps/
 │   ├── web/                          # تطبيق الفرونت إند (React + Vite)
 │   │   ├── public/                   # الأصول الثابتة (manifest.json, sw.js, favicon.svg)
@@ -102,128 +103,118 @@ fashion-store/
 │       └── src/
 │           ├── modules/              # وحدات التطبيق (Products, Orders, Auth, CMS, Analytics...)
 │           ├── common/               # الفلاتر، الحراس، والـ Interceptors
-│           └── main.ts               # نقطة انطلاق السيرفر وتفعيل Swagger
+│           └── main.ts               # نقطة انطلاق السيرفر وتفعيل Swagger محلياً
 │
 ├── packages/
 │   ├── shared/                       # الأنماط والعقود المشتركة
 │   └── config/                       # إعدادات الـ Tooling المشتركة
 │
+├── vercel.json                       # إعدادات البناء والتوجيه لـ Vercel
 ├── package.json                      # إعدادات الـ Workspace الرئيسية
 └── README.md                         # دليل المشروع
 ```
 
 ---
 
-## 📋 متطلبات التشغيل (Prerequisites)
+## 🚀 خطوات التثبيت والتشغيل المحلي (Local Development)
 
-- **Node.js**: الإصدار `20.x` أو أعلى.
-- **npm**: الإصدار `10.x` أو أعلى.
-- **PostgreSQL**: قاعدة بيانات جاهزة محلياً أو سحابية (مثل Supabase, Neon, أو Railway).
-
----
-
-## 🚀 خطوات التثبيت والتشغيل السريع (Quick Start)
-
-### 1. استنساخ المشروع وتثبيت الحزم
-افتح موجه الأوامر (Terminal) في مسار المشروع وقم بتثبيت الحزم لكافة التطبيقات:
-
+### 1. تثبيت الحزم
 ```bash
 npm install
 ```
+
+### 2. توليد عميل Prisma وتجهيز قاعدة البيانات
+```bash
+npm run prisma:generate
+npm run prisma:migrate
+npm run prisma:seed
+```
+
+### 3. تشغيل السيرفرين معاً بأمر واحد:
+```bash
+npm run dev
+```
+
+- **المتجر (Storefront)**: [http://localhost:5173](http://localhost:5173)
+- **الـ API والسيرفر**: [http://localhost:4000/api](http://localhost:4000/api)
+- **توثيق Swagger**: [http://localhost:4000/api/docs](http://localhost:4000/api/docs)
 
 ---
 
 ## 🔐 إعداد المتغيرات البيئية (Environment Variables)
 
-### 1. إعداد تطبيق الباك إند (`apps/api/.env`)
-أنشئ ملف `.env` داخل مجلد `apps/api/` وضع فيه الإعدادات التالية:
+قم بإنشاء ملف `.env` في المجلد الرئيسي للمشروع أو استخدم نفس القيم في إعدادات المنصة السحابية:
 
 ```env
-# اتصال قاعدة البيانات (PostgreSQL / Supabase)
-DATABASE_URL="postgresql://postgres:your_password@localhost:5432/fashion_store?schema=public"
-
-# منفذ السيرفر
+# Server
 PORT=4000
+NODE_ENV=development
 
-# أسرار التشفير و JWT
-JWT_SECRET="your_super_secret_jwt_key_fashion_store_2026"
-JWT_EXPIRES_IN="7d"
-REFRESH_TOKEN_SECRET="your_super_secret_refresh_key_2026"
-REFRESH_TOKEN_EXPIRES_IN="30d"
+# Database (Supabase / PostgreSQL)
+# منفذ 6543 مع pgbouncer للاتصالات السريعة
+DATABASE_URL="postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-1-eu-west-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
 
-# مسار التطبيق الأمامي (CORS)
-FRONTEND_URL="http://localhost:5173"
+# منفذ 5432 المباشر لعمليات الـ Migrations والـ Seed
+DIRECT_URL="postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-1-eu-west-1.pooler.supabase.com:5432/postgres"
+
+# Authentication & Security
+JWT_ACCESS_SECRET=fashion_store_super_secret_jwt_access_key_2026
+JWT_REFRESH_SECRET=fashion_store_super_secret_jwt_refresh_key_2026
+JWT_ACCESS_EXPIRATION=15m
+JWT_REFRESH_EXPIRATION=7d
+
+# CORS & Frontend URLs
+CORS_ORIGINS=http://localhost:5173
+APP_URL=http://localhost:5173
+API_URL=http://localhost:4000/api
+
+# Storage
+STORAGE_PROVIDER=LOCAL
 ```
-
-### 2. إعداد تطبيق الفرونت إند (`apps/web/.env`)
-أنشئ ملف `.env` داخل مجلد `apps/web/` وضع فيه:
-
-```env
-# رابط الـ Backend API
-VITE_API_URL="http://localhost:4000/api"
-
-# في بيئة التطوير يمكنك استخدام المسار النسبي المباشر عبر Proxy
-VITE_API_PROXY_URL="/api"
-```
-
----
-
-## 🗄️ إعداد وتجهيز قاعدة البيانات (Database & Prisma)
-
-لتوليد جداول قاعدة البيانات وتغذيتها بالحساب الإداري والبيانات الافتراضية:
-
-1. **توليد عميل Prisma**:
-   ```bash
-   npm run prisma:generate --workspace=@fashion-store/api
-   ```
-
-2. **تطبيق الـ Migrations على قاعدة البيانات**:
-   ```bash
-   npm run prisma:migrate --workspace=@fashion-store/api
-   ```
-
-3. **تغذية البيانات الأولية (Seeding Data)**:
-   ```bash
-   npm run prisma:seed --workspace=@fashion-store/api
-   ```
-
----
-
-## ⚡ تشغيل السيرفرات (Running the App)
-
-### التشغيل المزدوج لكامل المشروع بأمر واحد:
-من المجلد الرئيسي للمشروع، نفذ الأمر التالي:
-
-```bash
-npm run dev
-```
-
-سيتم تشغيل:
-- **تطبيق الـ API**: على الرابط [http://localhost:4000](http://localhost:4000)
-- **تطبيق الـ Web (المتجر)**: على الرابط [http://localhost:5173](http://localhost:5173)
-
----
-
-## 📱 فتح الموقع من الموبايل (Mobile Testing)
-
-لمعاينة الموقع واختبار تثبيت الـ PWA من هاتفك المحمول عبر نفس شبكة الـ Wi-Fi:
-
-1. تأكد من اتصال هاتفك بنفس شبكة الإنترنت المتصل بها الكمبيوتر.
-2. افتح متصفح هاتفك واكتب عنوان الـ IP المحلي لجهازك متبوعاً برقم المنفذ، مثال:
-   ```text
-   http://192.168.1.4:5173
-   ```
-3. ستظهر ويدجت تثبيت التطبيق الأنيقة تلقائياً بعد ثانية واحدة مع شعار المتجر.
 
 ---
 
 ## 🔑 بيانات تسجيل الدخول (Admin Credentials)
 
-للوصول إلى لوحة التحكم الإدارية، توجه إلى الرابط:
-`http://localhost:5173/admin/login`
+بعد تنفيذ أمر الـ Seed، تتوفر الحسابات الإدارية التالية للوحة التحكم على المسار `/admin/login`:
 
-- **البريد الإلكتروني**: `admin@fashionstore.com`
-- **كلمة المرور**: `Admin@123456`
+- **البريد الإلكتروني الأساسي**: `admin@fashionstore.com` أو `aymanmossad08@gmail.com`
+- **كلمة المرور الافتراضية**: `Admin@Fashion2026!`
+
+---
+
+## ☁️ دليل النشر السحابي الشامل (Vercel & Supabase Deployment)
+
+المشروع جاهز 100% للنشر السحابي المتكامل على منصة **Vercel** مع قاعدة بيانات **Supabase**:
+
+### 1. إعداد قاعدة بيانات Supabase
+1. أنشئ مشروعاً جديداً على [Supabase](https://supabase.com).
+2. من **Project Settings > Database > Connection string > URI**:
+   - انسخ رابط **Transaction Pooler (Port 6543)** وضعه في `DATABASE_URL`.
+   - انسخ رابط **Session Pooler / Direct (Port 5432)** وضعه في `DIRECT_URL`.
+3. طبّق الجداول والبيانات الأولية من جهازك محلياً:
+   ```bash
+   npx prisma db push --schema=apps/api/prisma/schema.prisma
+   npm run prisma:seed
+   ```
+
+### 2. الربط والرفع على Vercel
+1. اربط مستودع الـ GitHub في [Vercel Dashboard](https://vercel.com/dashboard).
+2. اضبط الإعدادات التالية:
+   - **Root Directory:** `./` (المجلد الرئيسي للمشروع وليس `apps/api`)
+   - **Application Preset:** `Vite`
+   - **Build Command:** `npm run prisma:generate && npm run build:web`
+   - **Output Directory:** `apps/web/dist`
+3. في قسم **Environment Variables**، أضف المتغيرات:
+   - `DATABASE_URL`
+   - `DIRECT_URL`
+   - `JWT_ACCESS_SECRET`
+   - `JWT_REFRESH_SECRET`
+   - `JWT_ACCESS_EXPIRATION` (`15m`)
+   - `JWT_REFRESH_EXPIRATION` (`7d`)
+   - `NODE_ENV` (`production`)
+   - `STORAGE_PROVIDER` (`LOCAL`)
+4. اضغط **Deploy** 🚀.
 
 ---
 
@@ -238,20 +229,15 @@ npm run dev
 
 | الأمر (Command) | الوظيفة (Description) |
 | :--- | :--- |
-| `npm run dev` | تشغيل سيرفر الـ API وسيرفر الـ Web بالتوازي |
-| `npm run build` | بناء نسخة الإنتاج النهائية لجميع التطبيقات |
+| `npm run dev` | تشغيل سيرفر الـ API وسيرفر الـ Web بالتوازي في بيئة التطوير |
+| `npm run build` | بناء حزم الإنتاج لجميع تطبيقات ومكتبات المونوريبو |
 | `npm run build:web` | بناء حزمة الإنتاج لتطبيق الفرونت إند فقط |
-| `npm run typecheck` | فحص الأنماط البرمجية الصارمة عبر TypeScript |
-| `npm run lint` | فحص الكود البرمجي عبر ESLint |
+| `npm run prisma:generate` | توليد عميل Prisma Client للتعامل مع قاعدة البيانات |
+| `npm run prisma:migrate` | تطبيق تعديلات الـ Migrations على قاعدة البيانات |
+| `npm run prisma:seed` | تعبئة البيانات الأولية (المنتجات، الحسابات، الأقسام، الإعدادات) |
+| `npm run typecheck` | فحص الأنماط البرمجية الصارمة عبر TypeScript لكافة التطبيقات |
+| `npm run lint` | فحص الكود البرمجي ومعايير الجودة عبر ESLint |
 | `npm run format` | تنسيق وترتيب الأكواد تلقائياً عبر Prettier |
-
----
-
-## 🚢 النشر على بيئة الإنتاج (Deployment Guidelines)
-
-- **Frontend (`apps/web`)**: يمكن نشره بسهولة وسرعة فائقة على [Vercel](https://vercel.com) أو [Netlify](https://netlify.com) (ملف `vercel.json` جاهز ومضبوط).
-- **Backend (`apps/api`)**: يمكن نشره على [Render](https://render.com), [Railway](https://railway.app), أو [DigitalOcean](https://digitalocean.com).
-- **Database**: يُنصح باستخدام [Supabase PostgreSQL](https://supabase.com) أو [Neon Tech](https://neon.tech) لأفضل أداء وتوفر فوري.
 
 ---
 
