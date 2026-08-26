@@ -10,6 +10,7 @@
   "scripts": {
     "dev": "concurrently -n \"API,WEB\" -c \"blue,magenta\" \"npm run dev --workspace=@fashion-store/api\" \"npm run dev --workspace=@fashion-store/web\"",
     "build": "npm run build --workspaces --if-present",
+    "build:shared": "npm run build --workspace=@fashion-store/shared",
     "build:web": "npm run build --workspace=@fashion-store/web",
     "build:api": "npm run build --workspace=@fashion-store/api",
     "lint": "eslint .",
