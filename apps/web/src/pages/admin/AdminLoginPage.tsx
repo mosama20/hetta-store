@@ -14,8 +14,8 @@ export const AdminLoginPage: React.FC = () => {
   const { settings } = useStoreSettings();
   const navigate = useNavigate();
 
-  const [email, setEmail] = useState('admin@fashionstore.com');
-  const [password, setPassword] = useState('Admin@Fashion2026!');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 

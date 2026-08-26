@@ -134,7 +134,7 @@ export function getTrafficSource(): {
 
 let cachedIp: string | null = null;
 
-// Fetch visitor IP with local cache
+// Fetch visitor IP with local cache (server enriches automatically via headers)
 export async function getVisitorIp(): Promise<string> {
   if (cachedIp) return cachedIp;
   try {
@@ -144,20 +144,6 @@ export async function getVisitorIp(): Promise<string> {
       return stored;
     }
   } catch {}
-
-  try {
-    const res = await fetch('https://api64.ipify.org?format=json', { signal: AbortSignal.timeout(3000) });
-    const data = await res.json();
-    if (data && data.ip) {
-      cachedIp = data.ip;
-      try {
-        sessionStorage.setItem(IP_CACHE_KEY, data.ip);
-      } catch {}
-      return data.ip;
-    }
-  } catch {
-    // Fallback if network blocked
-  }
 
   cachedIp = '127.0.0.1';
   return cachedIp;

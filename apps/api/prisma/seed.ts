@@ -7,6 +7,7 @@ async function main() {
   console.log('🌱 Starting database seeding with CRAFT aesthetic...');
 
   // 1. Permissions
+  console.log('1. Seeding permissions...');
   const permissionsData = [
     { name: 'products.read', module: 'products', description: 'View products' },
     { name: 'products.create', module: 'products', description: 'Create products' },
@@ -36,8 +37,10 @@ async function main() {
       create: perm,
     });
   }
+  console.log('✔ Permissions seeded');
 
   // 2. Roles
+  console.log('2. Seeding roles...');
   const rolesData = [
     { name: 'SUPER_ADMIN', displayNameAr: 'المدير العام', displayNameEn: 'Super Administrator' },
     { name: 'ADMIN', displayNameAr: 'مشرف النظام', displayNameEn: 'Administrator' },
@@ -63,10 +66,17 @@ async function main() {
       create: { roleId: createdRoles['SUPER_ADMIN'], permissionId: perm.id },
     });
   }
+  console.log('✔ Roles seeded');
 
   // 3. Super Admin User
-  const hashedPassword = await bcrypt.hash('Admin@Fashion2026!', 12);
-  const adminEmails = ['aymanmossad08@gmail.com', 'admin@fashionstore.com', 'admin@craftwear.com'];
+  console.log('3. Seeding admin users...');
+  const hashedPassword = await bcrypt.hash('Admin@Fashion2026!', 10);
+  const adminEmails = [
+    'Mohamed.osama5060@gmail.com',
+    'aymanmossad08@gmail.com',
+    'admin@fashionstore.com',
+    'admin@craftwear.com',
+  ];
   for (const adminEmail of adminEmails) {
     const superAdmin = await prisma.user.upsert({
       where: { email: adminEmail },
@@ -85,8 +95,10 @@ async function main() {
       create: { userId: superAdmin.id, roleId: createdRoles['SUPER_ADMIN'] },
     });
   }
+  console.log('✔ Admin users seeded');
 
   // 4. Categories
+  console.log('4. Seeding categories...');
   const categoriesData = [
     {
       nameAr: 'تيشيرتات',
@@ -136,13 +148,15 @@ async function main() {
   for (const c of categoriesData) {
     const cat = await prisma.category.upsert({
       where: { slug: c.slug },
-      update: { nameAr: c.nameAr, nameEn: c.nameEn, displayOrder: c.displayOrder },
-      create: { nameAr: c.nameAr, nameEn: c.nameEn, slug: c.slug, displayOrder: c.displayOrder },
+      update: { nameAr: c.nameAr, nameEn: c.nameEn, displayOrder: c.displayOrder, imageUrl: c.imageUrl },
+      create: { nameAr: c.nameAr, nameEn: c.nameEn, slug: c.slug, displayOrder: c.displayOrder, imageUrl: c.imageUrl },
     });
     catMap[c.slug] = cat.id;
   }
+  console.log('✔ Categories seeded');
 
   // 5. Colors
+  console.log('5. Seeding colors...');
   const colorsData = [
     { nameAr: 'أوف وايت', nameEn: 'Off-White', hexCode: '#F4F1EA', displayOrder: 1 },
     { nameAr: 'بيج رملي', nameEn: 'Sand Beige', hexCode: '#D8CAB8', displayOrder: 2 },
@@ -151,7 +165,7 @@ async function main() {
     { nameAr: 'بني ترابي', nameEn: 'Earthy Brown', hexCode: '#5A4638', displayOrder: 5 },
   ];
 
-    const colorMap: Record<string, string> = {};
+  const colorMap: Record<string, string> = {};
   for (const col of colorsData) {
     let c = await prisma.color.findFirst({ where: { hexCode: col.hexCode } });
     if (!c) {
@@ -161,8 +175,10 @@ async function main() {
     }
     colorMap[col.nameEn] = c.id;
   }
+  console.log('✔ Colors seeded');
 
   // 6. Sizes
+  console.log('6. Seeding sizes...');
   const sizesData = [
     { nameAr: 'صغير', nameEn: 'S', displayOrder: 1 },
     { nameAr: 'وسط', nameEn: 'M', displayOrder: 2 },
@@ -171,7 +187,7 @@ async function main() {
     { nameAr: 'مقاس موحد', nameEn: 'One Size', displayOrder: 5 },
   ];
 
-    const sizeMap: Record<string, string> = {};
+  const sizeMap: Record<string, string> = {};
   for (const s of sizesData) {
     let sz = await prisma.size.findFirst({ where: { nameEn: s.nameEn } });
     if (!sz) {
@@ -181,8 +197,10 @@ async function main() {
     }
     sizeMap[s.nameEn] = sz.id;
   }
+  console.log('✔ Sizes seeded');
 
   // 7. Products
+  console.log('7. Seeding products...');
   const productsData = [
     {
       nameAr: 'تيشيرت أساسي',
@@ -244,36 +262,6 @@ async function main() {
       colors: ['Sand Beige', 'Charcoal Black'],
       sizes: ['One Size'],
     },
-    {
-      nameAr: 'جاكيت خفيف',
-      nameEn: 'Lightweight Jacket',
-      slug: 'lightweight-jacket',
-      categorySlug: 'jackets',
-      basePrice: 1299,
-      descriptionAr: 'جاكيت أوفر شيرت خفيف بأزرار أمامية وجيوب مزدوجة، مثالي للارتداء فوق التيشيرتات.',
-      descriptionEn: 'Relaxed button-up workwear overshirt crafted from heavyweight crisp cotton weave.',
-      isFeatured: true,
-      imageUrl: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=800&q=85',
-      skuPrefix: 'CRF-JCK',
-      price: 1299,
-      colors: ['Charcoal Black', 'Earthy Brown'],
-      sizes: ['M', 'L', 'XL'],
-    },
-    {
-      nameAr: 'شورت قطني مريح',
-      nameEn: 'Essential Sweat Shorts',
-      slug: 'essential-sweat-shorts',
-      categorySlug: 'shorts',
-      basePrice: 499,
-      descriptionAr: 'شورت قطن ميلتون ناعم بخصر مطاطي برباط وجيوب مريحة للإطلالات الصيفية والرياضية.',
-      descriptionEn: 'Soft heavyweight French terry sweat shorts with elasticated drawstring waistband.',
-      isFeatured: false,
-      imageUrl: 'https://images.unsplash.com/photo-1591195853828-11db59a44f6b?w=800&q=85',
-      skuPrefix: 'CRF-SHT',
-      price: 499,
-      colors: ['Charcoal Black', 'Sand Beige'],
-      sizes: ['S', 'M', 'L'],
-    },
   ];
 
   for (const prod of productsData) {
@@ -302,22 +290,29 @@ async function main() {
       },
     });
 
-    await prisma.productImage.deleteMany({ where: { productId: p.id } });
-    await prisma.productImage.create({
-      data: {
-        productId: p.id,
-        url: prod.imageUrl,
-        isPrimary: true,
-        displayOrder: 1,
-      },
-    });
+    const existingImg = await prisma.productImage.findFirst({ where: { productId: p.id } });
+    if (!existingImg) {
+      await prisma.productImage.create({
+        data: {
+          productId: p.id,
+          url: prod.imageUrl,
+          isPrimary: true,
+          displayOrder: 1,
+        },
+      });
+    }
 
-    await prisma.productVariant.deleteMany({ where: { productId: p.id } });
     for (const colName of prod.colors) {
       for (const szName of prod.sizes) {
         const sku = `${prod.skuPrefix}-${colName.slice(0, 3).toUpperCase()}-${szName.replace(' ', '')}`;
-        await prisma.productVariant.create({
-          data: {
+        await prisma.productVariant.upsert({
+          where: { sku },
+          update: {
+            price: prod.price,
+            stockQuantity: 30,
+            isActive: true,
+          },
+          create: {
             productId: p.id,
             colorId: colorMap[colName],
             sizeId: sizeMap[szName],
@@ -330,10 +325,12 @@ async function main() {
       }
     }
   }
+  console.log('✔ Products seeded');
 
   // 8. Store Settings
+  console.log('8. Seeding store settings...');
   const settingsData = [
-    { key: 'store_name_ar', value: 'CRAFT', group: SettingGroup.BRANDING, isPublic: true },
+    { key: 'store_name_ar', value: 'كرافت', group: SettingGroup.BRANDING, isPublic: true },
     { key: 'store_name_en', value: 'CRAFT', group: SettingGroup.BRANDING, isPublic: true },
     { key: 'currency', value: 'EGP', group: SettingGroup.GENERAL, isPublic: true },
     { key: 'whatsapp_number', value: '+201234567890', group: SettingGroup.WHATSAPP, isPublic: true },
@@ -354,6 +351,11 @@ async function main() {
       isPublic: true,
     },
     { key: 'support_email', value: 'hello@craftwear.com', group: SettingGroup.GENERAL, isPublic: true },
+    { key: 'announcement_bar_enabled', value: 'true', group: SettingGroup.GENERAL, isPublic: true },
+    { key: 'announcement_text_ar', value: 'خصم 15% على جميع التيشيرتات بكود CRAFT15', group: SettingGroup.GENERAL, isPublic: true },
+    { key: 'announcement_text_en', value: '15% OFF on all T-Shirts with code CRAFT15', group: SettingGroup.GENERAL, isPublic: true },
+    { key: 'announcement_link', value: '/shop', group: SettingGroup.GENERAL, isPublic: true },
+    { key: 'announcement_coupon', value: 'CRAFT15', group: SettingGroup.GENERAL, isPublic: true },
   ];
 
   for (const s of settingsData) {
@@ -363,8 +365,10 @@ async function main() {
       create: s,
     });
   }
+  console.log('✔ Store settings seeded');
 
   // 9. CMS Sections
+  console.log('9. Seeding CMS sections...');
   const cmsData = [
     {
       key: 'home_hero_slider',
@@ -418,6 +422,7 @@ async function main() {
       create: c,
     });
   }
+  console.log('✔ CMS sections seeded');
 
   console.log('✅ CRAFT database seed completed successfully!');
 }

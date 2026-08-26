@@ -493,3 +493,78 @@ model AuditLog {
   @@index([createdAt], name: "idx_audit_logs_created_at")
   @@map("audit_logs")
 }
+
+// ==========================================
+// 9. ANALYTICS & VISITOR TRACKING
+// ==========================================
+
+model VisitorSession {
+  id              String   @id @default(uuid()) @db.Uuid
+  sessionId       String   @unique @map("session_id") @db.VarChar(100)
+  visitorId       String   @map("visitor_id") @db.VarChar(100)
+  ipAddress       String?  @map("ip_address") @db.VarChar(45)
+  country         String?  @db.VarChar(100)
+  city            String?  @db.VarChar(100)
+  deviceType      String   @default("desktop") @map("device_type") @db.VarChar(20)
+  browser         String   @default("Unknown") @db.VarChar(100)
+  os              String   @default("Unknown") @db.VarChar(100)
+  screenResolution String? @map("screen_resolution") @db.VarChar(50)
+  referrer        String   @default("Direct") @db.VarChar(255)
+  utmSource       String?  @map("utm_source") @db.VarChar(100)
+  utmMedium       String?  @map("utm_medium") @db.VarChar(100)
+  utmCampaign     String?  @map("utm_campaign") @db.VarChar(100)
+  utmContent      String?  @map("utm_content") @db.VarChar(100)
+  utmTerm         String?  @map("utm_term") @db.VarChar(100)
+  pagesVisited    String[] @default([]) @map("pages_visited")
+  totalPageViews  Int      @default(1) @map("total_page_views")
+  durationSeconds Int      @default(0) @map("duration_seconds")
+  hasOrder        Boolean  @default(false) @map("has_order")
+  orderNumber     String?  @map("order_number") @db.VarChar(50)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([sessionId], name: "idx_visitor_sessions_session_id")
+  @@index([visitorId], name: "idx_visitor_sessions_visitor_id")
+  @@index([ipAddress], name: "idx_visitor_sessions_ip_address")
+  @@index([createdAt], name: "idx_visitor_sessions_created_at")
+  @@map("visitor_sessions")
+}
+
+model AnalyticsEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+  sessionId String   @map("session_id") @db.VarChar(100)
+  visitorId String   @map("visitor_id") @db.VarChar(100)
+  ipAddress String?  @map("ip_address") @db.VarChar(45)
+  eventType String   @map("event_type") @db.VarChar(50)
+  path      String   @db.VarChar(255)
+  payload   Json?    @db.JsonB
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([sessionId], name: "idx_analytics_events_session_id")
+  @@index([visitorId], name: "idx_analytics_events_visitor_id")
+  @@index([eventType], name: "idx_analytics_events_event_type")
+  @@index([createdAt], name: "idx_analytics_events_created_at")
+  @@map("analytics_events")
+}
+
+model AbandonedCart {
+  id           String   @id @default(uuid()) @db.Uuid
+  sessionId    String   @map("session_id") @db.VarChar(100)
+  visitorId    String   @map("visitor_id") @db.VarChar(100)
+  ipAddress    String?  @map("ip_address") @db.VarChar(45)
+  deviceType   String   @default("desktop") @map("device_type") @db.VarChar(20)
+  items        Json     @db.JsonB
+  itemsCount   Int      @default(0) @map("items_count")
+  totalValue   Decimal  @map("total_value") @db.Decimal(10, 2)
+  currency     String   @default("EGP") @db.VarChar(10)
+  isRecovered  Boolean  @default(false) @map("is_recovered")
+  lastActiveAt DateTime @default(now()) @map("last_active_at") @db.Timestamptz
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([sessionId], name: "idx_abandoned_carts_session_id")
+  @@index([visitorId], name: "idx_abandoned_carts_visitor_id")
+  @@index([isRecovered], name: "idx_abandoned_carts_is_recovered")
+  @@index([createdAt], name: "idx_abandoned_carts_created_at")
+  @@map("abandoned_carts")
+}

@@ -3,6 +3,7 @@ import { StoreSettings } from '../types/index.js';
 import { settingsApi } from '../api/index.js';
 
 export const STORE_SYNC_EVENT = 'craft_store_sync';
+const SETTINGS_CACHE_KEY = 'craft_store_settings_cache';
 
 export function triggerStoreSync() {
   if (typeof window !== 'undefined') {
@@ -10,18 +11,34 @@ export function triggerStoreSync() {
   }
 }
 
-let listeners: (() => void)[] = [];
-let settings: StoreSettings = {
-  store_name_ar: 'متجري',
-  store_name_en: 'My Store',
+const DEFAULT_SETTINGS: StoreSettings = {
+  store_name_ar: 'كرافت',
+  store_name_en: 'CRAFT',
   currency: 'EGP',
-  whatsapp_number: '',
+  whatsapp_number: '+201234567890',
   announcement_bar_enabled: 'false',
   announcement_text_ar: '',
   announcement_text_en: '',
   announcement_link: '/shop',
   announcement_coupon: '',
 };
+
+function getInitialSettings(): StoreSettings {
+  if (typeof window !== 'undefined') {
+    try {
+      const cached = localStorage.getItem(SETTINGS_CACHE_KEY);
+      if (cached) {
+        return { ...DEFAULT_SETTINGS, ...JSON.parse(cached) };
+      }
+    } catch {
+      // ignore JSON errors
+    }
+  }
+  return { ...DEFAULT_SETTINGS };
+}
+
+let listeners: (() => void)[] = [];
+let settings: StoreSettings = getInitialSettings();
 let isLoaded = false;
 
 function notify() {
@@ -31,7 +48,14 @@ function notify() {
 export async function reloadSettings() {
   try {
     const data = await settingsApi.getPublic();
-    settings = { ...settings, ...data };
+    if (data && typeof data === 'object') {
+      settings = { ...settings, ...data };
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(SETTINGS_CACHE_KEY, JSON.stringify(settings));
+        } catch {}
+      }
+    }
     isLoaded = true;
     notify();
   } catch {
@@ -43,8 +67,11 @@ if (typeof window !== 'undefined') {
   window.addEventListener(STORE_SYNC_EVENT, () => {
     reloadSettings();
   });
-  window.addEventListener('storage', () => {
-    reloadSettings();
+  window.addEventListener('storage', (e) => {
+    if (e.key === SETTINGS_CACHE_KEY) {
+      settings = getInitialSettings();
+      notify();
+    }
   });
 }
 
