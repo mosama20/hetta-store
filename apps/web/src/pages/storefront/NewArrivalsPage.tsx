@@ -347,15 +347,13 @@ export const NewArrivalsPage: React.FC = () => {
           ) : products.length === 0 ? (
             <EmptyState
               title={isArabic ? 'لا توجد منتجات جديدة تطابق الفلترة' : 'No new arrivals found'}
-              description={
+              message={
                 isArabic
                   ? 'جرب تقليل أو تغيير الفلاتر المحددة لمشاهدة باقي المنتجات'
                   : 'Try clearing some filters to explore more items'
               }
-              action={{
-                label: isArabic ? 'إعادة ضبط الفلاتر' : 'Clear Filters',
-                onClick: resetFilters,
-              }}
+              actionLabel={isArabic ? 'إعادة ضبط الفلاتر' : 'Clear Filters'}
+              onAction={resetFilters}
             />
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-6">
