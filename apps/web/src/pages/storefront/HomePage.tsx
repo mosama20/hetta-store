@@ -262,7 +262,6 @@ export const HomePage: React.FC = () => {
               </Link>
               <Link to="/new-arrivals">
                 <button className="px-6 py-3 bg-black/40 hover:bg-black/60 text-white backdrop-blur-md border border-white/30 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
                   <span>{isArabic ? 'تصفح جديدنا' : 'Explore New In'}</span>
                 </button>
               </Link>
@@ -300,7 +299,6 @@ export const HomePage: React.FC = () => {
                 </Link>
                 <Link to="/new-arrivals">
                   <button className="px-6 py-3 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-700 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
                     <span>{isArabic ? 'جديدنا' : 'New In'}</span>
                   </button>
                 </Link>
@@ -347,7 +345,6 @@ export const HomePage: React.FC = () => {
               </Link>
               <Link to="/new-arrivals">
                 <button className="px-6 py-3 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-700 font-bold text-xs rounded-xl transition flex items-center gap-1.5 shadow-sm">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
                   <span>{isArabic ? 'جديدنا' : 'New In'}</span>
                 </button>
               </Link>

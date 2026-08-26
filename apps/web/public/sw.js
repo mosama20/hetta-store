@@ -1,5 +1,5 @@
-// Lightweight Service Worker for CRAFT PWA Installability and Caching
-const CACHE_NAME = 'craft-pwa-v1';
+// Lightweight Service Worker for HETTA PWA Installability and Caching
+const CACHE_NAME = 'hetta-pwa-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
