@@ -21,11 +21,46 @@ export class CmsService {
   private async ensureStandardSections() {
     try {
       const existing = await this.prisma.cMSSection.findMany({
-        select: { key: true },
+        select: { key: true, type: true },
       });
       const existingKeys = new Set(existing.map((s) => s.key));
 
-      const standardSections = [
+      // Clean up legacy duplicated hero or promo keys if both exist
+      if (existingKeys.has('home_hero_slider') && existingKeys.has('hero_banner')) {
+        await this.prisma.cMSSection.delete({ where: { key: 'home_hero_slider' } }).catch(() => {});
+        existingKeys.delete('home_hero_slider');
+      }
+      if (existingKeys.has('home_promo_summer') && existingKeys.has('promo_banner')) {
+        await this.prisma.cMSSection.delete({ where: { key: 'home_promo_summer' } }).catch(() => {});
+        existingKeys.delete('home_promo_summer');
+      }
+
+      const isHeroExists =
+        existingKeys.has('hero_banner') ||
+        existingKeys.has('home_hero_slider') ||
+        existingKeys.has('hero_section');
+
+      const isPromoExists =
+        existingKeys.has('promo_banner') ||
+        existingKeys.has('home_promo_summer') ||
+        existingKeys.has('promo_summer');
+
+      const isAboutExists =
+        existingKeys.has('about_section') ||
+        existingKeys.has('about_craft');
+
+      const standardSections: {
+        key: string;
+        type: CMSSectionType;
+        titleAr: string;
+        titleEn: string;
+        subtitleAr?: string;
+        subtitleEn?: string;
+        payload: Record<string, any>;
+        displayOrder: number;
+        isActive: boolean;
+        skipIf?: boolean;
+      }[] = [
         {
           key: 'hero_banner',
           type: CMSSectionType.HERO_SLIDER,
@@ -44,6 +79,7 @@ export class CmsService {
           },
           displayOrder: 0,
           isActive: true,
+          skipIf: isHeroExists,
         },
         {
           key: 'marquee_ticker',
@@ -55,6 +91,7 @@ export class CmsService {
           },
           displayOrder: 1,
           isActive: true,
+          skipIf: existingKeys.has('marquee_ticker'),
         },
         {
           key: 'trust_bar',
@@ -64,20 +101,7 @@ export class CmsService {
           payload: {},
           displayOrder: 2,
           isActive: true,
-        },
-        {
-          key: 'new_arrivals',
-          type: CMSSectionType.FEATURED_GRID,
-          titleAr: 'جديدنا',
-          titleEn: 'New Arrivals',
-          subtitleAr: 'أحدث التشكيلات',
-          subtitleEn: 'EXPLORE OUR LATEST',
-          payload: {
-            limit: 12,
-            sourceMode: 'latest', // 'latest' | 'featured'
-          },
-          displayOrder: 3,
-          isActive: true,
+          skipIf: existingKeys.has('trust_bar'),
         },
         {
           key: 'promo_banner',
@@ -91,8 +115,9 @@ export class CmsService {
             ctaTextAr: 'تسوق العرض الآن',
             ctaLink: '/shop',
           },
-          displayOrder: 4,
+          displayOrder: 3,
           isActive: true,
+          skipIf: isPromoExists,
         },
         {
           key: 'about_section',
@@ -102,15 +127,26 @@ export class CmsService {
           subtitleAr: 'أزياء مصرية بجودة عالمية وتفاصيل متقنة',
           subtitleEn: 'Crafted with premium quality and passion',
           payload: {},
-          displayOrder: 5,
+          displayOrder: 4,
           isActive: true,
+          skipIf: isAboutExists,
         },
       ];
 
       for (const sec of standardSections) {
-        if (!existingKeys.has(sec.key)) {
+        if (!sec.skipIf && !existingKeys.has(sec.key)) {
           await this.prisma.cMSSection.create({
-            data: sec,
+            data: {
+              key: sec.key,
+              type: sec.type,
+              titleAr: sec.titleAr,
+              titleEn: sec.titleEn,
+              subtitleAr: sec.subtitleAr,
+              subtitleEn: sec.subtitleEn,
+              payload: sec.payload,
+              displayOrder: sec.displayOrder,
+              isActive: sec.isActive,
+            },
           });
         }
       }

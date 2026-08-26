@@ -10,6 +10,7 @@ import { AdminLayout } from '../components/admin/AdminLayout.js';
 // Storefront Pages
 import { HomePage } from '../pages/storefront/HomePage.js';
 import { ShopPage } from '../pages/storefront/ShopPage.js';
+import { NewArrivalsPage } from '../pages/storefront/NewArrivalsPage.js';
 import { CategoryPage } from '../pages/storefront/CategoryPage.js';
 import { ProductDetailsPage } from '../pages/storefront/ProductDetailsPage.js';
 import { CartPage } from '../pages/storefront/CartPage.js';
@@ -86,6 +87,7 @@ export const AppRoutes: React.FC = () => {
         <Route element={<StorefrontLayout />}>
           <Route path="/" element={<HomePage />} />
           <Route path="/shop" element={<ShopPage />} />
+          <Route path="/new-arrivals" element={<NewArrivalsPage />} />
           <Route path="/category/:slug" element={<CategoryPage />} />
           <Route path="/product/:slug" element={<ProductDetailsPage />} />
           <Route path="/cart" element={<CartPage />} />

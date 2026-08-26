@@ -6,7 +6,6 @@ import {
   Award,
   Truck,
   Sparkles,
-  ShoppingBag,
   ArrowRight,
   ArrowLeft,
 } from 'lucide-react';
@@ -15,11 +14,10 @@ import { productsApi, categoriesApi, cmsApi } from '../../api/index.js';
 import { useTheme } from '../../store/themeStore.js';
 import { useStoreSettings } from '../../store/settingsStore.js';
 import { getLocalized } from '../../utils/formatters.js';
-import { ProductCard } from '../../components/storefront/ProductCard.js';
 import { MarqueeBanner } from '../../components/storefront/MarqueeBanner.js';
 import { LoadingState } from '../../components/common/LoadingState.js';
 
-const HOME_CACHE_KEY = 'craft_home_data_cache_v1';
+const HOME_CACHE_KEY = 'craft_home_data_cache_v2';
 
 function getCachedHomeData(): { products: Product[]; categories: Category[]; cmsSections: CMSSection[] } | null {
   if (typeof window === 'undefined') return null;
@@ -35,33 +33,21 @@ export const HomePage: React.FC = () => {
   const { settings } = useStoreSettings();
 
   const cachedData = getCachedHomeData();
-  const [products, setProducts] = useState<Product[]>(cachedData?.products || []);
   const [categories, setCategories] = useState<Category[]>(cachedData?.categories || []);
   const [cmsSections, setCmsSections] = useState<CMSSection[]>(cachedData?.cmsSections || []);
   const [isLoading, setIsLoading] = useState(!cachedData);
 
   const loadData = () => {
     Promise.all([
-      productsApi.getAll({ limit: 24 }).catch(() => ({
-        items: [],
-        total: 0,
-        page: 1,
-        limit: 24,
-        totalPages: 0,
-        hasNextPage: false,
-        hasPreviousPage: false,
-      })),
       categoriesApi.getAll().catch(() => []),
       cmsApi.getActiveSections().catch(() => []),
     ])
-      .then(([prodRes, catRes, cmsRes]) => {
-        const fetchedProducts = prodRes?.items || [];
+      .then(([catRes, cmsRes]) => {
         const sortedCats = [...(catRes || [])].sort(
           (a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0),
         );
         const fetchedCms = cmsRes || [];
 
-        setProducts(fetchedProducts);
         setCategories(sortedCats);
         setCmsSections(fetchedCms);
         setIsLoading(false);
@@ -72,7 +58,6 @@ export const HomePage: React.FC = () => {
             localStorage.setItem(
               HOME_CACHE_KEY,
               JSON.stringify({
-                products: fetchedProducts,
                 categories: sortedCats,
                 cmsSections: fetchedCms,
               }),
@@ -93,28 +78,36 @@ export const HomePage: React.FC = () => {
 
   const storeName = isArabic ? settings.store_name_ar || 'متجرنا' : settings.store_name_en || 'Our Store';
 
-  // Default Sections Sequence Fallback & Merge to guarantee all core sections exist
+  // Helper matchers
+  const isHeroSection = (s: CMSSection) =>
+    s.key === 'hero_banner' || s.key === 'home_hero_slider' || s.key === 'hero_section' || s.type === 'HERO' || s.type === 'HERO_SLIDER';
+  const isMarqueeSection = (s: CMSSection) => s.key === 'marquee_ticker' || s.type === 'MARQUEE';
+  const isCategoriesSection = (s: CMSSection) => s.key === 'categories_section' || s.type === 'CATEGORIES';
+  const isTrustSection = (s: CMSSection) => s.key === 'trust_bar' || s.type === 'TRUST_BAR';
+  const isPromoSection = (s: CMSSection) =>
+    s.key === 'promo_banner' || s.key === 'promo_summer' || s.key === 'home_promo_summer' || s.type === 'PROMO_BANNER';
+  const isAboutSection = (s: CMSSection) => s.key === 'about_section' || s.key === 'about_craft' || s.type === 'ABOUT';
+
+  // Default Sections Sequence Fallback if CMS returns empty
   const defaultSections: { key: string; displayOrder: number; type: string; titleAr: string; titleEn: string }[] = [
     { key: 'hero_banner', displayOrder: 0, type: 'HERO_SLIDER', titleAr: 'البانر الرئيسي', titleEn: 'Main Hero' },
     { key: 'marquee_ticker', displayOrder: 1, type: 'CUSTOM_HTML', titleAr: 'الشريط المتحرك', titleEn: 'Marquee Ticker' },
     { key: 'trust_bar', displayOrder: 2, type: 'CUSTOM_HTML', titleAr: 'مميزات المتجر', titleEn: 'Guarantees' },
-    { key: 'new_arrivals', displayOrder: 3, type: 'FEATURED_GRID', titleAr: 'جديدنا', titleEn: 'New Arrivals' },
-    { key: 'promo_banner', displayOrder: 4, type: 'PROMO_BANNER', titleAr: 'العرض الترويجي', titleEn: 'Promo Banner' },
-    { key: 'about_section', displayOrder: 5, type: 'CUSTOM_HTML', titleAr: 'عن المتجر', titleEn: 'About Brand' },
+    { key: 'promo_banner', displayOrder: 3, type: 'PROMO_BANNER', titleAr: 'العرض الترويجي', titleEn: 'Promo Banner' },
+    { key: 'about_section', displayOrder: 4, type: 'CUSTOM_HTML', titleAr: 'عن المتجر', titleEn: 'About Brand' },
   ];
 
-  // Merge CMS sections or fallback to default sections sorted by displayOrder
+  // Merge CMS sections or fallback to default sections
   const existingKeys = new Set(cmsSections.map((s) => s.key));
-  const mergedSections: CMSSection[] = [...cmsSections];
+  const rawSections: CMSSection[] = [...cmsSections];
 
-  // Ensure core sections exist even if not yet saved in database
   for (const def of defaultSections) {
     const isHeroCovered = def.key === 'hero_banner' && (existingKeys.has('hero_banner') || existingKeys.has('home_hero_slider') || existingKeys.has('hero_section'));
     const isPromoCovered = def.key === 'promo_banner' && (existingKeys.has('promo_banner') || existingKeys.has('home_promo_summer') || existingKeys.has('promo_summer'));
     const isAboutCovered = def.key === 'about_section' && (existingKeys.has('about_section') || existingKeys.has('about_craft'));
 
     if (!existingKeys.has(def.key) && !isHeroCovered && !isPromoCovered && !isAboutCovered) {
-      mergedSections.push({
+      rawSections.push({
         id: def.key,
         key: def.key,
         type: def.type,
@@ -127,7 +120,51 @@ export const HomePage: React.FC = () => {
     }
   }
 
-  const sectionsToRender = mergedSections.sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
+  // Sort by displayOrder
+  const sortedSections = rawSections.sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
+
+  // Deduplicate sections so ONLY 1 hero, 1 marquee, 1 trust, 1 promo, 1 about renders (and no new_arrivals on home)
+  let heroRendered = false;
+  let marqueeRendered = false;
+  let trustRendered = false;
+  let promoRendered = false;
+  let aboutRendered = false;
+
+  const sectionsToRender: CMSSection[] = [];
+
+  for (const s of sortedSections) {
+    if (s.isActive === false) continue;
+    if (s.key === 'new_arrivals' || s.type === 'FEATURED_GRID' || s.type === 'NEW_ARRIVALS') continue; // Not on home page
+
+    if (isHeroSection(s)) {
+      if (!heroRendered) {
+        sectionsToRender.push(s);
+        heroRendered = true;
+      }
+    } else if (isMarqueeSection(s)) {
+      if (!marqueeRendered) {
+        sectionsToRender.push(s);
+        marqueeRendered = true;
+      }
+    } else if (isTrustSection(s)) {
+      if (!trustRendered) {
+        sectionsToRender.push(s);
+        trustRendered = true;
+      }
+    } else if (isPromoSection(s)) {
+      if (!promoRendered) {
+        sectionsToRender.push(s);
+        promoRendered = true;
+      }
+    } else if (isAboutSection(s)) {
+      if (!aboutRendered) {
+        sectionsToRender.push(s);
+        aboutRendered = true;
+      }
+    } else if (isCategoriesSection(s)) {
+      sectionsToRender.push(s);
+    }
+  }
 
   // ========================================================
   // 1. RENDER HERO BANNER
@@ -179,51 +216,54 @@ export const HomePage: React.FC = () => {
 
     const heightClass =
       heightSize === 'compact'
-        ? 'min-h-[360px] sm:min-h-[420px]'
+        ? 'min-h-[380px] sm:min-h-[440px]'
         : heightSize === 'tall'
-          ? 'min-h-[540px] sm:min-h-[640px]'
-          : 'min-h-[440px] sm:min-h-[520px]';
+          ? 'min-h-[550px] sm:min-h-[680px]'
+          : 'min-h-[440px] sm:min-h-[540px]';
 
-    const coverOverlayClass =
+    const overlayClass =
       overlayDarkness === 'light'
-        ? 'from-black/70 via-black/40 to-black/20'
+        ? 'bg-black/25 dark:bg-black/40'
         : overlayDarkness === 'dark'
-          ? 'from-black/90 via-black/75 to-black/60'
-          : 'from-black/85 via-black/55 to-black/35';
+          ? 'bg-black/65 dark:bg-black/75'
+          : 'bg-black/45 dark:bg-black/60';
 
+    // Style 1: Full Background Cover Hero
     if (heroImage && heroLayout === 'cover') {
       return (
         <section
           key={section.key}
-          className={`relative w-full rounded-2xl sm:rounded-3xl overflow-hidden border border-zinc-800 shadow-xl flex items-center ${heightClass}`}
+          className={`relative overflow-hidden rounded-3xl ${heightClass} flex items-center justify-center p-6 sm:p-12 text-center text-white shadow-2xl`}
         >
           <img
             src={heroImage}
             alt={heroTitle}
-            className={`absolute inset-0 w-full h-full object-cover ${positionClass} scale-100 hover:scale-105 transition-transform duration-1000`}
+            className={`absolute inset-0 w-full h-full object-cover transition-transform duration-700 hover:scale-105 ${positionClass}`}
           />
-          <div className={`absolute inset-0 bg-gradient-to-t ${coverOverlayClass}`} />
-          <div className="relative z-10 p-8 sm:p-12 lg:p-16 text-start max-w-2xl space-y-4 sm:space-y-6">
-            <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/15 backdrop-blur-md border border-white/20 text-[10px] sm:text-xs font-black uppercase tracking-widest text-white shadow-sm">
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+          <div className={`absolute inset-0 ${overlayClass} backdrop-blur-[1px]`} />
+
+          <div className="relative z-10 max-w-2xl mx-auto space-y-4 sm:space-y-6">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white text-[10px] sm:text-xs font-black uppercase tracking-widest shadow-sm">
+              <Sparkles className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
               <span>{heroBadge}</span>
-            </span>
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white leading-[1.15] tracking-tight whitespace-pre-line drop-shadow-md">
+            </div>
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight drop-shadow-md">
               {heroTitle}
             </h1>
-            <p className="text-xs sm:text-sm md:text-base text-zinc-200 font-medium max-w-lg leading-relaxed whitespace-pre-line drop-shadow">
+            <p className="text-xs sm:text-base text-zinc-100 max-w-lg mx-auto leading-relaxed drop-shadow">
               {heroSubtitle}
             </p>
-            <div className="pt-2 sm:pt-4 flex flex-wrap gap-3">
+            <div className="pt-2 flex flex-wrap justify-center gap-3">
               <Link to={heroCtaLink}>
-                <button className="px-7 py-3 sm:px-9 sm:py-3.5 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs sm:text-sm rounded-xl shadow-xl transition flex items-center gap-2">
+                <button className="px-7 py-3 bg-white text-black hover:bg-amber-400 hover:text-black font-bold text-xs rounded-xl shadow-xl transition-all flex items-center gap-2">
                   <span>{heroCtaText}</span>
                   {isArabic ? <ArrowLeft className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
                 </button>
               </Link>
-              <Link to="/about">
-                <button className="px-6 py-3 sm:px-7 sm:py-3.5 bg-white/20 hover:bg-white/30 backdrop-blur-md border border-white/30 text-white font-bold text-xs sm:text-sm rounded-xl transition">
-                  {isArabic ? 'عن المتجر' : 'About Us'}
+              <Link to="/new-arrivals">
+                <button className="px-6 py-3 bg-black/40 hover:bg-black/60 text-white backdrop-blur-md border border-white/30 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  <span>{isArabic ? 'تصفح جديدنا' : 'Explore New In'}</span>
                 </button>
               </Link>
             </div>
@@ -232,44 +272,46 @@ export const HomePage: React.FC = () => {
       );
     }
 
+    // Style 2: Floating Card Hero
     if (heroImage && heroLayout === 'card') {
       return (
         <section
           key={section.key}
-          className={`relative w-full rounded-2xl sm:rounded-3xl bg-gradient-to-br from-[#f6f4f0] via-[#ece7de] to-[#dfd7ca] dark:from-zinc-900 dark:via-zinc-900/90 dark:to-zinc-950 overflow-hidden border border-zinc-200/80 dark:border-zinc-800 shadow-sm p-6 sm:p-10 lg:p-12 ${heightClass} flex items-center`}
+          className="relative overflow-hidden rounded-3xl bg-zinc-950 text-white shadow-2xl p-6 sm:p-10 lg:p-14"
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center w-full">
-            <div className="space-y-4 sm:space-y-6 text-start flex flex-col justify-center">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/5 dark:bg-white/10 text-[10px] sm:text-xs font-black uppercase tracking-widest text-zinc-800 dark:text-zinc-200 w-fit">
-                <Sparkles className="w-3 h-3 text-amber-500" />
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+            <div className="lg:col-span-7 space-y-4 sm:space-y-6 text-start">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] sm:text-xs font-black uppercase tracking-wider">
+                <Sparkles className="w-3.5 h-3.5 fill-amber-400" />
                 <span>{heroBadge}</span>
-              </span>
-              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-zinc-900 dark:text-zinc-100 leading-[1.15] tracking-tight whitespace-pre-line">
+              </div>
+              <h1 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight text-white">
                 {heroTitle}
               </h1>
-              <p className="text-xs sm:text-sm md:text-base text-zinc-600 dark:text-zinc-400 max-w-lg leading-relaxed whitespace-pre-line">
+              <p className="text-xs sm:text-sm text-zinc-300 max-w-lg leading-relaxed">
                 {heroSubtitle}
               </p>
-              <div className="pt-2 sm:pt-4 flex flex-wrap gap-3">
+              <div className="pt-2 flex flex-wrap gap-3">
                 <Link to={heroCtaLink}>
-                  <button className="px-7 py-3 sm:px-9 sm:py-3.5 bg-black text-white dark:bg-white dark:text-black font-bold text-xs sm:text-sm rounded-xl shadow-lg hover:bg-zinc-800 dark:hover:bg-zinc-200 transition flex items-center gap-2">
+                  <button className="px-7 py-3 bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs rounded-xl shadow-lg transition-all flex items-center gap-2">
                     <span>{heroCtaText}</span>
                     {isArabic ? <ArrowLeft className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
                   </button>
                 </Link>
-                <Link to="/about">
-                  <button className="px-6 py-3 sm:px-7 sm:py-3.5 bg-white/80 dark:bg-zinc-800/80 backdrop-blur border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 font-bold text-xs sm:text-sm rounded-xl hover:bg-white dark:hover:bg-zinc-800 transition">
-                    {isArabic ? 'عن المتجر' : 'About Us'}
+                <Link to="/new-arrivals">
+                  <button className="px-6 py-3 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-700 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    <span>{isArabic ? 'جديدنا' : 'New In'}</span>
                   </button>
                 </Link>
               </div>
             </div>
-            <div className="relative group">
-              <div className="p-2 sm:p-3 bg-white/60 dark:bg-zinc-800/60 backdrop-blur-md rounded-2xl sm:rounded-3xl border border-white/60 dark:border-zinc-700/60 shadow-xl overflow-hidden aspect-[4/3] sm:aspect-[16/11]">
+            <div className="lg:col-span-5">
+              <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-zinc-800 group">
                 <img
                   src={heroImage}
                   alt={heroTitle}
-                  className={`w-full h-full object-cover ${positionClass} rounded-xl sm:rounded-2xl group-hover:scale-105 transition-transform duration-700`}
+                  className={`w-full h-64 sm:h-80 lg:h-96 object-cover group-hover:scale-105 transition-transform duration-700 ${positionClass}`}
                 />
               </div>
             </div>
@@ -278,47 +320,46 @@ export const HomePage: React.FC = () => {
       );
     }
 
-    // Default Split side-by-side
+    // Default Style: Split Hero (Light / Dark Background with Photo)
     return (
       <section
         key={section.key}
-        className={`relative w-full rounded-2xl sm:rounded-3xl bg-gradient-to-br from-[#f6f4f0] via-[#ece7de] to-[#dfd7ca] dark:from-zinc-900 dark:via-zinc-900/90 dark:to-zinc-950 overflow-hidden border border-zinc-200/80 dark:border-zinc-800 shadow-sm ${heightClass} flex items-center`}
+        className="relative overflow-hidden rounded-3xl bg-[#f6f5f1] dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 shadow-sm"
       >
         <div className={`grid items-center w-full h-full ${heroImage ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
-          <div className="p-8 sm:p-12 lg:p-16 space-y-4 sm:space-y-6 text-start flex flex-col justify-center">
-            <div className="space-y-3 sm:space-y-4 max-w-xl">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/5 dark:bg-white/10 text-[10px] sm:text-xs font-black uppercase tracking-widest text-zinc-800 dark:text-zinc-200">
-                <Sparkles className="w-3 h-3 text-amber-500" />
-                <span>{heroBadge}</span>
-              </span>
-              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-zinc-900 dark:text-zinc-100 leading-[1.15] tracking-tight whitespace-pre-line">
-                {heroTitle}
-              </h1>
-              <p className="text-xs sm:text-sm md:text-base text-zinc-600 dark:text-zinc-400 max-w-lg leading-relaxed whitespace-pre-line">
-                {heroSubtitle}
-              </p>
-              <div className="pt-2 sm:pt-4 flex flex-wrap gap-3">
-                <Link to={heroCtaLink}>
-                  <button className="px-7 py-3 sm:px-9 sm:py-3.5 bg-black text-white dark:bg-white dark:text-black font-bold text-xs sm:text-sm rounded-xl shadow-lg hover:bg-zinc-800 dark:hover:bg-zinc-200 transition flex items-center gap-2">
-                    <span>{heroCtaText}</span>
-                    {isArabic ? <ArrowLeft className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
-                  </button>
-                </Link>
-                <Link to="/about">
-                  <button className="px-6 py-3 sm:px-7 sm:py-3.5 bg-white/80 dark:bg-zinc-800/80 backdrop-blur border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 font-bold text-xs sm:text-sm rounded-xl hover:bg-white dark:hover:bg-zinc-800 transition">
-                    {isArabic ? 'عن المتجر' : 'About Us'}
-                  </button>
-                </Link>
-              </div>
+          <div className="p-6 sm:p-10 lg:p-14 space-y-4 sm:space-y-6 text-start">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/5 dark:bg-white/10 text-zinc-900 dark:text-zinc-100 text-[10px] sm:text-xs font-black uppercase tracking-wider">
+              <Sparkles className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+              <span>{heroBadge}</span>
+            </div>
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-zinc-900 dark:text-zinc-100 leading-tight tracking-tight">
+              {heroTitle}
+            </h1>
+            <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed max-w-md">
+              {heroSubtitle}
+            </p>
+            <div className="pt-2 flex flex-wrap gap-3">
+              <Link to={heroCtaLink}>
+                <button className="px-7 py-3 bg-black text-white dark:bg-white dark:text-black font-bold text-xs rounded-xl shadow-lg hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-all flex items-center gap-2">
+                  <span>{heroCtaText}</span>
+                  {isArabic ? <ArrowLeft className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
+                </button>
+              </Link>
+              <Link to="/new-arrivals">
+                <button className="px-6 py-3 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-700 font-bold text-xs rounded-xl transition flex items-center gap-1.5 shadow-sm">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                  <span>{isArabic ? 'جديدنا' : 'New In'}</span>
+                </button>
+              </Link>
             </div>
           </div>
 
           {heroImage && (
-            <div className="h-64 sm:h-80 md:h-full min-h-[280px] sm:min-h-[380px] relative">
+            <div className="relative h-64 sm:h-80 md:h-full min-h-[300px] sm:min-h-[400px] overflow-hidden">
               <img
                 src={heroImage}
                 alt={heroTitle}
-                className={`w-full h-full object-cover ${positionClass}`}
+                className={`w-full h-full object-cover transition-transform duration-700 hover:scale-105 ${positionClass}`}
               />
             </div>
           )}
@@ -330,60 +371,50 @@ export const HomePage: React.FC = () => {
   // ========================================================
   // 2. RENDER MARQUEE TICKER
   // ========================================================
-  const renderMarquee = (section: CMSSection) => (
-    <section key={section.key} className="rounded-xl sm:rounded-2xl overflow-hidden shadow-sm">
-      <MarqueeBanner variant="dark" />
-    </section>
-  );
+  const renderMarquee = (section: CMSSection) => {
+    const payload = (section.payload || {}) as Record<string, any>;
+    const defaultText = isArabic
+      ? 'خامات قطنية 100% • شحن سريع لجميع المحافظات • دفع عند الاستلام • إرجاع واستبدال خلال 14 يوم • خياطة متقونة وتصاميم عصرية حصرية'
+      : '100% Premium Cotton • Fast Shipping Across Egypt • Cash on Delivery • 14-Day Free Exchange • Modern Silhouettes';
+
+    const text = isArabic
+      ? payload.textAr || section.titleAr || defaultText
+      : payload.textEn || section.titleEn || defaultText;
+
+    const speed = (payload.speed as 'slow' | 'normal' | 'fast') || 'normal';
+
+    return <MarqueeBanner key={section.key} text={text} speed={speed} />;
+  };
 
   // ========================================================
   // 3. RENDER CATEGORIES SHOWCASE
   // ========================================================
   const renderCategories = (section: CMSSection) => {
     if (categories.length === 0) return null;
-    const categoriesTitle = section.titleAr || section.titleEn
-      ? getLocalized(section.titleAr, section.titleEn, isArabic)
-      : isArabic
-        ? 'تصفح حسب القسم'
-        : 'Shop by Category';
+
+    const title = getLocalized(section.titleAr, section.titleEn, isArabic) || (isArabic ? 'تصفح الأقسام' : 'Browse Categories');
 
     return (
-      <section key={section.key} className="space-y-4 sm:space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg sm:text-xl font-black text-zinc-900 dark:text-zinc-100">
-            {categoriesTitle}
-          </h2>
-          <Link
-            to="/shop"
-            className="text-xs font-bold text-zinc-600 dark:text-zinc-400 hover:text-black dark:hover:text-white transition"
-          >
-            {isArabic ? 'عرض الكل' : 'View All'}
-          </Link>
-        </div>
-
-        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-6">
+      <section key={section.key} className="space-y-4 text-start">
+        <h2 className="text-lg sm:text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
+          {title}
+        </h2>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
           {categories.map((cat) => (
             <Link
               key={cat.id}
               to={`/category/${cat.slug}`}
-              className="group flex flex-col items-center space-y-2 text-center"
+              className="group p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200/70 dark:border-zinc-800 hover:border-black dark:hover:border-white transition-all text-center space-y-2 hover:shadow-md"
             >
-              <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 rounded-full bg-[#f4f4f4] dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 p-1.5 sm:p-2 overflow-hidden flex items-center justify-center transition-transform duration-300 group-hover:scale-105 group-hover:shadow-md">
-                {cat.imageUrl ? (
-                  <img
-                    src={cat.imageUrl}
-                    alt={cat.nameEn}
-                    className="w-full h-full object-cover rounded-full"
-                  />
-                ) : (
-                  <span className="text-sm sm:text-base font-black text-zinc-700 dark:text-zinc-300">
-                    {(cat.nameAr || cat.nameEn).slice(0, 2)}
-                  </span>
-                )}
+              <div className="w-12 h-12 mx-auto rounded-full bg-white dark:bg-zinc-800 flex items-center justify-center font-bold text-base shadow-sm group-hover:scale-110 transition-transform">
+                {cat.nameAr?.charAt(0) || cat.nameEn?.charAt(0) || '👕'}
               </div>
-              <span className="text-[11px] sm:text-xs font-bold text-zinc-800 dark:text-zinc-200 group-hover:text-black dark:group-hover:text-white transition line-clamp-1">
-                {getLocalized(cat.nameAr, cat.nameEn, isArabic)}
-              </span>
+              <div>
+                <p className="font-bold text-xs text-zinc-900 dark:text-zinc-100 group-hover:underline">
+                  {getLocalized(cat.nameAr, cat.nameEn, isArabic)}
+                </p>
+                <p className="text-[10px] text-zinc-400 mt-0.5">{cat.slug}</p>
+              </div>
             </Link>
           ))}
         </div>
@@ -392,51 +423,59 @@ export const HomePage: React.FC = () => {
   };
 
   // ========================================================
-  // 4. RENDER TRUST & GUARANTEES BAR
+  // 4. RENDER TRUST / GUARANTEES BAR
   // ========================================================
   const renderTrust = (section: CMSSection) => (
-    <section key={section.key} className="py-5 px-4 sm:px-8 rounded-2xl bg-white dark:bg-zinc-950 border border-zinc-200/80 dark:border-zinc-800">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 text-start">
-        <div className="flex items-center space-x-2.5 rtl:space-x-reverse">
-          <Truck className="w-5 h-5 sm:w-6 sm:h-6 text-zinc-800 dark:text-zinc-200 shrink-0" />
+    <section key={section.key} className="p-5 sm:p-7 rounded-3xl bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200/80 dark:border-zinc-800">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 text-start">
+        <div className="flex items-center space-x-3 rtl:space-x-reverse">
+          <div className="p-2.5 rounded-2xl bg-white dark:bg-zinc-800 shadow-sm text-zinc-900 dark:text-zinc-100 shrink-0">
+            <Truck className="w-5 h-5" />
+          </div>
           <div>
-            <p className="text-[11px] sm:text-xs font-black text-zinc-900 dark:text-zinc-100">
-              {isArabic ? 'شحن سريع وموثوق' : 'Fast Delivery'}
+            <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
+              {isArabic ? 'شحن سريع' : 'Fast Shipping'}
             </p>
             <p className="text-[10px] sm:text-[11px] text-zinc-500">
-              {isArabic ? 'توصيل لباب بيتك' : 'To your doorstep'}
+              {isArabic ? 'توصيل لجميع المحافظات' : 'All Egypt Governorates'}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center space-x-2.5 rtl:space-x-reverse">
-          <RotateCcw className="w-5 h-5 sm:w-6 sm:h-6 text-zinc-800 dark:text-zinc-200 shrink-0" />
+        <div className="flex items-center space-x-3 rtl:space-x-reverse">
+          <div className="p-2.5 rounded-2xl bg-white dark:bg-zinc-800 shadow-sm text-zinc-900 dark:text-zinc-100 shrink-0">
+            <RotateCcw className="w-5 h-5" />
+          </div>
           <div>
-            <p className="text-[11px] sm:text-xs font-black text-zinc-900 dark:text-zinc-100">
-              {isArabic ? 'إرجاع واستبدال فوري' : 'Easy Exchange'}
+            <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
+              {isArabic ? 'إرجاع واستبدال' : 'Easy Exchange'}
             </p>
             <p className="text-[10px] sm:text-[11px] text-zinc-500">
-              {isArabic ? 'خلال 14 يوماً' : 'Within 14 days'}
+              {isArabic ? 'خلال 14 يوم بسهولة' : 'Within 14 Days'}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center space-x-2.5 rtl:space-x-reverse">
-          <Award className="w-5 h-5 sm:w-6 sm:h-6 text-zinc-800 dark:text-zinc-200 shrink-0" />
+        <div className="flex items-center space-x-3 rtl:space-x-reverse">
+          <div className="p-2.5 rounded-2xl bg-white dark:bg-zinc-800 shadow-sm text-zinc-900 dark:text-zinc-100 shrink-0">
+            <Award className="w-5 h-5" />
+          </div>
           <div>
-            <p className="text-[11px] sm:text-xs font-black text-zinc-900 dark:text-zinc-100">
-              {isArabic ? 'جودة مضمونة' : 'Premium Quality'}
+            <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
+              {isArabic ? 'جودة مضمونة' : 'Top Quality'}
             </p>
             <p className="text-[10px] sm:text-[11px] text-zinc-500">
-              {isArabic ? 'أفضل الخامات' : 'Finest materials'}
+              {isArabic ? 'أقمشة وخامات ممتازة' : 'Premium Materials'}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center space-x-2.5 rtl:space-x-reverse">
-          <ShieldCheck className="w-5 h-5 sm:w-6 sm:h-6 text-zinc-800 dark:text-zinc-200 shrink-0" />
+        <div className="flex items-center space-x-3 rtl:space-x-reverse">
+          <div className="p-2.5 rounded-2xl bg-white dark:bg-zinc-800 shadow-sm text-zinc-900 dark:text-zinc-100 shrink-0">
+            <ShieldCheck className="w-5 h-5" />
+          </div>
           <div>
-            <p className="text-[11px] sm:text-xs font-black text-zinc-900 dark:text-zinc-100">
+            <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
               {isArabic ? 'دفع عند الاستلام' : 'Cash on Delivery'}
             </p>
             <p className="text-[10px] sm:text-[11px] text-zinc-500">
@@ -449,91 +488,7 @@ export const HomePage: React.FC = () => {
   );
 
   // ========================================================
-  // 5. RENDER NEW ARRIVALS / PRODUCTS GRID
-  // ========================================================
-  const renderNewArrivals = (section: CMSSection) => {
-    const newArrivalsPayload = (section.payload || {}) as Record<string, any>;
-    const newArrivalsTitle = section.titleAr || section.titleEn
-      ? getLocalized(section.titleAr, section.titleEn, isArabic)
-      : isArabic
-        ? 'جديدنا'
-        : 'New Arrivals';
-
-    const newArrivalsSubtitle = section.subtitleAr || section.subtitleEn
-      ? getLocalized(section.subtitleAr, section.subtitleEn, isArabic)
-      : isArabic
-        ? 'وصل حديثاً'
-        : 'EXPLORE OUR LATEST';
-
-    const limit = Number(newArrivalsPayload.limit) || 12;
-    const sourceMode = (newArrivalsPayload.sourceMode as 'latest' | 'featured') || 'latest';
-
-    let displayedProducts: Product[] = [];
-    if (sourceMode === 'featured') {
-      const featured = products.filter((p) => p.isFeatured);
-      displayedProducts = (featured.length > 0 ? featured : products).slice(0, limit);
-    } else {
-      displayedProducts = products.slice(0, limit);
-    }
-
-    return (
-      <section key={section.key} className="space-y-6">
-        <div className="flex items-center justify-between border-b border-zinc-200/80 dark:border-zinc-800 pb-3">
-          <div>
-            <span className="text-[10px] font-extrabold uppercase tracking-widest text-amber-600 dark:text-amber-400">
-              {newArrivalsSubtitle}
-            </span>
-            <h2 className="text-xl sm:text-2xl font-black text-zinc-900 dark:text-zinc-100">
-              {newArrivalsTitle}
-            </h2>
-          </div>
-
-          {displayedProducts.length > 0 && (
-            <Link
-              to="/shop?sortBy=newest"
-              className="text-xs font-bold px-3 py-1.5 rounded-lg border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-900 transition flex items-center gap-1"
-            >
-              <span>{isArabic ? 'عرض كل جديدنا' : 'View All'}</span>
-            </Link>
-          )}
-        </div>
-
-        {displayedProducts.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
-            {displayedProducts.map((prod) => (
-              <ProductCard key={prod.id} product={prod} />
-            ))}
-          </div>
-        ) : (
-          <div className="py-14 sm:py-20 px-6 rounded-3xl bg-zinc-50 dark:bg-zinc-900/60 border border-dashed border-zinc-300 dark:border-zinc-800 text-center space-y-4 max-w-lg mx-auto">
-            <div className="w-14 h-14 mx-auto rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center">
-              <ShoppingBag className="w-6 h-6" />
-            </div>
-            <div className="space-y-1.5">
-              <h3 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-zinc-100">
-                {isArabic ? 'التشكيلة قادمة قريباً!' : 'New Collection Coming Soon!'}
-              </h3>
-              <p className="text-xs text-zinc-500 max-w-sm mx-auto leading-relaxed">
-                {isArabic
-                  ? 'نقوم حالياً بتجهيز وإضافة أحدث المنتجات إلى المتجر.'
-                  : 'We are currently curating and uploading new products.'}
-              </p>
-            </div>
-            <div className="pt-2 flex justify-center gap-3">
-              <Link to="/admin/products/new">
-                <button className="px-5 py-2 bg-black text-white dark:bg-white dark:text-black text-xs font-bold rounded-xl shadow hover:bg-zinc-800 transition">
-                  {isArabic ? 'إضافة منتج من لوحة التحكم' : 'Add Products in Admin'}
-                </button>
-              </Link>
-            </div>
-          </div>
-        )}
-      </section>
-    );
-  };
-
-  // ========================================================
-  // 6. RENDER PROMO / SPECIAL OFFER BANNER
+  // 5. RENDER PROMO / SPECIAL OFFER BANNER
   // ========================================================
   const renderPromo = (section: CMSSection) => {
     const promoPayload = (section.payload || {}) as Record<string, any>;
@@ -585,7 +540,7 @@ export const HomePage: React.FC = () => {
   };
 
   // ========================================================
-  // 7. RENDER ABOUT BRAND STORY
+  // 6. RENDER ABOUT BRAND STORY
   // ========================================================
   const renderAbout = (section: CMSSection) => {
     const title = getLocalized(section.titleAr, section.titleEn, isArabic) || (isArabic ? `عن ${storeName}` : `About ${storeName}`);
@@ -608,31 +563,15 @@ export const HomePage: React.FC = () => {
     );
   };
 
-  // Helper matcher
-  const isHeroSection = (s: CMSSection) =>
-    s.key === 'hero_banner' || s.key === 'home_hero_slider' || s.key === 'hero_section' || s.type === 'HERO' || s.type === 'HERO_SLIDER';
-  const isMarqueeSection = (s: CMSSection) => s.key === 'marquee_ticker' || s.type === 'MARQUEE';
-  const isCategoriesSection = (s: CMSSection) => s.key === 'categories_section' || s.type === 'CATEGORIES';
-  const isTrustSection = (s: CMSSection) => s.key === 'trust_bar' || s.type === 'TRUST_BAR';
-  const isNewArrivalsSection = (s: CMSSection) =>
-    s.key === 'new_arrivals' || s.key === 'featured_products' || s.type === 'NEW_ARRIVALS' || s.type === 'FEATURED_GRID';
-  const isPromoSection = (s: CMSSection) =>
-    s.key === 'promo_banner' || s.key === 'promo_summer' || s.key === 'home_promo_summer' || s.type === 'PROMO_BANNER';
-  const isAboutSection = (s: CMSSection) => s.key === 'about_section' || s.key === 'about_craft' || s.type === 'ABOUT';
-
   return (
     <div className="space-y-10 sm:space-y-16 lg:space-y-20 pb-16">
       {sectionsToRender.map((section) => {
-        if (section.isActive === false) return null;
-
         if (isHeroSection(section)) return renderHero(section);
         if (isMarqueeSection(section)) return renderMarquee(section);
         if (isCategoriesSection(section)) return renderCategories(section);
         if (isTrustSection(section)) return renderTrust(section);
-        if (isNewArrivalsSection(section)) return renderNewArrivals(section);
         if (isPromoSection(section)) return renderPromo(section);
         if (isAboutSection(section)) return renderAbout(section);
-
         return null;
       })}
     </div>
