@@ -1,16 +1,22 @@
-import 'reflect-metadata';
-import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
-import { ExpressAdapter } from '@nestjs/platform-express';
-import express, { Express, Request, Response } from 'express';
-import { AppModule } from '../apps/api/src/app.module.js';
-import { GlobalExceptionFilter } from '../apps/api/src/common/filters/http-exception.filter.js';
-import { TransformInterceptor } from '../apps/api/src/common/interceptors/transform.interceptor.js';
+require('reflect-metadata');
+const { NestFactory } = require('@nestjs/core');
+const { ValidationPipe } = require('@nestjs/common');
+const { ExpressAdapter } = require('@nestjs/platform-express');
+const express = require('express');
 
-const server: Express = express();
+// Import from pre-compiled dist (built by tsc with emitDecoratorMetadata support)
+const { AppModule } = require('../apps/api/dist/app.module');
+const {
+  GlobalExceptionFilter,
+} = require('../apps/api/dist/common/filters/http-exception.filter');
+const {
+  TransformInterceptor,
+} = require('../apps/api/dist/common/interceptors/transform.interceptor');
+
+const server = express();
 let isReady = false;
 
-async function bootstrap(): Promise<Express> {
+async function bootstrap() {
   if (!isReady) {
     const app = await NestFactory.create(AppModule, new ExpressAdapter(server));
     app.setGlobalPrefix('api');
@@ -36,7 +42,7 @@ async function bootstrap(): Promise<Express> {
   return server;
 }
 
-export default async function handler(req: Request, res: Response): Promise<void> {
+module.exports = async function handler(req, res) {
   await bootstrap();
   server(req, res);
-}
+};
