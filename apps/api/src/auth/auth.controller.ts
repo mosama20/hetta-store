@@ -15,18 +15,22 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { Public } from '../common/decorators/public.decorator';
 import { CurrentUser, AuthenticatedUser } from '../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { AuthThrottlerGuard, ThrottleAuth } from '../common/guards/auth-throttler.guard';
 
 @ApiTags('auth')
 @Controller('auth')
+@UseGuards(AuthThrottlerGuard)
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Public()
+  @ThrottleAuth({ limit: 5, ttlSeconds: 900 }) // Max 5 login attempts per 15 minutes per IP
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Authenticate user with email and password' })
   @SwaggerResponse({ status: 200, description: 'Login successful, returns tokens and user info' })
   @SwaggerResponse({ status: 401, description: 'Invalid credentials' })
+  @SwaggerResponse({ status: 429, description: 'Too many login attempts' })
   async login(@Body() loginDto: LoginDto, @Req() req: Request) {
     const ip = req.ip || req.socket.remoteAddress;
     const userAgent = req.headers['user-agent'];
@@ -62,6 +66,7 @@ export class AuthController {
   }
 
   @Public()
+  @ThrottleAuth({ limit: 3, ttlSeconds: 900 }) // Max 3 password reset requests per 15 minutes per IP
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Request password reset code' })
@@ -70,6 +75,7 @@ export class AuthController {
   }
 
   @Public()
+  @ThrottleAuth({ limit: 5, ttlSeconds: 900 }) // Max 5 verification attempts per 15 minutes per IP
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Reset password with verification code' })
@@ -85,3 +91,4 @@ export class AuthController {
     return this.authService.changePassword(user, dto);
   }
 }
+

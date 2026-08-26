@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../store/authStore.js';
 import { useTheme } from '../../store/themeStore.js';
 import { useStoreSettings } from '../../store/settingsStore.js';
@@ -10,12 +10,23 @@ import { Lock, Shield, KeyRound, ArrowLeft, ArrowRight, CheckCircle2, AlertCircl
 import { authApi } from '../../api/index.js';
 
 export const AdminLoginPage: React.FC = () => {
-  const { login } = useAuth();
+  const { login, isAuthenticated, user } = useAuth();
   const { isArabic } = useTheme();
   const { settings } = useStoreSettings();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const [email, setEmail] = useState('mohamed.osama5060@gmail.com');
+  // Target return URL after login
+  const returnUrl = (location.state as { from?: { pathname?: string } })?.from?.pathname || '/admin';
+
+  // If already authenticated with user, redirect immediately
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      navigate(returnUrl, { replace: true });
+    }
+  }, [isAuthenticated, user, navigate, returnUrl]);
+
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -23,14 +34,13 @@ export const AdminLoginPage: React.FC = () => {
   // Forgot Password State
   const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
   const [forgotStep, setForgotStep] = useState<1 | 2>(1);
-  const [forgotEmail, setForgotEmail] = useState('mohamed.osama5060@gmail.com');
+  const [forgotEmail, setForgotEmail] = useState('');
   const [resetCode, setResetCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotError, setForgotError] = useState('');
   const [forgotSuccess, setForgotSuccess] = useState('');
-  const [generatedCodeHint, setGeneratedCodeHint] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,7 +49,7 @@ export const AdminLoginPage: React.FC = () => {
 
     try {
       await login({ email: email.trim(), password });
-      navigate('/admin');
+      navigate(returnUrl, { replace: true });
     } catch (err: unknown) {
       const msg = (err as Error)?.message || '';
       if (msg.includes('Network error') || msg.includes('Failed to fetch')) {
@@ -67,22 +77,21 @@ export const AdminLoginPage: React.FC = () => {
     setForgotLoading(true);
     setForgotError('');
     setForgotSuccess('');
-    setGeneratedCodeHint('');
 
     try {
       const res = await authApi.forgotPassword(forgotEmail.trim());
       setForgotSuccess(
-        isArabic
-          ? 'تم إصدار كود الاستعادة بنجاح. يرجى إدخال الكود وكلمة المرور الجديدة.'
-          : 'Reset code generated successfully. Please enter the code and new password.',
+        res.message ||
+          (isArabic
+            ? 'إذا كان البريد الإلكتروني مسجلاً، فقد تم إرسال كود التحقق إلى بريدك.'
+            : 'If the email is registered, a verification code has been sent.'),
       );
-      if (res.resetCode) {
-        setGeneratedCodeHint(res.resetCode);
-        setResetCode(res.resetCode);
-      }
       setForgotStep(2);
     } catch (err) {
-      setForgotError((err as Error)?.message || (isArabic ? 'حدث خطأ أثناء طلب الاستعادة' : 'Error requesting reset code'));
+      setForgotError(
+        (err as Error)?.message ||
+          (isArabic ? 'حدث خطأ أثناء طلب الاستعادة' : 'Error requesting reset code'),
+      );
     } finally {
       setForgotLoading(false);
     }
@@ -96,7 +105,9 @@ export const AdminLoginPage: React.FC = () => {
       return;
     }
     if (newPassword.length < 8) {
-      setForgotError(isArabic ? 'كلمة المرور يجب أن لا تقل عن 8 أحرف' : 'Password must be at least 8 characters');
+      setForgotError(
+        isArabic ? 'كلمة المرور يجب أن لا تقل عن 8 أحرف' : 'Password must be at least 8 characters',
+      );
       return;
     }
 
@@ -105,16 +116,17 @@ export const AdminLoginPage: React.FC = () => {
     setForgotSuccess('');
 
     try {
-      await authApi.resetPassword({
+      const res = await authApi.resetPassword({
         email: forgotEmail.trim(),
         resetCode: resetCode.trim(),
         newPassword,
       });
 
       setForgotSuccess(
-        isArabic
-          ? 'تم تغيير كلمة المرور بنجاح! يمكنك الآن تسجيل الدخول بكلمة المرور الجديدة.'
-          : 'Password changed successfully! You can now login with your new password.',
+        res.message ||
+          (isArabic
+            ? 'تم تغيير كلمة المرور بنجاح! يمكنك الآن تسجيل الدخول.'
+            : 'Password changed successfully! You can now login.'),
       );
       setPassword(newPassword);
       setEmail(forgotEmail.trim());
@@ -126,15 +138,20 @@ export const AdminLoginPage: React.FC = () => {
         setNewPassword('');
         setConfirmPassword('');
         setForgotSuccess('');
-      }, 2000);
+      }, 2500);
     } catch (err) {
-      setForgotError((err as Error)?.message || (isArabic ? 'فشل إعادة تعيين كلمة المرور' : 'Failed to reset password'));
+      setForgotError(
+        (err as Error)?.message ||
+          (isArabic ? 'فشل إعادة تعيين كلمة المرور' : 'Failed to reset password'),
+      );
     } finally {
       setForgotLoading(false);
     }
   };
 
-  const storeName = isArabic ? settings.store_name_ar || 'FASHION STORE' : settings.store_name_en || 'FASHION STORE';
+  const storeName = isArabic
+    ? settings.store_name_ar || 'FASHION STORE'
+    : settings.store_name_en || 'FASHION STORE';
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-zinc-950 text-white relative overflow-hidden">
@@ -176,8 +193,9 @@ export const AdminLoginPage: React.FC = () => {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="mohamed.osama5060@gmail.com"
+            placeholder="admin@example.com"
             required
+            autoComplete="username"
           />
 
           <div className="space-y-1">
@@ -188,16 +206,16 @@ export const AdminLoginPage: React.FC = () => {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               required
+              autoComplete="current-password"
             />
             <div className="flex justify-end pt-1">
               <button
                 type="button"
                 onClick={() => {
-                  setForgotEmail(email || 'mohamed.osama5060@gmail.com');
+                  setForgotEmail(email);
                   setForgotStep(1);
                   setForgotError('');
                   setForgotSuccess('');
-                  setGeneratedCodeHint('');
                   setIsForgotModalOpen(true);
                 }}
                 className="text-xs text-amber-400 hover:text-amber-300 transition font-medium underline-offset-4 hover:underline"
@@ -280,8 +298,8 @@ export const AdminLoginPage: React.FC = () => {
               <form onSubmit={handleRequestResetCode} className="space-y-4 text-start">
                 <p className="text-xs text-zinc-400 leading-relaxed">
                   {isArabic
-                    ? 'أدخل البريد الإلكتروني الخاص بحسابك الإداري لإنشاء كود التحقق لاستعادة كلمة المرور.'
-                    : 'Enter your administrative email address to generate a recovery code.'}
+                    ? 'أدخل البريد الإلكتروني الخاص بحسابك الإداري لإرسال رمز التحقق واستعادة كلمة المرور.'
+                    : 'Enter your administrative email address to receive a verification code.'}
                 </p>
 
                 <Input
@@ -289,7 +307,7 @@ export const AdminLoginPage: React.FC = () => {
                   type="email"
                   value={forgotEmail}
                   onChange={(e) => setForgotEmail(e.target.value)}
-                  placeholder="mohamed.osama5060@gmail.com"
+                  placeholder="admin@example.com"
                   required
                 />
 
@@ -306,15 +324,14 @@ export const AdminLoginPage: React.FC = () => {
               </form>
             ) : (
               <form onSubmit={handleResetPassword} className="space-y-4 text-start">
-                {generatedCodeHint && (
-                  <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs">
-                    <span className="font-bold">{isArabic ? 'كود الاستعادة الخاص بك:' : 'Your Reset Code:'} </span>
-                    <span className="font-mono font-bold tracking-widest text-amber-200">{generatedCodeHint}</span>
-                  </div>
-                )}
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  {isArabic
+                    ? 'أدخل رمز التحقق المكون من 6 أرقام المرسل إلى بريدك الإلكتروني، مع كلمة المرور الجديدة.'
+                    : 'Enter the 6-digit verification code sent to your email and your new password.'}
+                </p>
 
                 <Input
-                  label={isArabic ? 'كود التحقق (أو كود الطوارئ CRAFT2026)' : 'Reset Code'}
+                  label={isArabic ? 'رمز التحقق (OTP)' : 'Verification Code'}
                   type="text"
                   value={resetCode}
                   onChange={(e) => setResetCode(e.target.value)}
@@ -367,3 +384,4 @@ export const AdminLoginPage: React.FC = () => {
     </div>
   );
 };
+

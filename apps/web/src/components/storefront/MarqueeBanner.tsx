@@ -4,13 +4,15 @@ import { useTheme } from '../../store/themeStore.js';
 
 interface MarqueeBannerProps {
   variant?: 'dark' | 'sand' | 'outline';
+  text?: string;
+  speed?: 'slow' | 'normal' | 'fast';
 }
 
-export const MarqueeBanner: React.FC<MarqueeBannerProps> = ({ variant = 'dark' }) => {
+export const MarqueeBanner: React.FC<MarqueeBannerProps> = ({ variant = 'dark', text }) => {
   const { isArabic } = useTheme();
 
   const itemsAr = [
-    { text: 'كولكشن الصيف الجديد متوفر الآن', icon: <Flame className="w-3.5 h-3.5 text-amber-400" /> },
+    { text: text || 'كولكشن الصيف الجديد متوفر الآن', icon: <Flame className="w-3.5 h-3.5 text-amber-400" /> },
     { text: 'قطن مصري 100% عالي الجودة', icon: <Sparkles className="w-3.5 h-3.5 text-amber-400" /> },
     { text: 'شحن مجاني للطلبات فوق 1000 ج', icon: <Zap className="w-3.5 h-3.5 text-amber-400" /> },
     { text: 'استبدال مجاني خلال 14 يوم', icon: <ShieldCheck className="w-3.5 h-3.5 text-amber-400" /> },
@@ -18,7 +20,7 @@ export const MarqueeBanner: React.FC<MarqueeBannerProps> = ({ variant = 'dark' }
   ];
 
   const itemsEn = [
-    { text: 'NEW SUMMER COLLECTION DROP', icon: <Flame className="w-3.5 h-3.5 text-amber-400" /> },
+    { text: text || 'NEW SUMMER COLLECTION DROP', icon: <Flame className="w-3.5 h-3.5 text-amber-400" /> },
     { text: '100% COMBED PREMIUM COTTON', icon: <Sparkles className="w-3.5 h-3.5 text-amber-400" /> },
     { text: 'FREE SHIPPING ON ORDERS OVER 1000 EGP', icon: <Zap className="w-3.5 h-3.5 text-amber-400" /> },
     { text: 'HASSLE-FREE 14-DAY RETURNS', icon: <ShieldCheck className="w-3.5 h-3.5 text-amber-400" /> },

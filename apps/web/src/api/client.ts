@@ -53,30 +53,42 @@ export function getRefreshToken(): string | null {
   return refreshToken;
 }
 
+let refreshPromise: Promise<boolean> | null = null;
+
 async function tryRefreshToken(): Promise<boolean> {
   const currentRefresh = getRefreshToken();
   if (!currentRefresh) return false;
 
-  try {
-    const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken: currentRefresh }),
-    });
+  if (refreshPromise) {
+    return refreshPromise;
+  }
 
-    if (!res.ok) {
+  refreshPromise = (async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: currentRefresh }),
+      });
+
+      if (!res.ok) {
+        setTokens(null, null);
+        return false;
+      }
+
+      const json = await res.json();
+      const data = json.data || json;
+      setTokens(data.accessToken, data.refreshToken);
+      return true;
+    } catch {
       setTokens(null, null);
       return false;
+    } finally {
+      refreshPromise = null;
     }
+  })();
 
-    const json = await res.json();
-    const data = json.data || json;
-    setTokens(data.accessToken, data.refreshToken);
-    return true;
-  } catch {
-    setTokens(null, null);
-    return false;
-  }
+  return refreshPromise;
 }
 
 export async function apiClient<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {

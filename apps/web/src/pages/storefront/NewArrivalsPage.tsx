@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { Product, Category, Color, Size } from '../../types/index.js';
 import { productsApi, categoriesApi, attributesApi } from '../../api/index.js';
 import { useTheme } from '../../store/themeStore.js';

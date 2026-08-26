@@ -76,10 +76,11 @@ model User {
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 
-  userRoles     UserRole[]
-  refreshTokens RefreshToken[]
-  auditLogs     AuditLog[]
-  uploadedMedia Media[]
+  userRoles           UserRole[]
+  refreshTokens       RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
+  auditLogs           AuditLog[]
+  uploadedMedia       Media[]
 
   @@index([email], name: "idx_users_email")
   @@index([isActive], name: "idx_users_is_active")
@@ -159,6 +160,22 @@ model RefreshToken {
   @@index([tokenHash], name: "idx_refresh_tokens_token_hash")
   @@index([expiresAt], name: "idx_refresh_tokens_expires_at")
   @@map("refresh_tokens")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  codeHash  String    @unique @map("code_hash") @db.VarChar(255)
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz
+  usedAt    DateTime? @map("used_at") @db.Timestamptz
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], name: "idx_password_reset_tokens_user_id")
+  @@index([codeHash], name: "idx_password_reset_tokens_code_hash")
+  @@index([expiresAt], name: "idx_password_reset_tokens_expires_at")
+  @@map("password_reset_tokens")
 }
 
 // ==========================================

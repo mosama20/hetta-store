@@ -12,8 +12,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { AuthenticatedUser } from '../common/decorators/current-user.decorator';
 import { MailService } from './mail.service';
 
-// In-memory store for reset codes (Email -> { code, expiresAt })
-const resetPasswordCodes = new Map<string, { code: string; expiresAt: number }>();
+// Removed in-memory Map in favor of database persistent PasswordResetToken model
 
 @Injectable()
 export class AuthService {
@@ -85,10 +84,10 @@ export class AuthService {
         'JWT_ACCESS_SECRET',
         'fashion_store_super_secret_jwt_access_key_2026',
       ),
-      expiresIn: this.configService.get<string>(
+      expiresIn: (this.configService.get<string>(
         'JWT_ACCESS_EXPIRATION',
         '15m',
-      ) as unknown as number,
+      ) || '15m') as any,
     });
 
     const rawRefreshToken = crypto.randomBytes(40).toString('hex');
@@ -150,10 +149,10 @@ export class AuthService {
         'JWT_ACCESS_SECRET',
         'fashion_store_super_secret_jwt_access_key_2026',
       ),
-      expiresIn: this.configService.get<string>(
+      expiresIn: (this.configService.get<string>(
         'JWT_ACCESS_EXPIRATION',
         '15m',
-      ) as unknown as number,
+      ) || '15m') as any,
     });
 
     const newRawRefreshToken = crypto.randomBytes(40).toString('hex');
@@ -218,62 +217,85 @@ export class AuthService {
       where: { email },
     });
 
-    if (!user) {
-      // Return success-like response for security but without leaking email existence
-      return {
-        success: true,
-        message: 'إذا كان البريد الإلكتروني مسجلاً، فقد تم إصدار كود الاستعادة وإرساله.',
-      };
+    // Consistent security message to prevent email enumeration
+    const genericResponse = {
+      success: true,
+      message: 'إذا كان البريد الإلكتروني مسجلاً، فقد تم إرسال كود الاستعادة إلى بريدك.',
+    };
+
+    if (!user || !user.isActive) {
+      return genericResponse;
     }
 
-    // Generate a 6-digit numeric OTP code
-    const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = Date.now() + 15 * 60 * 1000; // 15 minutes validity
+    // Invalidate any previous unconsumed reset tokens for this user
+    await this.prisma.passwordResetToken.updateMany({
+      where: { userId: user.id, usedAt: null },
+      data: { usedAt: new Date() },
+    });
 
-    resetPasswordCodes.set(email, { code: resetCode, expiresAt });
+    // Generate secure 6-digit numeric OTP
+    const resetCode = crypto.randomInt(100000, 999999).toString();
+    const codeHash = this.hashToken(resetCode);
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes validity
+
+    await this.prisma.passwordResetToken.create({
+      data: {
+        userId: user.id,
+        codeHash,
+        expiresAt,
+      },
+    });
 
     // Send real email via configured SMTP
     await this.mailService.sendPasswordResetEmail(email, resetCode, user.fullName || 'المدير');
 
-    console.log(`[PASSWORD RESET] Code for ${email}: ${resetCode}`);
-
-    return {
-      success: true,
-      message: 'تم إرسال كود الاستعادة بنجاح (صالح لمدة 15 دقيقة).',
-      resetCode,
-    };
+    return genericResponse;
   }
 
   async resetPassword(dto: ResetPasswordDto) {
     const email = dto.email.toLowerCase().trim();
     const { resetCode, newPassword } = dto;
 
-    const record = resetPasswordCodes.get(email);
-    // Allow code match or master recovery code 'CRAFT2026' for emergency admin recovery
-    const isValidCode = (record && record.code === resetCode.trim() && record.expiresAt > Date.now()) || resetCode.trim() === 'CRAFT2026';
-
-    if (!isValidCode) {
-      throw new BadRequestException('كود استعادة كلمة المرور غير صالح أو منتهي الصلاحية');
+    if (!resetCode || resetCode.trim().length === 0) {
+      throw new BadRequestException('يرجى إدخال كود استعادة كلمة المرور');
     }
 
     const user = await this.prisma.user.findUnique({
       where: { email },
     });
 
-    if (!user) {
-      throw new BadRequestException('المستخدم غير موجود');
+    if (!user || !user.isActive) {
+      throw new BadRequestException('كود استعادة كلمة المرور غير صالح أو منتهي الصلاحية');
+    }
+
+    const codeHash = this.hashToken(resetCode.trim());
+
+    const tokenRecord = await this.prisma.passwordResetToken.findFirst({
+      where: {
+        userId: user.id,
+        codeHash,
+        usedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+    });
+
+    if (!tokenRecord) {
+      throw new BadRequestException('كود استعادة كلمة المرور غير صالح أو منتهي الصلاحية');
     }
 
     const newHash = await bcrypt.hash(newPassword, 10);
     await this.prisma.user.update({
       where: { id: user.id },
-      data: { passwordHash: newHash, isActive: true },
+      data: { passwordHash: newHash },
     });
 
-    // Clean up code
-    resetPasswordCodes.delete(email);
+    // Mark token as used
+    await this.prisma.passwordResetToken.update({
+      where: { id: tokenRecord.id },
+      data: { usedAt: new Date() },
+    });
 
-    // Revoke old sessions
+    // Revoke all active refresh sessions for security
     await this.prisma.refreshToken.updateMany({
       where: { userId: user.id, revokedAt: null },
       data: { revokedAt: new Date() },

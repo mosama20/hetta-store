@@ -1,12 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Search, User, ShoppingBag, Menu, X, Sun, Moon, ChevronDown, Sparkles, CheckCircle2, Smartphone } from 'lucide-react';
+import { Search, User, ShoppingBag, Menu, X, Sun, Moon, CheckCircle2, Smartphone } from 'lucide-react';
 import { useCart, CART_ITEM_ADDED_EVENT } from '../../store/cartStore.js';
 import { useTheme } from '../../store/themeStore.js';
-import { useStoreSettings, STORE_SYNC_EVENT } from '../../store/settingsStore.js';
-import { categoriesApi } from '../../api/index.js';
-import { Category } from '../../types/index.js';
-import { getLocalized } from '../../utils/formatters.js';
+import { useStoreSettings } from '../../store/settingsStore.js';
 import { triggerAppInstallPrompt } from './MobileAppInstallPrompt.js';
 
 export const Header: React.FC = () => {
@@ -16,9 +13,7 @@ export const Header: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const [categories, setCategories] = useState<Category[]>([]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [collectionsDropdownOpen, setCollectionsDropdownOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -26,26 +21,6 @@ export const Header: React.FC = () => {
   const [isCartBouncing, setIsCartBouncing] = useState(false);
   const [showCartPopup, setShowCartPopup] = useState(false);
   const [lastAddedItem, setLastAddedItem] = useState<{ name: string; img?: string } | null>(null);
-
-  const loadCategories = () => {
-    categoriesApi
-      .getAll()
-      .then((data) => setCategories(data))
-      .catch(() => {});
-  };
-
-  useEffect(() => {
-    loadCategories();
-    const handleSync = () => {
-      loadCategories();
-    };
-    window.addEventListener(STORE_SYNC_EVENT, handleSync);
-    window.addEventListener('storage', handleSync);
-    return () => {
-      window.removeEventListener(STORE_SYNC_EVENT, handleSync);
-      window.removeEventListener('storage', handleSync);
-    };
-  }, []);
 
   // Listen for items added to the cart to trigger the bouncing animation
   useEffect(() => {

@@ -11,7 +11,7 @@ interface AuthState {
 let listeners: (() => void)[] = [];
 let state: AuthState = {
   user: null,
-  isAuthenticated: !!getAccessToken(),
+  isAuthenticated: false,
   isLoading: !!getAccessToken(),
 };
 
@@ -42,21 +42,39 @@ export function useAuth() {
   };
 }
 
-export async function checkAuth() {
+let authCheckPromise: Promise<User | null> | null = null;
+
+export async function checkAuth(): Promise<User | null> {
   if (!getAccessToken()) {
     state = { user: null, isAuthenticated: false, isLoading: false };
     notify();
-    return;
+    return null;
   }
 
-  try {
-    const user = await authApi.getMe();
-    state = { user, isAuthenticated: true, isLoading: false };
-  } catch {
-    setTokens(null, null);
-    state = { user: null, isAuthenticated: false, isLoading: false };
+  if (authCheckPromise) {
+    return authCheckPromise;
   }
+
+  state.isLoading = true;
   notify();
+
+  authCheckPromise = (async () => {
+    try {
+      const user = await authApi.getMe();
+      state = { user, isAuthenticated: true, isLoading: false };
+      notify();
+      return user;
+    } catch {
+      setTokens(null, null);
+      state = { user: null, isAuthenticated: false, isLoading: false };
+      notify();
+      return null;
+    } finally {
+      authCheckPromise = null;
+    }
+  })();
+
+  return authCheckPromise;
 }
 
 export async function login(credentials: { email: string; password: string }) {
@@ -96,7 +114,7 @@ export async function logout() {
 export function hasPermission(permission: string): boolean {
   if (!state.user) return false;
   const userRoles = Array.isArray(state.user.roles)
-    ? state.user.roles.map((r) => (typeof r === 'string' ? r : r.name))
+    ? state.user.roles.map((r) => (typeof r === 'string' ? r : (r as { name: string }).name))
     : [];
   if (userRoles.includes('SUPER_ADMIN')) return true;
   return state.user.permissions?.includes(permission) ?? false;
@@ -105,13 +123,27 @@ export function hasPermission(permission: string): boolean {
 export function hasRole(role: string): boolean {
   if (!state.user) return false;
   const userRoles = Array.isArray(state.user.roles)
-    ? state.user.roles.map((r) => (typeof r === 'string' ? r : r.name))
+    ? state.user.roles.map((r) => (typeof r === 'string' ? r : (r as { name: string }).name))
     : [];
   if (userRoles.includes('SUPER_ADMIN')) return true;
   return userRoles.includes(role);
 }
 
-// Initial check on load
-if (typeof window !== 'undefined' && getAccessToken()) {
-  checkAuth();
+// Initial check on load & cross-tab sync
+if (typeof window !== 'undefined') {
+  if (getAccessToken()) {
+    checkAuth();
+  }
+
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'fs_access_token' || e.key === 'fs_refresh_token') {
+      const currentToken = getAccessToken();
+      if (!currentToken) {
+        state = { user: null, isAuthenticated: false, isLoading: false };
+        notify();
+      } else if (!state.user) {
+        checkAuth();
+      }
+    }
+  });
 }

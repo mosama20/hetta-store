@@ -98,8 +98,6 @@ async function main() {
 
     console.log(`✅ Admin created/updated: ${admin.email} (Password: ${admin.password})`);
   }
-
-  console.log(`Emergency Recovery Code for all admins: CRAFT2026`);
 }
 
 main()

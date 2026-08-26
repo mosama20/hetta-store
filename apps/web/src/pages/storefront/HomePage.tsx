@@ -10,7 +10,7 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 import { Product, Category, CMSSection } from '../../types/index.js';
-import { productsApi, categoriesApi, cmsApi } from '../../api/index.js';
+import { categoriesApi, cmsApi } from '../../api/index.js';
 import { useTheme } from '../../store/themeStore.js';
 import { useStoreSettings } from '../../store/settingsStore.js';
 import { getLocalized } from '../../utils/formatters.js';

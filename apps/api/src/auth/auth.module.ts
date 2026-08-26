@@ -8,6 +8,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { AuthThrottlerGuard } from '../common/guards/auth-throttler.guard';
 
 import { MailService } from './mail.service';
 
@@ -23,13 +24,13 @@ import { MailService } from './mail.service';
           'fashion_store_super_secret_jwt_access_key_2026',
         ),
         signOptions: {
-          expiresIn: config.get<string>('JWT_ACCESS_EXPIRATION', '15m') as unknown as number,
+          expiresIn: (config.get<string>('JWT_ACCESS_EXPIRATION', '15m') || '15m') as any,
         },
       }),
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, MailService, JwtStrategy, JwtAuthGuard, PermissionsGuard, RolesGuard],
-  exports: [AuthService, MailService, JwtAuthGuard, PermissionsGuard, RolesGuard],
+  providers: [AuthService, MailService, JwtStrategy, JwtAuthGuard, PermissionsGuard, RolesGuard, AuthThrottlerGuard],
+  exports: [AuthService, MailService, JwtAuthGuard, PermissionsGuard, RolesGuard, AuthThrottlerGuard],
 })
 export class AuthModule {}
