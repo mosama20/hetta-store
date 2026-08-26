@@ -19,14 +19,26 @@ import { ProductCard } from '../../components/storefront/ProductCard.js';
 import { MarqueeBanner } from '../../components/storefront/MarqueeBanner.js';
 import { LoadingState } from '../../components/common/LoadingState.js';
 
+const HOME_CACHE_KEY = 'craft_home_data_cache_v1';
+
+function getCachedHomeData(): { products: Product[]; categories: Category[]; cmsSections: CMSSection[] } | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const cached = localStorage.getItem(HOME_CACHE_KEY);
+    if (cached) return JSON.parse(cached);
+  } catch {}
+  return null;
+}
+
 export const HomePage: React.FC = () => {
   const { isArabic } = useTheme();
   const { settings } = useStoreSettings();
 
-  const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [cmsSections, setCmsSections] = useState<CMSSection[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const cachedData = getCachedHomeData();
+  const [products, setProducts] = useState<Product[]>(cachedData?.products || []);
+  const [categories, setCategories] = useState<Category[]>(cachedData?.categories || []);
+  const [cmsSections, setCmsSections] = useState<CMSSection[]>(cachedData?.cmsSections || []);
+  const [isLoading, setIsLoading] = useState(!cachedData);
 
   const loadData = () => {
     Promise.all([
@@ -43,14 +55,30 @@ export const HomePage: React.FC = () => {
       cmsApi.getActiveSections().catch(() => []),
     ])
       .then(([prodRes, catRes, cmsRes]) => {
-        setProducts(prodRes?.items || []);
-        // Sort categories by displayOrder
+        const fetchedProducts = prodRes?.items || [];
         const sortedCats = [...(catRes || [])].sort(
           (a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0),
         );
+        const fetchedCms = cmsRes || [];
+
+        setProducts(fetchedProducts);
         setCategories(sortedCats);
-        setCmsSections(cmsRes || []);
+        setCmsSections(fetchedCms);
         setIsLoading(false);
+
+        // Cache for subsequent instant loads
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem(
+              HOME_CACHE_KEY,
+              JSON.stringify({
+                products: fetchedProducts,
+                categories: sortedCats,
+                cmsSections: fetchedCms,
+              }),
+            );
+          } catch {}
+        }
       })
       .catch(() => setIsLoading(false));
   };

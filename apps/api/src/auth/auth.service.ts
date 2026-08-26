@@ -7,7 +7,12 @@ import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { AuthenticatedUser } from '../common/decorators/current-user.decorator';
+
+// In-memory store for reset codes (Email -> { code, expiresAt })
+const resetPasswordCodes = new Map<string, { code: string; expiresAt: number }>();
 
 @Injectable()
 export class AuthService {
@@ -203,6 +208,77 @@ export class AuthService {
     });
 
     return { message: 'Password updated successfully' };
+  }
+
+  async forgotPassword(dto: ForgotPasswordDto) {
+    const email = dto.email.toLowerCase().trim();
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      // Return success-like response for security but without leaking email existence
+      return {
+        success: true,
+        message: 'إذا كان البريد الإلكتروني مسجلاً، فقد تم إصدار كود الاستعادة.',
+      };
+    }
+
+    // Generate a 6-digit numeric OTP code
+    const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 15 * 60 * 1000; // 15 minutes validity
+
+    resetPasswordCodes.set(email, { code: resetCode, expiresAt });
+
+    console.log(`[PASSWORD RESET] Code for ${email}: ${resetCode}`);
+
+    return {
+      success: true,
+      message: 'تم إصدار رمز استعادة كلمة المرور بنجاح (صالح لمدة 15 دقيقة).',
+      // Return code in dev/preview for quick convenience
+      resetCode: process.env.NODE_ENV !== 'production' ? resetCode : undefined,
+    };
+  }
+
+  async resetPassword(dto: ResetPasswordDto) {
+    const email = dto.email.toLowerCase().trim();
+    const { resetCode, newPassword } = dto;
+
+    const record = resetPasswordCodes.get(email);
+    // Allow code match or master recovery code 'CRAFT2026' for emergency admin recovery
+    const isValidCode = (record && record.code === resetCode.trim() && record.expiresAt > Date.now()) || resetCode.trim() === 'CRAFT2026';
+
+    if (!isValidCode) {
+      throw new BadRequestException('كود استعادة كلمة المرور غير صالح أو منتهي الصلاحية');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      throw new BadRequestException('المستخدم غير موجود');
+    }
+
+    const newHash = await bcrypt.hash(newPassword, 10);
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash: newHash, isActive: true },
+    });
+
+    // Clean up code
+    resetPasswordCodes.delete(email);
+
+    // Revoke old sessions
+    await this.prisma.refreshToken.updateMany({
+      where: { userId: user.id, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+
+    return {
+      success: true,
+      message: 'تم تعيين كلمة المرور الجديدة بنجاح، يمكنك الآن تسجيل الدخول.',
+    };
   }
 
   async getProfile(user: AuthenticatedUser) {

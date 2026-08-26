@@ -8,9 +8,13 @@ export function useAnalyticsTracker() {
   const { items, subtotal } = useCart();
   const abandonedTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Track page view on route change
+  // Track page view on route change (deferred to avoid blocking critical initial renders)
   useEffect(() => {
-    analyticsTracker.trackPageView(location.pathname + location.search);
+    const timer = setTimeout(() => {
+      analyticsTracker.trackPageView(location.pathname + location.search);
+    }, 1200);
+
+    return () => clearTimeout(timer);
   }, [location.pathname, location.search]);
 
   // Track abandoned cart after 45 seconds of having items in cart without checkout
