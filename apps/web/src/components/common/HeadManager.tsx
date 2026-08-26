@@ -31,14 +31,20 @@ export const HeadManager: React.FC = () => {
     }
     iconLink.href = faviconHref;
 
-    // 3. Update Apple Touch Icon with the REAL store logo
-    let appleIcon = document.querySelector<HTMLLinkElement>("link[rel='apple-touch-icon']");
-    if (!appleIcon) {
-      appleIcon = document.createElement('link');
-      appleIcon.rel = 'apple-touch-icon';
-      document.head.appendChild(appleIcon);
-    }
-    appleIcon.href = actualLogoUrl;
+    // 3. Update Apple Touch Icon with the REAL store logo (for iOS Safari & Shortcuts)
+    const updateOrCreateLink = (rel: string, href: string) => {
+      let el = document.querySelector<HTMLLinkElement>(`link[rel='${rel}']`);
+      if (!el) {
+        el = document.createElement('link');
+        el.rel = rel;
+        document.head.appendChild(el);
+      }
+      el.href = href;
+    };
+
+    updateOrCreateLink('apple-touch-icon', actualLogoUrl);
+    updateOrCreateLink('apple-touch-icon-precomposed', actualLogoUrl);
+    updateOrCreateLink('shortcut icon', faviconHref);
 
     // 4. Update Mobile & Apple Web App Title
     let appleTitleMeta = document.querySelector<HTMLMetaElement>("meta[name='apple-mobile-web-app-title']");
@@ -74,7 +80,7 @@ export const HeadManager: React.FC = () => {
     setMetaTag('name', 'twitter:title', brandTitle);
     setMetaTag('name', 'twitter:image', actualLogoUrl);
 
-    // 6. Dynamically Generate and Bind Real PWA Web App Manifest (for Add to Home Screen / Mobile Shortcuts)
+    // 6. Dynamically Generate and Bind Real PWA Web App Manifest (Data URI for Add to Home Screen / Mobile Shortcuts)
     try {
       const dynamicManifest = {
         name: brandTitle,
@@ -105,18 +111,16 @@ export const HeadManager: React.FC = () => {
         categories: ['shopping', 'lifestyle', 'fashion'],
       };
 
-      const manifestBlob = new Blob([JSON.stringify(dynamicManifest)], { type: 'application/json' });
-      const manifestUrl = URL.createObjectURL(manifestBlob);
-
+      const manifestDataUri = `data:application/manifest+json;charset=utf-8,${encodeURIComponent(JSON.stringify(dynamicManifest))}`;
       let manifestLink = document.querySelector<HTMLLinkElement>("link[rel='manifest']");
       if (!manifestLink) {
         manifestLink = document.createElement('link');
         manifestLink.rel = 'manifest';
         document.head.appendChild(manifestLink);
       }
-      manifestLink.href = manifestUrl;
+      manifestLink.href = manifestDataUri;
     } catch {
-      // Ignore if blob URL creation is not supported
+      // Ignore if data URI manifest is not supported
     }
 
     // 7. Page specific document titles

@@ -130,28 +130,40 @@ export const AdminSettingsPage: React.FC = () => {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
-    await Promise.all([
-      settingsApi.update('store_name_ar', storeNameAr, 'BRANDING'),
-      settingsApi.update('store_name_en', storeNameEn, 'BRANDING'),
-      settingsApi.update('store_title_ar', storeTitleAr, 'BRANDING'),
-      settingsApi.update('store_title_en', storeTitleEn, 'BRANDING'),
-      settingsApi.update('store_logo', storeLogo, 'BRANDING'),
-      settingsApi.update('favicon_url', faviconUrl, 'BRANDING'),
-      settingsApi.update('currency', currency, 'GENERAL'),
-      settingsApi.update('whatsapp_number', whatsappNumber, 'WHATSAPP'),
-      settingsApi.update('whatsapp_order_template_ar', whatsappTemplate, 'WHATSAPP'),
-      settingsApi.update('support_email', supportEmail, 'GENERAL'),
-      settingsApi.update('announcement_bar_enabled', announcementEnabled ? 'true' : 'false', 'GENERAL'),
-      settingsApi.update('announcement_text_ar', announcementTextAr, 'GENERAL'),
-      settingsApi.update('announcement_text_en', announcementTextEn, 'GENERAL'),
-      settingsApi.update('announcement_link', announcementLink, 'GENERAL'),
-      settingsApi.update('announcement_coupon', announcementCoupon, 'GENERAL'),
-      settingsApi.update('social_links', JSON.stringify(socialLinks), 'SOCIAL'),
-    ]);
-    triggerStoreSync();
-    setIsSaving(false);
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 2500);
+    setBackupMsg(null);
+    try {
+      await Promise.all([
+        settingsApi.update('store_name_ar', storeNameAr, 'BRANDING'),
+        settingsApi.update('store_name_en', storeNameEn, 'BRANDING'),
+        settingsApi.update('store_title_ar', storeTitleAr, 'BRANDING'),
+        settingsApi.update('store_title_en', storeTitleEn, 'BRANDING'),
+        settingsApi.update('store_logo', storeLogo, 'BRANDING'),
+        settingsApi.update('favicon_url', faviconUrl, 'BRANDING'),
+        settingsApi.update('currency', currency, 'GENERAL'),
+        settingsApi.update('whatsapp_number', whatsappNumber, 'WHATSAPP'),
+        settingsApi.update('whatsapp_order_template_ar', whatsappTemplate, 'WHATSAPP'),
+        settingsApi.update('support_email', supportEmail, 'GENERAL'),
+        settingsApi.update('announcement_bar_enabled', announcementEnabled ? 'true' : 'false', 'GENERAL'),
+        settingsApi.update('announcement_text_ar', announcementTextAr, 'GENERAL'),
+        settingsApi.update('announcement_text_en', announcementTextEn, 'GENERAL'),
+        settingsApi.update('announcement_link', announcementLink, 'GENERAL'),
+        settingsApi.update('announcement_coupon', announcementCoupon, 'GENERAL'),
+        settingsApi.update('social_links', JSON.stringify(socialLinks), 'GENERAL'),
+      ]);
+      triggerStoreSync();
+      setIsSaving(false);
+      setSavedSuccess(true);
+      setTimeout(() => setSavedSuccess(false), 3000);
+    } catch (err: unknown) {
+      console.error('Settings save error:', err);
+      setIsSaving(false);
+      setBackupMsg({
+        type: 'error',
+        text: isArabic
+          ? 'حدث خطأ أثناء حفظ الإعدادات: ' + ((err as Error)?.message || 'يرجى إعادة المحاولة')
+          : 'Failed to save settings: ' + ((err as Error)?.message || 'Please try again'),
+      });
+    }
   };
 
   // 1. Export Backup to JSON file

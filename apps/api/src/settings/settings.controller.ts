@@ -68,7 +68,7 @@ export class SettingsController {
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions('settings.update')
+  @RequirePermissions('settings.write')
   @ApiBearerAuth()
   @Put(':key')
   @ApiOperation({ summary: 'Update a specific store setting (Admin)' })
