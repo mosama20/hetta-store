@@ -370,7 +370,7 @@ export const Header: React.FC = () => {
             </Link>
 
             {/* Quick Install App Button */}
-            <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800">
+            <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800 space-y-3">
               <button
                 type="button"
                 onClick={() => {
@@ -387,6 +387,58 @@ export const Header: React.FC = () => {
                   {isArabic ? 'اختصار سريع' : 'Shortcut'}
                 </span>
               </button>
+
+              {/* Mobile Drawer Social Links */}
+              {(() => {
+                let socialMap: Record<string, { enabled?: boolean; url?: string } | string> = {};
+                try {
+                  if (settings.social_links) {
+                    socialMap = JSON.parse(settings.social_links);
+                  }
+                } catch {
+                  socialMap = {};
+                }
+
+                const platforms = [
+                  { key: 'instagram', label: 'IG', url: 'https://instagram.com' },
+                  { key: 'tiktok', label: 'TikTok', url: 'https://tiktok.com' },
+                  { key: 'facebook', label: 'FB', url: 'https://facebook.com' },
+                  { key: 'whatsapp', label: 'WA', url: `https://wa.me/${(settings.whatsapp_number || '').replace(/[^0-9]/g, '')}` },
+                  { key: 'twitter', label: 'X', url: 'https://x.com' },
+                  { key: 'snapchat', label: 'Snap', url: 'https://snapchat.com' },
+                  { key: 'youtube', label: 'YT', url: 'https://youtube.com' },
+                  { key: 'telegram', label: 'TG', url: 'https://t.me' },
+                ];
+
+                const active = platforms.filter((p) => {
+                  const val = socialMap[p.key];
+                  if (!val) return false;
+                  if (typeof val === 'string') return val.trim().length > 0;
+                  return val.enabled !== false && Boolean(val.url?.trim());
+                });
+
+                if (active.length === 0) return null;
+
+                return (
+                  <div className="pt-2 flex flex-wrap items-center justify-center gap-2">
+                    {active.map((p) => {
+                      const val = socialMap[p.key];
+                      const href = typeof val === 'string' ? val : (val?.url || p.url);
+                      return (
+                        <a
+                          key={p.key}
+                          href={href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-2.5 py-1 rounded-lg bg-zinc-200/70 dark:bg-zinc-800/70 hover:bg-amber-500 hover:text-black transition text-[11px] font-bold text-zinc-700 dark:text-zinc-300 capitalize"
+                        >
+                          {p.key}
+                        </a>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </div>
           </nav>
         </div>

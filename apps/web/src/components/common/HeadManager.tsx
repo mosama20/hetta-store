@@ -9,8 +9,20 @@ export const HeadManager: React.FC = () => {
   const location = useLocation();
 
   useEffect(() => {
-    // 1. Update Favicon dynamically
-    const faviconHref = settings.favicon_url?.trim() || '/favicon.svg';
+    // 1. Determine actual store branding & names
+    const brandName = isArabic
+      ? settings.store_name_ar || 'HETTA'
+      : settings.store_name_en || 'HETTA';
+
+    const brandTitle = isArabic
+      ? settings.store_title_ar || settings.store_name_ar || 'HETTA | متجر الأزياء العصرية'
+      : settings.store_title_en || settings.store_name_en || 'HETTA | Modern Fashion Store';
+
+    // Real store logo image & favicon
+    const actualLogoUrl = settings.store_logo?.trim() || settings.favicon_url?.trim() || '/favicon.svg';
+    const faviconHref = settings.favicon_url?.trim() || settings.store_logo?.trim() || '/favicon.svg';
+
+    // 2. Update Favicon & Shortcut Icon dynamically
     let iconLink = document.querySelector<HTMLLinkElement>("link[rel~='icon']");
     if (!iconLink) {
       iconLink = document.createElement('link');
@@ -19,24 +31,95 @@ export const HeadManager: React.FC = () => {
     }
     iconLink.href = faviconHref;
 
+    // 3. Update Apple Touch Icon with the REAL store logo
     let appleIcon = document.querySelector<HTMLLinkElement>("link[rel='apple-touch-icon']");
     if (!appleIcon) {
       appleIcon = document.createElement('link');
       appleIcon.rel = 'apple-touch-icon';
       document.head.appendChild(appleIcon);
     }
-    appleIcon.href = faviconHref;
+    appleIcon.href = actualLogoUrl;
 
-    // 2. Determine base brand title
-    const brandTitle = isArabic
-      ? settings.store_title_ar || settings.store_name_ar || 'CRAFT'
-      : settings.store_title_en || settings.store_name_en || 'CRAFT';
+    // 4. Update Mobile & Apple Web App Title
+    let appleTitleMeta = document.querySelector<HTMLMetaElement>("meta[name='apple-mobile-web-app-title']");
+    if (!appleTitleMeta) {
+      appleTitleMeta = document.createElement('meta');
+      appleTitleMeta.name = 'apple-mobile-web-app-title';
+      document.head.appendChild(appleTitleMeta);
+    }
+    appleTitleMeta.content = brandName;
 
-    const brandName = isArabic
-      ? settings.store_name_ar || 'CRAFT'
-      : settings.store_name_en || 'CRAFT';
+    let appNameMeta = document.querySelector<HTMLMetaElement>("meta[name='application-name']");
+    if (!appNameMeta) {
+      appNameMeta = document.createElement('meta');
+      appNameMeta.name = 'application-name';
+      document.head.appendChild(appNameMeta);
+    }
+    appNameMeta.content = brandName;
 
-    // 3. Page specific suffixes/titles
+    // 5. Update OpenGraph & Twitter Social / Sharing Meta Tags
+    const setMetaTag = (attr: 'name' | 'property', attrValue: string, content: string) => {
+      let meta = document.querySelector<HTMLMetaElement>(`meta[${attr}='${attrValue}']`);
+      if (!meta) {
+        meta = document.createElement('meta');
+        meta.setAttribute(attr, attrValue);
+        document.head.appendChild(meta);
+      }
+      meta.content = content;
+    };
+
+    setMetaTag('property', 'og:site_name', brandName);
+    setMetaTag('property', 'og:title', brandTitle);
+    setMetaTag('property', 'og:image', actualLogoUrl);
+    setMetaTag('name', 'twitter:title', brandTitle);
+    setMetaTag('name', 'twitter:image', actualLogoUrl);
+
+    // 6. Dynamically Generate and Bind Real PWA Web App Manifest (for Add to Home Screen / Mobile Shortcuts)
+    try {
+      const dynamicManifest = {
+        name: brandTitle,
+        short_name: brandName,
+        description: isArabic
+          ? `تسوق أحدث صيحات الموضة والأزياء العصرية مع ${brandName}`
+          : `Shop the latest modern fashion drops with ${brandName}`,
+        start_url: '/',
+        id: '/',
+        display: 'standalone',
+        orientation: 'portrait-primary',
+        background_color: '#09090b',
+        theme_color: '#09090b',
+        icons: [
+          {
+            src: actualLogoUrl,
+            sizes: '192x192 512x512',
+            type: actualLogoUrl.endsWith('.svg') ? 'image/svg+xml' : 'image/png',
+            purpose: 'any',
+          },
+          {
+            src: actualLogoUrl,
+            sizes: '192x192 512x512',
+            type: actualLogoUrl.endsWith('.svg') ? 'image/svg+xml' : 'image/png',
+            purpose: 'maskable',
+          },
+        ],
+        categories: ['shopping', 'lifestyle', 'fashion'],
+      };
+
+      const manifestBlob = new Blob([JSON.stringify(dynamicManifest)], { type: 'application/json' });
+      const manifestUrl = URL.createObjectURL(manifestBlob);
+
+      let manifestLink = document.querySelector<HTMLLinkElement>("link[rel='manifest']");
+      if (!manifestLink) {
+        manifestLink = document.createElement('link');
+        manifestLink.rel = 'manifest';
+        document.head.appendChild(manifestLink);
+      }
+      manifestLink.href = manifestUrl;
+    } catch {
+      // Ignore if blob URL creation is not supported
+    }
+
+    // 7. Page specific document titles
     const path = location.pathname;
     let pageSuffix = '';
 
@@ -44,6 +127,8 @@ export const HeadManager: React.FC = () => {
       pageSuffix = '';
     } else if (path === '/shop') {
       pageSuffix = isArabic ? 'المنتجات والتشكيلات' : 'All Products';
+    } else if (path === '/new-arrivals') {
+      pageSuffix = isArabic ? 'أحدث التشكيلات' : 'New Arrivals';
     } else if (path === '/cart') {
       pageSuffix = isArabic ? 'سلة المشتريات' : 'Shopping Cart';
     } else if (path === '/checkout') {

@@ -19,6 +19,7 @@ import {
   Image as ImageIcon,
   Globe,
   Sparkles,
+  Share2,
 } from 'lucide-react';
 
 export const AdminSettingsPage: React.FC = () => {
@@ -44,6 +45,27 @@ export const AdminSettingsPage: React.FC = () => {
   const [announcementTextEn, setAnnouncementTextEn] = useState('');
   const [announcementLink, setAnnouncementLink] = useState('/shop');
   const [announcementCoupon, setAnnouncementCoupon] = useState('');
+
+  // Social Media Links Settings with show/hide control
+  const [socialLinks, setSocialLinks] = useState<{
+    instagram: { enabled: boolean; url: string };
+    tiktok: { enabled: boolean; url: string };
+    facebook: { enabled: boolean; url: string };
+    whatsapp: { enabled: boolean; url: string };
+    twitter: { enabled: boolean; url: string };
+    snapchat: { enabled: boolean; url: string };
+    youtube: { enabled: boolean; url: string };
+    telegram: { enabled: boolean; url: string };
+  }>({
+    instagram: { enabled: true, url: 'https://instagram.com/craft.wear' },
+    tiktok: { enabled: true, url: 'https://tiktok.com/@craftwear' },
+    facebook: { enabled: true, url: 'https://facebook.com/craftwear' },
+    whatsapp: { enabled: true, url: '+201234567890' },
+    twitter: { enabled: false, url: '' },
+    snapchat: { enabled: false, url: '' },
+    youtube: { enabled: false, url: '' },
+    telegram: { enabled: false, url: '' },
+  });
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -73,6 +95,29 @@ export const AdminSettingsPage: React.FC = () => {
         if (s.key === 'announcement_text_en') setAnnouncementTextEn(s.value);
         if (s.key === 'announcement_link') setAnnouncementLink(s.value);
         if (s.key === 'announcement_coupon') setAnnouncementCoupon(s.value);
+        if (s.key === 'social_links') {
+          try {
+            const parsed = JSON.parse(s.value);
+            if (parsed && typeof parsed === 'object') {
+              setSocialLinks((prev) => {
+                const next = { ...prev };
+                (['instagram', 'tiktok', 'facebook', 'whatsapp', 'twitter', 'snapchat', 'youtube', 'telegram'] as const).forEach((k) => {
+                  if (parsed[k] !== undefined) {
+                    if (typeof parsed[k] === 'string') {
+                      next[k] = { enabled: parsed[k].trim().length > 0, url: parsed[k] };
+                    } else if (typeof parsed[k] === 'object' && parsed[k] !== null) {
+                      next[k] = {
+                        enabled: parsed[k].enabled !== false,
+                        url: parsed[k].url || '',
+                      };
+                    }
+                  }
+                });
+                return next;
+              });
+            }
+          } catch {}
+        }
       });
       setIsLoading(false);
     });
@@ -101,6 +146,7 @@ export const AdminSettingsPage: React.FC = () => {
       settingsApi.update('announcement_text_en', announcementTextEn, 'GENERAL'),
       settingsApi.update('announcement_link', announcementLink, 'GENERAL'),
       settingsApi.update('announcement_coupon', announcementCoupon, 'GENERAL'),
+      settingsApi.update('social_links', JSON.stringify(socialLinks), 'SOCIAL'),
     ]);
     triggerStoreSync();
     setIsSaving(false);
@@ -508,6 +554,211 @@ export const AdminSettingsPage: React.FC = () => {
                   <span>{isArabic ? 'عن المتجر' : 'About'}</span>
                 </div>
               </div>
+            </div>
+          </div>
+        </Card>
+
+        {/* ========================================================
+            SOCIAL MEDIA LINKS & VISIBILITY CONTROL
+        ======================================================== */}
+        <Card className="p-6 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-zinc-100 dark:border-zinc-800">
+            <div className="flex items-center space-x-2.5 rtl:space-x-reverse">
+              <div className="p-2 rounded-xl bg-pink-500/10 text-pink-600 dark:text-pink-400">
+                <Share2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-zinc-900 dark:text-zinc-100">
+                  {isArabic ? 'روابط مواقع التواصل الاجتماعي وأيقونات العرض' : 'Social Media Links & Visibility Control'}
+                </h3>
+                <p className="text-[11px] text-zinc-500">
+                  {isArabic
+                    ? 'التحكم في ظهور أو إخفاء أيقونات المنصات وتحديد روابط صفحات المتجر'
+                    : 'Toggle icon visibility and configure store profile links for each platform'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold text-zinc-500">
+                {isArabic
+                  ? `الأيقونات المفعلة: ${Object.values(socialLinks).filter((s) => s.enabled && s.url.trim()).length}`
+                  : `Active: ${Object.values(socialLinks).filter((s) => s.enabled && s.url.trim()).length}`}
+              </span>
+            </div>
+          </div>
+
+          {/* Social Platforms Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {(
+              [
+                {
+                  key: 'instagram',
+                  nameAr: 'انستجرام (Instagram)',
+                  nameEn: 'Instagram',
+                  placeholder: 'https://instagram.com/yourbrand',
+                  color: 'text-pink-500 bg-pink-500/10 border-pink-500/20',
+                  badge: 'IG',
+                },
+                {
+                  key: 'tiktok',
+                  nameAr: 'تيك توك (TikTok)',
+                  nameEn: 'TikTok',
+                  placeholder: 'https://tiktok.com/@yourbrand',
+                  color: 'text-cyan-500 bg-cyan-500/10 border-cyan-500/20',
+                  badge: 'TT',
+                },
+                {
+                  key: 'facebook',
+                  nameAr: 'فيسبوك (Facebook)',
+                  nameEn: 'Facebook',
+                  placeholder: 'https://facebook.com/yourpage',
+                  color: 'text-blue-600 bg-blue-500/10 border-blue-500/20',
+                  badge: 'FB',
+                },
+                {
+                  key: 'whatsapp',
+                  nameAr: 'واتساب مباشر (WhatsApp)',
+                  nameEn: 'WhatsApp',
+                  placeholder: '+201234567890 أو https://wa.me/201234567890',
+                  color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20',
+                  badge: 'WA',
+                },
+                {
+                  key: 'twitter',
+                  nameAr: 'منصة إكس / تويتر (X / Twitter)',
+                  nameEn: 'X / Twitter',
+                  placeholder: 'https://x.com/yourhandle',
+                  color: 'text-zinc-900 dark:text-zinc-100 bg-zinc-500/10 border-zinc-500/20',
+                  badge: 'X',
+                },
+                {
+                  key: 'snapchat',
+                  nameAr: 'سناب شات (Snapchat)',
+                  nameEn: 'Snapchat',
+                  placeholder: 'https://snapchat.com/add/yourname',
+                  color: 'text-amber-500 bg-amber-500/10 border-amber-500/20',
+                  badge: 'SC',
+                },
+                {
+                  key: 'youtube',
+                  nameAr: 'يوتيوب (YouTube)',
+                  nameEn: 'YouTube',
+                  placeholder: 'https://youtube.com/@yourchannel',
+                  color: 'text-red-500 bg-red-500/10 border-red-500/20',
+                  badge: 'YT',
+                },
+                {
+                  key: 'telegram',
+                  nameAr: 'تليجرام (Telegram)',
+                  nameEn: 'Telegram',
+                  placeholder: 'https://t.me/yourchannel',
+                  color: 'text-sky-500 bg-sky-500/10 border-sky-500/20',
+                  badge: 'TG',
+                },
+              ] as const
+            ).map((item) => {
+              const current = socialLinks[item.key];
+              const isEnabled = current?.enabled ?? false;
+
+              return (
+                <div
+                  key={item.key}
+                  className={`p-4 rounded-2xl border transition-all ${
+                    isEnabled
+                      ? 'bg-zinc-50/80 dark:bg-zinc-900/60 border-zinc-300 dark:border-zinc-700 shadow-sm'
+                      : 'bg-zinc-100/40 dark:bg-zinc-950/40 border-zinc-200/50 dark:border-zinc-800/50 opacity-60'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-3 mb-2.5">
+                    <div className="flex items-center gap-2.5">
+                      <span className={`w-7 h-7 rounded-xl border flex items-center justify-center text-xs font-black shrink-0 ${item.color}`}>
+                        {item.badge}
+                      </span>
+                      <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
+                        {isArabic ? item.nameAr : item.nameEn}
+                      </span>
+                    </div>
+
+                    {/* Toggle Switch */}
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={isEnabled}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setSocialLinks((prev) => ({
+                            ...prev,
+                            [item.key]: {
+                              ...prev[item.key],
+                              enabled: checked,
+                            },
+                          }));
+                        }}
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-zinc-300 peer-focus:outline-none rounded-full peer dark:bg-zinc-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-zinc-600 peer-checked:bg-amber-500"></div>
+                      <span className="ms-2 text-[11px] font-bold text-zinc-500 dark:text-zinc-400 select-none">
+                        {isEnabled ? (isArabic ? 'ظاهر' : 'Shown') : (isArabic ? 'مخفي' : 'Hidden')}
+                      </span>
+                    </label>
+                  </div>
+
+                  <div className="space-y-1">
+                    <input
+                      type="url"
+                      disabled={!isEnabled}
+                      value={current?.url || ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSocialLinks((prev) => ({
+                          ...prev,
+                          [item.key]: {
+                            ...prev[item.key],
+                            url: val,
+                          },
+                        }));
+                      }}
+                      placeholder={item.placeholder}
+                      className="w-full text-xs px-3.5 py-2 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-xl text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500 transition disabled:opacity-50 disabled:bg-zinc-100 dark:disabled:bg-zinc-800 font-mono text-[11px]"
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Real-time Preview of Active Social Bar */}
+          <div className="p-4 rounded-2xl bg-zinc-900 text-white border border-zinc-800 space-y-2.5">
+            <div className="flex items-center justify-between text-xs text-zinc-400 border-b border-zinc-800 pb-2">
+              <span className="font-bold text-pink-400 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5" />
+                {isArabic ? 'معاينة شكل أيقونات التواصل في الفوتر والموقع' : 'Footer Social Icons Real-time Preview'}
+              </span>
+              <span className="text-[10px]">
+                {isArabic ? 'الأيقونات التي ستظهر للزوار' : 'Visible to visitors'}
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              {Object.entries(socialLinks).filter(([, v]) => v.enabled && v.url.trim()).length > 0 ? (
+                Object.entries(socialLinks)
+                  .filter(([, v]) => v.enabled && v.url.trim())
+                  .map(([k, v]) => (
+                    <span
+                      key={k}
+                      className="px-3 py-1.5 rounded-xl bg-zinc-800 border border-zinc-700 text-xs font-bold text-zinc-200 flex items-center gap-1.5 shadow-sm"
+                      title={v.url}
+                    >
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                      <span className="capitalize">{k}</span>
+                    </span>
+                  ))
+              ) : (
+                <span className="text-xs text-zinc-500 italic">
+                  {isArabic ? '⚠️ لم يتم تفعيل أي أيقونة (لن تظهر أي أيقونات تواصل في الفوتر)' : 'No active social links selected'}
+                </span>
+              )}
             </div>
           </div>
         </Card>

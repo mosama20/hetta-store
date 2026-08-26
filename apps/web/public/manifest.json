@@ -1,7 +1,7 @@
 {
-  "name": "CRAFT Fashion Store",
-  "short_name": "CRAFT",
-  "description": "تسوق أحدث صيحات الموضة والأزياء العصرية مع كرافت",
+  "name": "HETTA Fashion Store",
+  "short_name": "HETTA",
+  "description": "تسوق أحدث صيحات الموضة والأزياء العصرية مع حِطّة",
   "start_url": "/",
   "id": "/",
   "display": "standalone",
