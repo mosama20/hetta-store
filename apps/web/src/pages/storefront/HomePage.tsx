@@ -93,28 +93,41 @@ export const HomePage: React.FC = () => {
 
   const storeName = isArabic ? settings.store_name_ar || 'متجرنا' : settings.store_name_en || 'Our Store';
 
-  // Default Sections Sequence Fallback if CMS returns empty or initial setup
-  const defaultSections: { key: string; displayOrder: number }[] = [
-    { key: 'hero_banner', displayOrder: 0 },
-    { key: 'marquee_ticker', displayOrder: 1 },
-    { key: 'categories_section', displayOrder: 2 },
-    { key: 'trust_bar', displayOrder: 3 },
-    { key: 'new_arrivals', displayOrder: 4 },
-    { key: 'promo_banner', displayOrder: 5 },
-    { key: 'about_section', displayOrder: 6 },
+  // Default Sections Sequence Fallback & Merge to guarantee all core sections exist
+  const defaultSections: { key: string; displayOrder: number; type: string; titleAr: string; titleEn: string }[] = [
+    { key: 'hero_banner', displayOrder: 0, type: 'HERO_SLIDER', titleAr: 'البانر الرئيسي', titleEn: 'Main Hero' },
+    { key: 'marquee_ticker', displayOrder: 1, type: 'CUSTOM_HTML', titleAr: 'الشريط المتحرك', titleEn: 'Marquee Ticker' },
+    { key: 'trust_bar', displayOrder: 2, type: 'CUSTOM_HTML', titleAr: 'مميزات المتجر', titleEn: 'Guarantees' },
+    { key: 'new_arrivals', displayOrder: 3, type: 'FEATURED_GRID', titleAr: 'جديدنا', titleEn: 'New Arrivals' },
+    { key: 'promo_banner', displayOrder: 4, type: 'PROMO_BANNER', titleAr: 'العرض الترويجي', titleEn: 'Promo Banner' },
+    { key: 'about_section', displayOrder: 5, type: 'CUSTOM_HTML', titleAr: 'عن المتجر', titleEn: 'About Brand' },
   ];
 
   // Merge CMS sections or fallback to default sections sorted by displayOrder
-  const sectionsToRender = cmsSections.length > 0
-    ? [...cmsSections].sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))
-    : defaultSections.map((d) => ({
-        id: d.key,
-        key: d.key,
-        type: 'CUSTOM',
-        displayOrder: d.displayOrder,
+  const existingKeys = new Set(cmsSections.map((s) => s.key));
+  const mergedSections: CMSSection[] = [...cmsSections];
+
+  // Ensure core sections exist even if not yet saved in database
+  for (const def of defaultSections) {
+    const isHeroCovered = def.key === 'hero_banner' && (existingKeys.has('hero_banner') || existingKeys.has('home_hero_slider') || existingKeys.has('hero_section'));
+    const isPromoCovered = def.key === 'promo_banner' && (existingKeys.has('promo_banner') || existingKeys.has('home_promo_summer') || existingKeys.has('promo_summer'));
+    const isAboutCovered = def.key === 'about_section' && (existingKeys.has('about_section') || existingKeys.has('about_craft'));
+
+    if (!existingKeys.has(def.key) && !isHeroCovered && !isPromoCovered && !isAboutCovered) {
+      mergedSections.push({
+        id: def.key,
+        key: def.key,
+        type: def.type,
+        titleAr: def.titleAr,
+        titleEn: def.titleEn,
+        displayOrder: def.displayOrder,
         isActive: true,
         payload: {},
-      }));
+      });
+    }
+  }
+
+  const sectionsToRender = mergedSections.sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
 
   // ========================================================
   // 1. RENDER HERO BANNER
@@ -443,17 +456,25 @@ export const HomePage: React.FC = () => {
     const newArrivalsTitle = section.titleAr || section.titleEn
       ? getLocalized(section.titleAr, section.titleEn, isArabic)
       : isArabic
-        ? 'أحدث المنتجات'
+        ? 'جديدنا'
         : 'New Arrivals';
 
     const newArrivalsSubtitle = section.subtitleAr || section.subtitleEn
       ? getLocalized(section.subtitleAr, section.subtitleEn, isArabic)
       : isArabic
-        ? 'المعروضات'
-        : 'EXPLORE';
+        ? 'وصل حديثاً'
+        : 'EXPLORE OUR LATEST';
 
     const limit = Number(newArrivalsPayload.limit) || 12;
-    const displayedProducts = products.slice(0, limit);
+    const sourceMode = (newArrivalsPayload.sourceMode as 'latest' | 'featured') || 'latest';
+
+    let displayedProducts: Product[] = [];
+    if (sourceMode === 'featured') {
+      const featured = products.filter((p) => p.isFeatured);
+      displayedProducts = (featured.length > 0 ? featured : products).slice(0, limit);
+    } else {
+      displayedProducts = products.slice(0, limit);
+    }
 
     return (
       <section key={section.key} className="space-y-6">
@@ -469,10 +490,10 @@ export const HomePage: React.FC = () => {
 
           {displayedProducts.length > 0 && (
             <Link
-              to="/shop"
-              className="text-xs font-bold px-3 py-1.5 rounded-lg border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-900 transition"
+              to="/shop?sortBy=newest"
+              className="text-xs font-bold px-3 py-1.5 rounded-lg border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-900 transition flex items-center gap-1"
             >
-              {isArabic ? 'عرض كل المنتجات' : 'View All'}
+              <span>{isArabic ? 'عرض كل جديدنا' : 'View All'}</span>
             </Link>
           )}
         </div>
@@ -593,7 +614,8 @@ export const HomePage: React.FC = () => {
   const isMarqueeSection = (s: CMSSection) => s.key === 'marquee_ticker' || s.type === 'MARQUEE';
   const isCategoriesSection = (s: CMSSection) => s.key === 'categories_section' || s.type === 'CATEGORIES';
   const isTrustSection = (s: CMSSection) => s.key === 'trust_bar' || s.type === 'TRUST_BAR';
-  const isNewArrivalsSection = (s: CMSSection) => s.key === 'new_arrivals' || s.type === 'NEW_ARRIVALS';
+  const isNewArrivalsSection = (s: CMSSection) =>
+    s.key === 'new_arrivals' || s.key === 'featured_products' || s.type === 'NEW_ARRIVALS' || s.type === 'FEATURED_GRID';
   const isPromoSection = (s: CMSSection) =>
     s.key === 'promo_banner' || s.key === 'promo_summer' || s.key === 'home_promo_summer' || s.type === 'PROMO_BANNER';
   const isAboutSection = (s: CMSSection) => s.key === 'about_section' || s.key === 'about_craft' || s.type === 'ABOUT';

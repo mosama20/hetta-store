@@ -382,7 +382,11 @@ export const AdminCmsPage: React.FC = () => {
             section.key === 'hero_section' ||
             section.type === 'HERO' ||
             section.type === 'HERO_SLIDER';
-          const isNewArrivals = section.key === 'new_arrivals' || section.type === 'NEW_ARRIVALS';
+          const isNewArrivals =
+            section.key === 'new_arrivals' ||
+            section.key === 'featured_products' ||
+            section.type === 'NEW_ARRIVALS' ||
+            section.type === 'FEATURED_GRID';
           const isPromo =
             section.key === 'promo_banner' ||
             section.key === 'home_promo_summer' ||
@@ -749,23 +753,49 @@ export const AdminCmsPage: React.FC = () => {
 
                   {/* NEW ARRIVALS ("جديدنا") SPECIAL FIELDS */}
                   {isNewArrivals && (
-                    <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20 space-y-3">
+                    <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20 space-y-4">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
                           <Flame className="w-4 h-4" />
-                          <span>{isArabic ? 'خيارات عرض منتجات جديدنا' : 'New Arrivals Configuration'}</span>
+                          <span>{isArabic ? 'إعدادات سكشن جديدنا والأحدث' : 'New Arrivals Configuration'}</span>
                         </span>
+                        <Link
+                          to="/admin/products"
+                          className="text-[11px] font-bold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1"
+                        >
+                          <span>{isArabic ? 'إدارة المنتجات المميزة ↗' : 'Manage Products ↗'}</span>
+                        </Link>
                       </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <Input
-                          label={isArabic ? 'عنوان السكشن الصغير (Badge)' : 'Section Subtitle / Badge'}
-                          placeholder="المعروضات / EXPLORE"
+                          label={isArabic ? 'بادج السكشن (Badge)' : 'Section Subtitle / Badge'}
+                          placeholder="وصل حديثاً / NEW DROP"
                           value={section.subtitleAr || ''}
                           onChange={(e) => updateSectionField(section.key, 'subtitleAr', e.target.value)}
                         />
+
                         <div>
                           <label className="block text-xs font-semibold uppercase text-zinc-700 dark:text-zinc-300 mb-1.5">
-                            {isArabic ? 'أقصى عدد منتجات يظهر بالرئيسية' : 'Max Products on Homepage'}
+                            {isArabic ? 'مصدر عرض المنتجات' : 'Products Source'}
+                          </label>
+                          <select
+                            value={String(payload.sourceMode || 'latest')}
+                            onChange={(e) => updatePayloadField(section.key, 'sourceMode', e.target.value)}
+                            className="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-xl text-xs font-bold text-zinc-900 dark:text-zinc-100 outline-none"
+                          >
+                            <option value="latest">
+                              {isArabic ? '⚡ أحدث المنتجات تلقائياً' : '⚡ Latest Products (Auto)'}
+                            </option>
+                            <option value="featured">
+                              {isArabic ? '⭐ المنتجات المميزة فقط (Featured)' : '⭐ Featured Products Only'}
+                            </option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold uppercase text-zinc-700 dark:text-zinc-300 mb-1.5">
+                            {isArabic ? 'أقصى عدد منتجات بالرئيسية' : 'Max Products on Homepage'}
                           </label>
                           <select
                             value={Number(payload.limit) || 12}

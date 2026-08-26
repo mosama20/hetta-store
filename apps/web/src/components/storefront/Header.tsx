@@ -164,58 +164,6 @@ export const Header: React.FC = () => {
               {isArabic ? 'المنتجات' : 'Products'}
             </Link>
 
-            {/* Dynamic Collections Dropdown */}
-            <div
-              className="relative py-2"
-              onMouseEnter={() => setCollectionsDropdownOpen(true)}
-              onMouseLeave={() => setCollectionsDropdownOpen(false)}
-            >
-              <button
-                onClick={() => navigate('/shop')}
-                className="flex items-center space-x-1 rtl:space-x-reverse hover:text-black dark:hover:text-white transition-colors"
-              >
-                <span>{isArabic ? 'المجموعات' : 'Collections'}</span>
-                <ChevronDown className="w-3.5 h-3.5 opacity-60" />
-              </button>
-
-              {collectionsDropdownOpen && categories.length > 0 && (
-                <div className="absolute top-full start-0 mt-1 w-56 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-xl p-2 z-50 space-y-1 animate-in fade-in slide-in-from-top-2 duration-150 text-start">
-                  <Link
-                    to="/shop"
-                    onClick={() => setCollectionsDropdownOpen(false)}
-                    className="block px-3 py-2 text-xs font-bold rounded-xl text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
-                  >
-                    {isArabic ? 'جميع المجموعات' : 'All Collections'}
-                  </Link>
-                  <div className="h-px bg-zinc-100 dark:bg-zinc-800 my-1" />
-                  {categories.map((cat) => (
-                    <Link
-                      key={cat.id}
-                      to={`/category/${cat.slug}`}
-                      onClick={() => setCollectionsDropdownOpen(false)}
-                      className="flex items-center justify-between px-3 py-2 text-xs font-semibold rounded-xl text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-black dark:hover:text-white transition"
-                    >
-                      <span>{getLocalized(cat.nameAr, cat.nameEn, isArabic)}</span>
-                      <span className="text-[10px] text-zinc-400 font-mono">
-                        {cat.slug}
-                      </span>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* New In */}
-            <Link
-              to="/shop?sortBy=newest"
-              className={`flex items-center space-x-1 rtl:space-x-reverse py-2 hover:text-black dark:hover:text-white transition-colors ${
-                location.search.includes('sortBy=newest') ? 'text-black dark:text-white font-bold' : ''
-              }`}
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              <span>{isArabic ? 'جديدنا' : 'New In'}</span>
-            </Link>
-
             <Link
               to="/about"
               className={`py-2 hover:text-black dark:hover:text-white transition-colors ${
@@ -393,37 +341,7 @@ export const Header: React.FC = () => {
               onClick={() => setMobileMenuOpen(false)}
               className="py-1.5 hover:text-black dark:hover:text-white"
             >
-              {isArabic ? 'جميع المنتجات' : 'All Products'}
-            </Link>
-
-            {/* Mobile Categories list */}
-            {categories.length > 0 && (
-              <div className="pt-2 pb-1 border-t border-zinc-100 dark:border-zinc-800 space-y-2">
-                <span className="text-[11px] font-extrabold uppercase text-zinc-400 tracking-wider">
-                  {isArabic ? 'المجموعات' : 'Collections'}
-                </span>
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  {categories.map((cat) => (
-                    <Link
-                      key={cat.id}
-                      to={`/category/${cat.slug}`}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="px-3 py-2 bg-zinc-50 dark:bg-zinc-900 rounded-xl text-xs text-zinc-800 dark:text-zinc-200"
-                    >
-                      {getLocalized(cat.nameAr, cat.nameEn, isArabic)}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <Link
-              to="/shop?sortBy=newest"
-              onClick={() => setMobileMenuOpen(false)}
-              className="py-1.5 flex items-center gap-1.5 text-amber-600 font-bold"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>{isArabic ? 'جديدنا' : 'New In'}</span>
+              {isArabic ? 'المنتجات' : 'Products'}
             </Link>
 
             <Link

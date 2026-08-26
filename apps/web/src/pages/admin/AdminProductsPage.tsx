@@ -12,7 +12,7 @@ import { Card } from '../../components/common/Card.js';
 import { Badge } from '../../components/common/Badge.js';
 import { Pagination } from '../../components/common/Pagination.js';
 import { LoadingState } from '../../components/common/LoadingState.js';
-import { Plus, Edit2, Trash2, FileSpreadsheet, Download } from 'lucide-react';
+import { Plus, Edit2, Trash2, FileSpreadsheet, Download, Sparkles } from 'lucide-react';
 import { ExcelImportModal } from '../../components/admin/ExcelImportModal.js';
 
 export const AdminProductsPage: React.FC = () => {
@@ -40,6 +40,18 @@ export const AdminProductsPage: React.FC = () => {
   useEffect(() => {
     fetchProducts();
   }, [page, search]);
+
+  const handleToggleFeatured = async (product: Product) => {
+    try {
+      const updatedStatus = !product.isFeatured;
+      setProducts((prev) =>
+        prev.map((p) => (p.id === product.id ? { ...p, isFeatured: updatedStatus } : p)),
+      );
+      await productsApi.update(product.id, { isFeatured: updatedStatus });
+    } catch {
+      fetchProducts();
+    }
+  };
 
   const handleDelete = async (id: string) => {
     if (!window.confirm(isArabic ? 'هل تريد بالتأكيد أرشفة هذا المنتج؟' : 'Archive this product?'))
@@ -179,6 +191,7 @@ export const AdminProductsPage: React.FC = () => {
                   <th className="p-3.5">{isArabic ? 'القسم' : 'Category'}</th>
                   <th className="p-3.5">{isArabic ? 'السعر الأساسي' : 'Base Price'}</th>
                   <th className="p-3.5">{isArabic ? 'المتغيرات' : 'Variants'}</th>
+                  <th className="p-3.5 text-center">{isArabic ? 'جديدنا / مميز' : 'Featured'}</th>
                   <th className="p-3.5">{isArabic ? 'الحالة' : 'Status'}</th>
                   <th className="p-3.5 text-end">{isArabic ? 'الإجراءات' : 'Actions'}</th>
                 </tr>
@@ -214,6 +227,28 @@ export const AdminProductsPage: React.FC = () => {
                       <td className="p-3.5">
                         <span className="font-semibold">{p.variants.length}</span>{' '}
                         {isArabic ? 'متغير' : 'vars'} ({totalStock} {isArabic ? 'قطعة' : 'pcs'})
+                      </td>
+                      <td className="p-3.5 text-center">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleFeatured(p)}
+                          className={`p-1.5 rounded-xl border transition inline-flex items-center justify-center ${
+                            p.isFeatured
+                              ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20'
+                              : 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-400 hover:text-amber-500'
+                          }`}
+                          title={
+                            p.isFeatured
+                              ? isArabic
+                                ? 'معروض في جديدنا ومميز (انقر للإلغاء)'
+                                : 'Featured in New Arrivals (Click to disable)'
+                              : isArabic
+                                ? 'انقر لتمييز المنتج وعرضه في جديدنا'
+                                : 'Click to feature in New Arrivals'
+                          }
+                        >
+                          <Sparkles className={`w-3.5 h-3.5 ${p.isFeatured ? 'fill-amber-500 text-amber-500' : ''}`} />
+                        </button>
                       </td>
                       <td className="p-3.5">
                         <Badge variant={p.isActive ? 'success' : 'secondary'}>

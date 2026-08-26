@@ -91,10 +91,9 @@ export const Footer: React.FC = () => {
           <div className="space-y-3">
             <h4 className="font-bold text-zinc-900 dark:text-zinc-100">{isArabic ? 'تسوق' : 'Shop'}</h4>
             <ul className="space-y-2 text-zinc-500 dark:text-zinc-400">
-              <li><Link to="/shop" className="hover:text-black dark:hover:text-white">{isArabic ? 'جميع المنتجات' : 'All Products'}</Link></li>
-              <li><Link to="/shop" className="hover:text-black dark:hover:text-white">{isArabic ? 'المجموعات' : 'Collections'}</Link></li>
-              <li><Link to="/shop?sortBy=popular" className="hover:text-black dark:hover:text-white">{isArabic ? 'الأكثر مبيعاً' : 'Best Sellers'}</Link></li>
+              <li><Link to="/shop" className="hover:text-black dark:hover:text-white">{isArabic ? 'المنتجات' : 'Products'}</Link></li>
               <li><Link to="/shop?sortBy=newest" className="hover:text-black dark:hover:text-white">{isArabic ? 'جديدنا' : 'New In'}</Link></li>
+              <li><Link to="/shop?sortBy=popular" className="hover:text-black dark:hover:text-white">{isArabic ? 'الأكثر مبيعاً' : 'Best Sellers'}</Link></li>
             </ul>
           </div>
 
