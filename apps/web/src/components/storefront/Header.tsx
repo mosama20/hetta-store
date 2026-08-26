@@ -164,11 +164,10 @@ export const Header: React.FC = () => {
 
             <Link
               to="/new-arrivals"
-              className={`flex items-center space-x-1 rtl:space-x-reverse py-2 hover:text-black dark:hover:text-white transition-colors ${
+              className={`py-2 hover:text-black dark:hover:text-white transition-colors ${
                 location.pathname === '/new-arrivals' ? 'text-black dark:text-white font-bold' : ''
               }`}
             >
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
               <span>{isArabic ? 'جديدنا' : 'New In'}</span>
             </Link>
 
@@ -355,9 +354,8 @@ export const Header: React.FC = () => {
             <Link
               to="/new-arrivals"
               onClick={() => setMobileMenuOpen(false)}
-              className="py-1.5 flex items-center gap-1.5 text-amber-600 font-bold"
+              className="py-1.5 hover:text-black dark:hover:text-white"
             >
-              <Sparkles className="w-3.5 h-3.5" />
               <span>{isArabic ? 'جديدنا' : 'New In'}</span>
             </Link>
 
