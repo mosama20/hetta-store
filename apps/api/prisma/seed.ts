@@ -72,7 +72,7 @@ async function main() {
   console.log('3. Seeding admin users...');
   const hashedPassword = await bcrypt.hash('Admin@Fashion2026!', 10);
   const adminEmails = [
-    'Mohamed.osama5060@gmail.com',
+    'mohamed.osama5060@gmail.com',
     'aymanmossad08@gmail.com',
     'admin@fashionstore.com',
     'admin@craftwear.com',
