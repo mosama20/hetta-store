@@ -77,9 +77,10 @@ export class ProductsService {
     }
 
     // Sorting
-    let orderBy: Prisma.ProductOrderByWithRelationInput = { createdAt: 'desc' };
+    let orderBy: Prisma.ProductOrderByWithRelationInput | Prisma.ProductOrderByWithRelationInput[] = { createdAt: 'desc' };
     if (sortBy === 'price_asc') orderBy = { basePrice: 'asc' };
     if (sortBy === 'price_desc') orderBy = { basePrice: 'desc' };
+    if (sortBy === 'popular') orderBy = [{ isFeatured: 'desc' }, { createdAt: 'desc' }];
 
     const [total, products] = await Promise.all([
       this.prisma.product.count({ where }),

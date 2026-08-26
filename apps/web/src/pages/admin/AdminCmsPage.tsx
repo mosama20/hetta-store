@@ -241,12 +241,14 @@ export const AdminCmsPage: React.FC = () => {
           descEn: 'Customize hero photo, main headline, description, badge, and CTA buttons',
         };
       case 'new_arrivals':
+      case 'featured_products':
+      case 'best_sellers':
         return {
-          titleAr: 'سكشن "جديدنا" / أحدث المنتجات (New Arrivals)',
-          titleEn: 'New Arrivals / "جديدنا" Section',
-          icon: <Flame className="w-5 h-5 text-red-500" />,
-          descAr: 'إظهار أو إخفاء سكشن جديدنا بالصفحة الرئيسية وتعديل عناوينه وعدد المنتجات المعروضة',
-          descEn: 'Toggle on/off New Arrivals section on the homepage and configure its titles & product count',
+          titleAr: 'سكشن الأكثر مبيعاً وعرض المنتجات (Best Sellers & Showcase)',
+          titleEn: 'Best Sellers & Products Showcase',
+          icon: <Flame className="w-5 h-5 text-amber-500" />,
+          descAr: 'التحكم في سكشن المنتجات بالصفحة الرئيسية وتعديل العنوان والوصف وعدد الموديلات المعروضة',
+          descEn: 'Toggle Best Sellers / Products showcase on the homepage, edit titles and max count',
         };
       case 'categories_section':
         return {

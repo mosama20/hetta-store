@@ -8,18 +8,25 @@ import {
   Sparkles,
   ArrowRight,
   ArrowLeft,
+  Flame,
+  ShoppingBag,
 } from 'lucide-react';
 import { Product, Category, CMSSection } from '../../types/index.js';
-import { categoriesApi, cmsApi } from '../../api/index.js';
+import { categoriesApi, cmsApi, productsApi } from '../../api/index.js';
 import { useTheme } from '../../store/themeStore.js';
 import { useStoreSettings } from '../../store/settingsStore.js';
 import { getLocalized } from '../../utils/formatters.js';
 import { MarqueeBanner } from '../../components/storefront/MarqueeBanner.js';
+import { ProductCard } from '../../components/storefront/ProductCard.js';
 import { LoadingState } from '../../components/common/LoadingState.js';
 
-const HOME_CACHE_KEY = 'craft_home_data_cache_v2';
+const HOME_CACHE_KEY = 'craft_home_data_cache_v3';
 
-function getCachedHomeData(): { products: Product[]; categories: Category[]; cmsSections: CMSSection[] } | null {
+function getCachedHomeData(): {
+  products: Product[];
+  categories: Category[];
+  cmsSections: CMSSection[];
+} | null {
   if (typeof window === 'undefined') return null;
   try {
     const cached = localStorage.getItem(HOME_CACHE_KEY);
@@ -35,21 +42,29 @@ export const HomePage: React.FC = () => {
   const cachedData = getCachedHomeData();
   const [categories, setCategories] = useState<Category[]>(cachedData?.categories || []);
   const [cmsSections, setCmsSections] = useState<CMSSection[]>(cachedData?.cmsSections || []);
+  const [products, setProducts] = useState<Product[]>(cachedData?.products || []);
   const [isLoading, setIsLoading] = useState(!cachedData);
+  const [activeProductTab, setActiveProductTab] = useState<'bestseller' | 'latest' | 'sale'>('bestseller');
 
   const loadData = () => {
     Promise.all([
       categoriesApi.getAll().catch(() => []),
       cmsApi.getActiveSections().catch(() => []),
+      productsApi
+        .getAll({ limit: 16, sortBy: 'popular' })
+        .then((res) => res.items)
+        .catch(() => []),
     ])
-      .then(([catRes, cmsRes]) => {
+      .then(([catRes, cmsRes, prodRes]) => {
         const sortedCats = [...(catRes || [])].sort(
           (a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0),
         );
         const fetchedCms = cmsRes || [];
+        const fetchedProds = prodRes || [];
 
         setCategories(sortedCats);
         setCmsSections(fetchedCms);
+        setProducts(fetchedProds);
         setIsLoading(false);
 
         // Cache for subsequent instant loads
@@ -60,6 +75,7 @@ export const HomePage: React.FC = () => {
               JSON.stringify({
                 categories: sortedCats,
                 cmsSections: fetchedCms,
+                products: fetchedProds,
               }),
             );
           } catch {}
@@ -82,6 +98,8 @@ export const HomePage: React.FC = () => {
   const isHeroSection = (s: CMSSection) =>
     s.key === 'hero_banner' || s.key === 'home_hero_slider' || s.key === 'hero_section' || s.type === 'HERO' || s.type === 'HERO_SLIDER';
   const isMarqueeSection = (s: CMSSection) => s.key === 'marquee_ticker' || s.type === 'MARQUEE';
+  const isProductSection = (s: CMSSection) =>
+    s.key === 'new_arrivals' || s.key === 'featured_products' || s.key === 'best_sellers' || s.type === 'NEW_ARRIVALS' || s.type === 'FEATURED_GRID';
   const isCategoriesSection = (s: CMSSection) => s.key === 'categories_section' || s.type === 'CATEGORIES';
   const isTrustSection = (s: CMSSection) => s.key === 'trust_bar' || s.type === 'TRUST_BAR';
   const isPromoSection = (s: CMSSection) =>
@@ -92,9 +110,11 @@ export const HomePage: React.FC = () => {
   const defaultSections: { key: string; displayOrder: number; type: string; titleAr: string; titleEn: string }[] = [
     { key: 'hero_banner', displayOrder: 0, type: 'HERO_SLIDER', titleAr: 'البانر الرئيسي', titleEn: 'Main Hero' },
     { key: 'marquee_ticker', displayOrder: 1, type: 'CUSTOM_HTML', titleAr: 'الشريط المتحرك', titleEn: 'Marquee Ticker' },
-    { key: 'trust_bar', displayOrder: 2, type: 'CUSTOM_HTML', titleAr: 'مميزات المتجر', titleEn: 'Guarantees' },
-    { key: 'promo_banner', displayOrder: 3, type: 'PROMO_BANNER', titleAr: 'العرض الترويجي', titleEn: 'Promo Banner' },
-    { key: 'about_section', displayOrder: 4, type: 'CUSTOM_HTML', titleAr: 'عن المتجر', titleEn: 'About Brand' },
+    { key: 'new_arrivals', displayOrder: 2, type: 'NEW_ARRIVALS', titleAr: 'الأكثر مبيعاً والمختارات الحصرية', titleEn: 'Best Sellers & Curated Drops' },
+    { key: 'categories_section', displayOrder: 3, type: 'CATEGORIES', titleAr: 'تصفح الأقسام', titleEn: 'Browse Categories' },
+    { key: 'trust_bar', displayOrder: 4, type: 'CUSTOM_HTML', titleAr: 'مميزات المتجر والضمانات', titleEn: 'Guarantees' },
+    { key: 'promo_banner', displayOrder: 5, type: 'PROMO_BANNER', titleAr: 'العرض الترويجي', titleEn: 'Promo Banner' },
+    { key: 'about_section', displayOrder: 6, type: 'CUSTOM_HTML', titleAr: 'عن المتجر', titleEn: 'About Brand' },
   ];
 
   // Merge CMS sections or fallback to default sections
@@ -105,12 +125,13 @@ export const HomePage: React.FC = () => {
     const isHeroCovered = def.key === 'hero_banner' && (existingKeys.has('hero_banner') || existingKeys.has('home_hero_slider') || existingKeys.has('hero_section'));
     const isPromoCovered = def.key === 'promo_banner' && (existingKeys.has('promo_banner') || existingKeys.has('home_promo_summer') || existingKeys.has('promo_summer'));
     const isAboutCovered = def.key === 'about_section' && (existingKeys.has('about_section') || existingKeys.has('about_craft'));
+    const isProductsCovered = def.key === 'new_arrivals' && (existingKeys.has('new_arrivals') || existingKeys.has('featured_products') || existingKeys.has('best_sellers'));
 
-    if (!existingKeys.has(def.key) && !isHeroCovered && !isPromoCovered && !isAboutCovered) {
+    if (!existingKeys.has(def.key) && !isHeroCovered && !isPromoCovered && !isAboutCovered && !isProductsCovered) {
       rawSections.push({
         id: def.key,
         key: def.key,
-        type: def.type,
+        type: def.type as any,
         titleAr: def.titleAr,
         titleEn: def.titleEn,
         displayOrder: def.displayOrder,
@@ -123,9 +144,10 @@ export const HomePage: React.FC = () => {
   // Sort by displayOrder
   const sortedSections = rawSections.sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
 
-  // Deduplicate sections so ONLY 1 hero, 1 marquee, 1 trust, 1 promo, 1 about renders (and no new_arrivals on home)
+  // Deduplicate sections so ONLY 1 hero, 1 marquee, 1 products showcase, 1 trust, 1 promo, 1 about renders
   let heroRendered = false;
   let marqueeRendered = false;
+  let productSectionRendered = false;
   let trustRendered = false;
   let promoRendered = false;
   let aboutRendered = false;
@@ -134,7 +156,6 @@ export const HomePage: React.FC = () => {
 
   for (const s of sortedSections) {
     if (s.isActive === false) continue;
-    if (s.key === 'new_arrivals' || s.type === 'FEATURED_GRID' || s.type === 'NEW_ARRIVALS') continue; // Not on home page
 
     if (isHeroSection(s)) {
       if (!heroRendered) {
@@ -145,6 +166,11 @@ export const HomePage: React.FC = () => {
       if (!marqueeRendered) {
         sectionsToRender.push(s);
         marqueeRendered = true;
+      }
+    } else if (isProductSection(s)) {
+      if (!productSectionRendered) {
+        sectionsToRender.push(s);
+        productSectionRendered = true;
       }
     } else if (isTrustSection(s)) {
       if (!trustRendered) {
@@ -164,6 +190,20 @@ export const HomePage: React.FC = () => {
     } else if (isCategoriesSection(s)) {
       sectionsToRender.push(s);
     }
+  }
+
+  // If products section was not in CMS or was not rendered yet, ensure it renders prominently
+  if (!productSectionRendered) {
+    sectionsToRender.push({
+      id: 'new_arrivals_fallback',
+      key: 'new_arrivals',
+      type: 'NEW_ARRIVALS' as any,
+      titleAr: 'الأكثر مبيعاً والمختارات الحصرية',
+      titleEn: 'Best Sellers & Curated Drops',
+      displayOrder: 2,
+      isActive: true,
+      payload: {},
+    });
   }
 
   // ========================================================
@@ -384,7 +424,128 @@ export const HomePage: React.FC = () => {
   };
 
   // ========================================================
-  // 3. RENDER CATEGORIES SHOWCASE
+  // 3. RENDER BEST SELLERS & PRODUCT SHOWCASE
+  // ========================================================
+  const renderProductShowcase = (section: CMSSection) => {
+    const payload = (section.payload || {}) as Record<string, any>;
+    const title = getLocalized(section.titleAr, section.titleEn, isArabic) ||
+      (isArabic ? 'الأكثر مبيعاً ومختارات الموسم' : 'Best Sellers & Exclusive Drops');
+    const subtitle = getLocalized(section.subtitleAr, section.subtitleEn, isArabic) ||
+      (isArabic
+        ? 'تشكيلة مختارة بعناية من أفضل الموديلات والأكثر طلباً لتتألق بإطلالة استثنائية.'
+        : 'Curated premium fashion pieces loved by our community.');
+
+    const limit = Number(payload.limit) || 12;
+
+    // Filter displayed products by active tab
+    let filtered = [...products];
+    if (activeProductTab === 'bestseller') {
+      const featured = products.filter((p) => p.isFeatured);
+      filtered = featured.length > 0 ? featured : products;
+    } else if (activeProductTab === 'latest') {
+      filtered = [...products].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+    } else if (activeProductTab === 'sale') {
+      const saleItems = products.filter((p) => {
+        const firstVar = p.variants?.[0];
+        return firstVar?.compareAtPrice && Number(firstVar.compareAtPrice) > Number(p.basePrice);
+      });
+      filtered = saleItems.length > 0 ? saleItems : products;
+    }
+
+    const displayItems = filtered.slice(0, limit);
+
+    return (
+      <section key={section.key} className="space-y-6 text-start">
+        {/* Header with Title & Quick Tabs & View All */}
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-2 border-b border-zinc-200/80 dark:border-zinc-800">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-[10px] sm:text-xs font-black uppercase tracking-wider">
+              <Flame className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+              <span>{isArabic ? 'اختيارات الموسم • الأكثر طلباً' : 'HOT PICKS • BEST SELLERS'}</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-black text-zinc-900 dark:text-zinc-100 tracking-tight">
+              {title}
+            </h2>
+            <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 max-w-xl">
+              {subtitle}
+            </p>
+          </div>
+
+          <Link
+            to="/shop"
+            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-zinc-900 dark:text-zinc-100 hover:text-amber-600 dark:hover:text-amber-400 group transition shrink-0"
+          >
+            <span>{isArabic ? 'عرض كل التشكيلة' : 'View All Products'}</span>
+            {isArabic ? (
+              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+            ) : (
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            )}
+          </Link>
+        </div>
+
+        {/* Tab Filter Switchers */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+          {[
+            { id: 'bestseller', labelAr: '🔥 الأكثر طلباً', labelEn: '🔥 Best Sellers' },
+            { id: 'latest', labelAr: '✨ أحدث الإطلاقات', labelEn: '✨ New Arrivals' },
+            { id: 'sale', labelAr: '🏷️ عروض وتخفيضات', labelEn: '🏷️ Special Offers' },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveProductTab(tab.id as any)}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap border ${
+                activeProductTab === tab.id
+                  ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 border-zinc-900 dark:border-white shadow-sm'
+                  : 'bg-zinc-50 dark:bg-zinc-900/60 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600'
+              }`}
+            >
+              {isArabic ? tab.labelAr : tab.labelEn}
+            </button>
+          ))}
+        </div>
+
+        {/* Products Grid */}
+        {displayItems.length === 0 ? (
+          <div className="py-12 text-center space-y-3 bg-zinc-50 dark:bg-zinc-900/40 rounded-2xl border border-zinc-200/60 dark:border-zinc-800">
+            <ShoppingBag className="w-10 h-10 mx-auto text-zinc-400 stroke-[1.5]" />
+            <p className="text-sm font-bold text-zinc-600 dark:text-zinc-300">
+              {isArabic ? 'جاري تجهيز تشكيلة جديدة قريباً' : 'New collection dropping soon'}
+            </p>
+            <Link to="/shop">
+              <button className="px-5 py-2 bg-black text-white dark:bg-white dark:text-black font-bold text-xs rounded-xl transition">
+                {isArabic ? 'تصفح المتجر' : 'Browse Store'}
+              </button>
+            </Link>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-6">
+            {displayItems.map((prod) => (
+              <ProductCard
+                key={prod.id}
+                product={prod}
+                badgeType={activeProductTab === 'bestseller' ? 'bestseller' : activeProductTab === 'latest' ? 'new' : undefined}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Bottom CTA to explore more */}
+        <div className="pt-2 text-center">
+          <Link to="/shop">
+            <button className="px-8 py-3 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 font-bold text-xs rounded-2xl border border-zinc-200 dark:border-zinc-700 transition inline-flex items-center gap-2 shadow-xs">
+              <span>{isArabic ? 'استكشف المزيد من الموديلات والألوان' : 'Explore More Styles & Colors'}</span>
+              {isArabic ? <ArrowLeft className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
+            </button>
+          </Link>
+        </div>
+      </section>
+    );
+  };
+
+  // ========================================================
+  // 4. RENDER CATEGORIES SHOWCASE
   // ========================================================
   const renderCategories = (section: CMSSection) => {
     if (categories.length === 0) return null;
@@ -393,9 +554,17 @@ export const HomePage: React.FC = () => {
 
     return (
       <section key={section.key} className="space-y-4 text-start">
-        <h2 className="text-lg sm:text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
-          {title}
-        </h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg sm:text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
+            {title}
+          </h2>
+          <Link
+            to="/shop"
+            className="text-xs font-bold text-zinc-500 hover:text-black dark:hover:text-white transition"
+          >
+            {isArabic ? 'جميع الأقسام ↗' : 'All Categories ↗'}
+          </Link>
+        </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
           {categories.map((cat) => (
             <Link
@@ -420,7 +589,7 @@ export const HomePage: React.FC = () => {
   };
 
   // ========================================================
-  // 4. RENDER TRUST / GUARANTEES BAR
+  // 5. RENDER TRUST / GUARANTEES BAR
   // ========================================================
   const renderTrust = (section: CMSSection) => (
     <section key={section.key} className="p-5 sm:p-7 rounded-3xl bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200/80 dark:border-zinc-800">
@@ -485,7 +654,7 @@ export const HomePage: React.FC = () => {
   );
 
   // ========================================================
-  // 5. RENDER PROMO / SPECIAL OFFER BANNER
+  // 6. RENDER PROMO / SPECIAL OFFER BANNER
   // ========================================================
   const renderPromo = (section: CMSSection) => {
     const promoPayload = (section.payload || {}) as Record<string, any>;
@@ -537,7 +706,7 @@ export const HomePage: React.FC = () => {
   };
 
   // ========================================================
-  // 6. RENDER ABOUT BRAND STORY
+  // 7. RENDER ABOUT BRAND STORY
   // ========================================================
   const renderAbout = (section: CMSSection) => {
     const title = getLocalized(section.titleAr, section.titleEn, isArabic) || (isArabic ? `عن ${storeName}` : `About ${storeName}`);
@@ -565,6 +734,7 @@ export const HomePage: React.FC = () => {
       {sectionsToRender.map((section) => {
         if (isHeroSection(section)) return renderHero(section);
         if (isMarqueeSection(section)) return renderMarquee(section);
+        if (isProductSection(section)) return renderProductShowcase(section);
         if (isCategoriesSection(section)) return renderCategories(section);
         if (isTrustSection(section)) return renderTrust(section);
         if (isPromoSection(section)) return renderPromo(section);
