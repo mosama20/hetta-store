@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { CMSSection } from '../../types/index.js';
 import { cmsApi } from '../../api/index.js';
 import { useTheme } from '../../store/themeStore.js';
@@ -45,12 +46,23 @@ export const AdminCmsPage: React.FC = () => {
 
   const loadSections = () => {
     setIsLoading(true);
-    cmsApi.getAllSections().then((data) => {
-      // Sort by displayOrder
-      const sorted = [...data].sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
-      setSections(sorted);
-      setIsLoading(false);
-    });
+    cmsApi
+      .getAllSections()
+      .then((data) => {
+        if (Array.isArray(data)) {
+          // Sort by displayOrder
+          const sorted = [...data].sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
+          setSections(sorted);
+        } else {
+          setSections([]);
+        }
+        setIsLoading(false);
+      })
+      .catch((err) => {
+        console.error('Failed to load CMS sections:', err);
+        setSections([]);
+        setIsLoading(false);
+      });
   };
 
   useEffect(() => {

@@ -29,7 +29,7 @@ export class CmsController {
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions('cms.update')
+  @RequirePermissions('cms.write')
   @ApiBearerAuth()
   @Put('sections/:key')
   @ApiOperation({ summary: 'Update dynamic section payload, titles or order (Admin)' })
