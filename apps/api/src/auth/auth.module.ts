@@ -9,6 +9,8 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 
+import { MailService } from './mail.service';
+
 @Module({
   imports: [
     PassportModule.register({ defaultStrategy: 'jwt' }),
@@ -27,7 +29,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, JwtAuthGuard, PermissionsGuard, RolesGuard],
-  exports: [AuthService, JwtAuthGuard, PermissionsGuard, RolesGuard],
+  providers: [AuthService, MailService, JwtStrategy, JwtAuthGuard, PermissionsGuard, RolesGuard],
+  exports: [AuthService, MailService, JwtAuthGuard, PermissionsGuard, RolesGuard],
 })
 export class AuthModule {}

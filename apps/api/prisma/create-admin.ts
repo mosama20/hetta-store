@@ -4,9 +4,18 @@ import * as bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  const email = 'mohamed.osama5060@gmail.com';
-  const password = 'Craft@Osama2026!';
-  const hashedPassword = await bcrypt.hash(password, 10);
+  const admins = [
+    {
+      email: 'aymanmossad08@gmail.com',
+      fullName: 'Ayman Mossad',
+      password: 'Craft@Osama2026!',
+    },
+    {
+      email: 'mohamed.osama5060@gmail.com',
+      fullName: 'Mohamed Osama',
+      password: 'Craft@Osama2026!',
+    },
+  ];
 
   // 1. Ensure SUPER_ADMIN role exists
   let role = await prisma.role.findUnique({ where: { name: 'SUPER_ADMIN' } });
@@ -55,41 +64,42 @@ async function main() {
     });
   }
 
-  // 3. Upsert user
-  const user = await prisma.user.upsert({
-    where: { email: email.toLowerCase() },
-    update: {
-      fullName: 'Mohamed Osama',
-      passwordHash: hashedPassword,
-      isActive: true,
-    },
-    create: {
-      email: email.toLowerCase(),
-      fullName: 'Mohamed Osama',
-      passwordHash: hashedPassword,
-      isActive: true,
-    },
-  });
+  // 3. Upsert both admin users
+  for (const admin of admins) {
+    const hashedPassword = await bcrypt.hash(admin.password, 10);
+    const user = await prisma.user.upsert({
+      where: { email: admin.email.toLowerCase() },
+      update: {
+        fullName: admin.fullName,
+        passwordHash: hashedPassword,
+        isActive: true,
+      },
+      create: {
+        email: admin.email.toLowerCase(),
+        fullName: admin.fullName,
+        passwordHash: hashedPassword,
+        isActive: true,
+      },
+    });
 
-  // 4. Link role
-  await prisma.userRole.upsert({
-    where: {
-      userId_roleId: {
+    await prisma.userRole.upsert({
+      where: {
+        userId_roleId: {
+          userId: user.id,
+          roleId: role.id,
+        },
+      },
+      update: {},
+      create: {
         userId: user.id,
         roleId: role.id,
       },
-    },
-    update: {},
-    create: {
-      userId: user.id,
-      roleId: role.id,
-    },
-  });
+    });
 
-  console.log(`✅ Admin user created/updated successfully in Supabase:`);
-  console.log(`Email: ${email}`);
-  console.log(`Password: ${password}`);
-  console.log(`Emergency Recovery Code: CRAFT2026`);
+    console.log(`✅ Admin created/updated: ${admin.email} (Password: ${admin.password})`);
+  }
+
+  console.log(`Emergency Recovery Code for all admins: CRAFT2026`);
 }
 
 main()

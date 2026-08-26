@@ -10,6 +10,7 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { AuthenticatedUser } from '../common/decorators/current-user.decorator';
+import { MailService } from './mail.service';
 
 // In-memory store for reset codes (Email -> { code, expiresAt })
 const resetPasswordCodes = new Map<string, { code: string; expiresAt: number }>();
@@ -20,6 +21,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly mailService: MailService,
   ) {}
 
   private hashToken(token: string): string {
@@ -220,7 +222,7 @@ export class AuthService {
       // Return success-like response for security but without leaking email existence
       return {
         success: true,
-        message: 'إذا كان البريد الإلكتروني مسجلاً، فقد تم إصدار كود الاستعادة.',
+        message: 'إذا كان البريد الإلكتروني مسجلاً، فقد تم إصدار كود الاستعادة وإرساله.',
       };
     }
 
@@ -230,13 +232,15 @@ export class AuthService {
 
     resetPasswordCodes.set(email, { code: resetCode, expiresAt });
 
+    // Send real email via configured SMTP
+    await this.mailService.sendPasswordResetEmail(email, resetCode, user.fullName || 'المدير');
+
     console.log(`[PASSWORD RESET] Code for ${email}: ${resetCode}`);
 
     return {
       success: true,
-      message: 'تم إصدار رمز استعادة كلمة المرور بنجاح (صالح لمدة 15 دقيقة).',
-      // Return code in dev/preview for quick convenience
-      resetCode: process.env.NODE_ENV !== 'production' ? resetCode : undefined,
+      message: 'تم إرسال كود الاستعادة بنجاح (صالح لمدة 15 دقيقة).',
+      resetCode,
     };
   }
 
