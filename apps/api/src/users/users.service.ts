@@ -163,7 +163,7 @@ export class UsersService {
 
     const hashedPassword = await bcrypt.hash(dto.password, 10);
 
-    return this.prisma.$transaction(async (tx) => {
+    const createdUserId = await this.prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
           email: dto.email.toLowerCase().trim(),
@@ -183,8 +183,10 @@ export class UsersService {
         });
       }
 
-      return this.findOne(user.id);
+      return user.id;
     });
+
+    return this.findOne(createdUserId);
   }
 
   async update(id: string, dto: UpdateUserDto) {
@@ -211,7 +213,7 @@ export class UsersService {
       }
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    await this.prisma.$transaction(async (tx) => {
       await tx.user.update({
         where: { id },
         data: {
@@ -232,9 +234,9 @@ export class UsersService {
           });
         }
       }
-
-      return this.findOne(id);
     });
+
+    return this.findOne(id);
   }
 
   async remove(id: string) {
