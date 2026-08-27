@@ -33,6 +33,16 @@ import {
   ArrowDown,
   ChevronDown,
   ChevronUp,
+  Smartphone,
+  Monitor,
+  ShoppingBag,
+  Truck,
+  RotateCcw,
+  Award,
+  ArrowRight,
+  ArrowLeft,
+  Sun,
+  Moon,
 } from 'lucide-react';
 
 export const AdminCmsPage: React.FC = () => {
@@ -43,6 +53,11 @@ export const AdminCmsPage: React.FC = () => {
   const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
   const [showSupabaseModal, setShowSupabaseModal] = useState(false);
   const [collapsedKeys, setCollapsedKeys] = useState<Record<string, boolean>>({});
+
+  // Live Preview States
+  const [showLivePreview, setShowLivePreview] = useState(true);
+  const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
+  const [previewTheme, setPreviewTheme] = useState<'light' | 'dark'>('light');
 
   const loadSections = () => {
     setIsLoading(true);
@@ -237,8 +252,8 @@ export const AdminCmsPage: React.FC = () => {
           titleAr: 'سكشن الهيرو الرئيسي (Hero Banner & Photo)',
           titleEn: 'Main Hero Banner & Image',
           icon: <LayoutTemplate className="w-5 h-5 text-amber-500" />,
-          descAr: 'التحكم في الصورة، العنوان، النص التعريفي، والأزرار بالبانر الرئيسي أعلى الموقع',
-          descEn: 'Customize hero photo, main headline, description, badge, and CTA buttons',
+          descAr: 'التحكم في الصورة، الارتفاع، العنوان، النص التعريفي، والأزرار بالبانر الرئيسي أعلى الموقع',
+          descEn: 'Customize hero photo, height, headline, description, badge, and CTA buttons',
         };
       case 'new_arrivals':
       case 'featured_products':
@@ -304,34 +319,79 @@ export const AdminCmsPage: React.FC = () => {
     }
   };
 
+  // Find hero section for live preview
+  const heroSection = sections.find(
+    (s) =>
+      s.key === 'hero_banner' ||
+      s.key === 'home_hero_slider' ||
+      s.key === 'hero_section' ||
+      s.type === 'HERO_SLIDER' ||
+      (s.type as string) === 'HERO',
+  );
+
+  const heroPayload = ((heroSection?.payload || {}) as Record<string, any>);
+  const heroImage = heroPayload.imageUrl || heroPayload.image || '';
+  const heroLayout = (heroPayload.layoutStyle as 'split' | 'cover' | 'card') || 'split';
+  const heroHeight = (heroPayload.heightSize as 'compact' | 'normal' | 'tall') || 'normal';
+  const heroPosition = (heroPayload.imagePosition as 'center' | 'top' | 'bottom') || 'center';
+  const heroDarkness = (heroPayload.overlayDarkness as 'light' | 'medium' | 'dark') || 'medium';
+  const heroTitle = heroSection?.titleAr || 'بسيط، لكن مختلف.';
+  const heroSubtitle = heroSection?.subtitleAr || 'تصاميم راقية بجودة عالية لإطلالة تدوم طويلاً.';
+  const heroBadge = heroPayload.badgeAr || 'NEW DROP';
+  const heroCtaText = heroPayload.ctaTextAr || heroPayload.buttonTextAr || 'تسوق الآن';
+
+  const positionClass =
+    heroPosition === 'top'
+      ? 'object-top'
+      : heroPosition === 'bottom'
+        ? 'object-bottom'
+        : 'object-center';
+
+  const overlayClass =
+    heroDarkness === 'light'
+      ? 'bg-black/25'
+      : heroDarkness === 'dark'
+        ? 'bg-black/70'
+        : 'bg-black/50';
+
   if (isLoading) {
     return <LoadingState message={isArabic ? 'جاري تحميل أقسام الواجهة...' : 'Loading CMS sections...'} />;
   }
 
   return (
-    <div className="space-y-6 text-start max-w-4xl mx-auto pb-24">
+    <div className="space-y-6 text-start max-w-5xl mx-auto pb-28">
       <AdminPageHeader
         title={isArabic ? 'التحكم في أقسام وترتيب الصفحة الرئيسية (CMS)' : 'Homepage Sections & CMS Order'}
         description={
           isArabic
-            ? 'التحكم الكامل في ترتيب أقسام الصفحة الرئيسية (صعوداً وهبوطاً)، إظهارها وإخفائها، وتعديل كافة النصوص والصور'
-            : 'Reorder homepage sections with ⬆️/⬇️ arrows, toggle visibility, and customize all content & photos'
+            ? 'التحكم الكامل في ترتيب أقسام الصفحة الرئيسية، إظهارها وإخفائها، وتعديل كافة النصوص والصور مع المعاينة المباشرة'
+            : 'Live real-time preview, reorder sections, customize images, heights, and content'
         }
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              size="sm"
+              type="button"
+              onClick={() => setShowLivePreview(!showLivePreview)}
+              className="gap-1.5 text-xs font-bold"
+            >
+              <Eye className="w-3.5 h-3.5 text-amber-500" />
+              <span>{showLivePreview ? (isArabic ? 'إخفاء المعاينة' : 'Hide Preview') : (isArabic ? '👁️ المعاينة الحية' : 'Live Preview')}</span>
+            </Button>
             <Button
               variant="outline"
               size="sm"
               type="button"
               onClick={() => setShowSupabaseModal(true)}
-              className="gap-1.5 text-xs"
+              className="gap-1.5 text-xs font-bold"
             >
               <Database className="w-3.5 h-3.5 text-emerald-500" />
               <span>{isArabic ? 'إعدادات Supabase' : 'Supabase Storage'}</span>
             </Button>
-            <Button variant="gold" size="sm" isLoading={isSaving} onClick={handleSaveAll} className="shadow-md">
+            <Button variant="gold" size="sm" isLoading={isSaving} onClick={handleSaveAll} className="shadow-md font-bold">
               <Save className="w-4 h-4 mr-1.5 rtl:ml-1.5 rtl:mr-0" />
-              <span>{isArabic ? 'حفظ ونشر الترتيب والكل' : 'Save & Publish All'}</span>
+              <span>{isArabic ? 'حفظ ونشر التعديلات' : 'Save & Publish All'}</span>
             </Button>
           </div>
         }
@@ -342,6 +402,225 @@ export const AdminCmsPage: React.FC = () => {
           <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
           <span>{saveSuccessMsg}</span>
         </div>
+      )}
+
+      {/* ========================================================
+          REAL-TIME LIVE INTERACTIVE PREVIEW ENGINE
+      ======================================================== */}
+      {showLivePreview && (
+        <Card className="p-4 sm:p-6 border-2 border-amber-500/40 bg-zinc-950 text-white space-y-4 shadow-2xl rounded-3xl overflow-hidden animate-fade-in">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-zinc-800">
+            <div className="flex items-center gap-2.5">
+              <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse shadow-sm shadow-emerald-500/50" />
+              <div>
+                <span className="text-xs font-black text-white flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <span>{isArabic ? 'معاينة حية ومباشرة (Real-Time Live Preview)' : 'Real-Time Storefront Live Preview'}</span>
+                </span>
+                <p className="text-[10px] text-zinc-400 mt-0.5">
+                  {isArabic
+                    ? 'تعكس التعديلات الحالية فوراً أثناء الكتابة واختيار الارتفاع وتغيير الصور'
+                    : 'Reflects changes in real-time as you type, select heights, or pick photos'}
+                </p>
+              </div>
+            </div>
+
+            {/* Device & Theme Switchers */}
+            <div className="flex items-center gap-2 self-end sm:self-auto">
+              <div className="flex items-center p-1 rounded-xl bg-zinc-900 border border-zinc-800">
+                <button
+                  type="button"
+                  onClick={() => setPreviewDevice('desktop')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 transition ${
+                    previewDevice === 'desktop'
+                      ? 'bg-amber-500 text-black shadow-sm'
+                      : 'text-zinc-400 hover:text-white'
+                  }`}
+                  title={isArabic ? 'شاشة كمبيوتر' : 'Desktop view'}
+                >
+                  <Monitor className="w-3.5 h-3.5" />
+                  <span>{isArabic ? 'ديسكتوب' : 'Desktop'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewDevice('mobile')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 transition ${
+                    previewDevice === 'mobile'
+                      ? 'bg-amber-500 text-black shadow-sm'
+                      : 'text-zinc-400 hover:text-white'
+                  }`}
+                  title={isArabic ? 'شاشة هاتف' : 'Mobile view'}
+                >
+                  <Smartphone className="w-3.5 h-3.5" />
+                  <span>{isArabic ? 'موبايل' : 'Mobile'}</span>
+                </button>
+              </div>
+
+              <div className="flex items-center p-1 rounded-xl bg-zinc-900 border border-zinc-800">
+                <button
+                  type="button"
+                  onClick={() => setPreviewTheme(previewTheme === 'dark' ? 'light' : 'dark')}
+                  className="p-1.5 rounded-lg text-zinc-400 hover:text-amber-400 transition"
+                  title={isArabic ? 'تبديل الوضع الليلي / النهاري للمعاينة' : 'Toggle dark/light preview'}
+                >
+                  {previewTheme === 'dark' ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Live Render Canvas */}
+          <div className="flex justify-center bg-zinc-900/80 p-3 sm:p-5 rounded-2xl border border-zinc-800 overflow-x-auto">
+            <div
+              className={`transition-all duration-300 ${
+                previewDevice === 'mobile'
+                  ? 'w-[375px] max-w-full rounded-3xl border-4 border-zinc-700 shadow-2xl p-3'
+                  : 'w-full rounded-2xl p-4'
+              } ${
+                previewTheme === 'dark' ? 'bg-zinc-950 text-white' : 'bg-white text-zinc-900'
+              } space-y-6 text-start`}
+            >
+              {/* 1. Hero Preview */}
+              {heroPayload.showImage !== false && heroImage && heroLayout === 'cover' ? (
+                <div
+                  className={`relative overflow-hidden rounded-2xl ${
+                    heroHeight === 'compact'
+                      ? 'min-h-[260px] sm:min-h-[320px]'
+                      : heroHeight === 'tall'
+                        ? 'min-h-[460px] sm:min-h-[540px]'
+                        : 'min-h-[340px] sm:min-h-[420px]'
+                  } flex items-center justify-center p-6 text-center text-white shadow-lg`}
+                >
+                  <img
+                    src={String(heroImage)}
+                    alt=""
+                    className={`absolute inset-0 w-full h-full object-cover ${positionClass}`}
+                  />
+                  <div className={`absolute inset-0 ${overlayClass}`} />
+                  <div className="relative z-10 space-y-3 max-w-md mx-auto">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/20 text-white text-[10px] font-black uppercase">
+                      <Sparkles className="w-3 h-3 text-amber-400" />
+                      <span>{heroBadge}</span>
+                    </span>
+                    <h2 className="text-xl sm:text-2xl font-black">{heroTitle}</h2>
+                    <p className="text-[11px] sm:text-xs text-zinc-200">{heroSubtitle}</p>
+                    <button className="px-5 py-2 bg-white text-black font-bold text-[11px] rounded-xl shadow">
+                      {heroCtaText}
+                    </button>
+                  </div>
+                </div>
+              ) : heroPayload.showImage !== false && heroImage && heroLayout === 'card' ? (
+                <div className="p-4 sm:p-6 rounded-2xl bg-zinc-900 text-white space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+                    <div className="space-y-2.5">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-[10px] font-black">
+                        <Sparkles className="w-3 h-3" />
+                        <span>{heroBadge}</span>
+                      </span>
+                      <h2 className="text-xl font-black">{heroTitle}</h2>
+                      <p className="text-[11px] text-zinc-300">{heroSubtitle}</p>
+                      <button className="px-5 py-2 bg-amber-500 text-black font-bold text-[11px] rounded-xl shadow">
+                        {heroCtaText}
+                      </button>
+                    </div>
+                    <div className="rounded-xl overflow-hidden border border-zinc-800">
+                      <img
+                        src={String(heroImage)}
+                        alt=""
+                        className={`w-full ${
+                          heroHeight === 'compact'
+                            ? 'h-40 sm:h-48'
+                            : heroHeight === 'tall'
+                              ? 'h-64 sm:h-80'
+                              : 'h-48 sm:h-60'
+                        } object-cover ${positionClass}`}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* Default Split Hero Preview */
+                <div
+                  className={`grid items-center rounded-2xl border ${
+                    previewTheme === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-[#f6f5f1] border-zinc-200'
+                  } ${heroImage ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'} overflow-hidden shadow-xs`}
+                >
+                  <div className="p-4 sm:p-6 space-y-2.5">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-black/5 dark:bg-white/10 text-[10px] font-black uppercase">
+                      <Sparkles className="w-3 h-3 text-amber-500" />
+                      <span>{heroBadge}</span>
+                    </span>
+                    <h2 className="text-lg sm:text-xl font-black leading-tight">{heroTitle}</h2>
+                    <p className="text-[11px] opacity-75 leading-relaxed">{heroSubtitle}</p>
+                    <div className="pt-1 flex gap-2">
+                      <button className="px-5 py-2 bg-black text-white dark:bg-white dark:text-black font-bold text-[11px] rounded-xl shadow">
+                        {heroCtaText}
+                      </button>
+                    </div>
+                  </div>
+                  {heroImage && (
+                    <div
+                      className={`relative w-full ${
+                        heroHeight === 'compact'
+                          ? 'h-44 sm:h-52 md:h-60'
+                          : heroHeight === 'tall'
+                            ? 'h-64 sm:h-80 md:h-96'
+                            : 'h-52 sm:h-64 md:h-72'
+                      } overflow-hidden`}
+                    >
+                      <img
+                        src={String(heroImage)}
+                        alt=""
+                        className={`w-full h-full object-cover ${positionClass}`}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 2. Best Sellers & Product Showcase Preview */}
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-2">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-1 text-[10px] font-black text-amber-600 dark:text-amber-400">
+                      <Flame className="w-3 h-3" />
+                      <span>{isArabic ? 'الأكثر طلباً ومختارات الموسم' : 'BEST SELLERS & DROPS'}</span>
+                    </div>
+                    <h3 className="text-sm font-black">
+                      {isArabic ? 'الأكثر مبيعاً والموديلات الحصرية' : 'Best Sellers Showcase'}
+                    </h3>
+                  </div>
+                  <span className="text-[10px] font-bold text-zinc-500">
+                    {isArabic ? 'عرض الكل ↗' : 'View All ↗'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    { title: 'تيشيرت أوفر سايز بيسك', price: '450 ج.م', old: '600 ج.م' },
+                    { title: 'سويت شيرت هودي قطن', price: '750 ج.م', old: '950 ج.م' },
+                    { title: 'بنطلون كارجو سليم', price: '620 ج.م' },
+                    { title: 'قميص كتان كاجوال', price: '580 ج.م' },
+                  ].map((p, i) => (
+                    <div
+                      key={i}
+                      className="p-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 space-y-1.5 text-center"
+                    >
+                      <div className="aspect-[3/4] rounded-lg bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center text-zinc-400">
+                        <ShoppingBag className="w-5 h-5 opacity-40" />
+                      </div>
+                      <p className="text-[10px] font-bold truncate">{p.title}</p>
+                      <p className="text-[10px] font-black text-amber-600 dark:text-amber-400">
+                        {p.price}{' '}
+                        {p.old && <span className="line-through text-zinc-400 text-[9px]">{p.old}</span>}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </Card>
       )}
 
       {/* ========================================================
@@ -399,6 +678,7 @@ export const AdminCmsPage: React.FC = () => {
           const isNewArrivals =
             section.key === 'new_arrivals' ||
             section.key === 'featured_products' ||
+            section.key === 'best_sellers' ||
             section.type === 'NEW_ARRIVALS' ||
             section.type === 'FEATURED_GRID';
           const isPromo =
@@ -521,7 +801,7 @@ export const AdminCmsPage: React.FC = () => {
                           <div className="flex items-center gap-2">
                             <ImageIcon className="w-4 h-4 text-amber-500" />
                             <span className="text-xs font-black text-zinc-900 dark:text-zinc-100">
-                              {isArabic ? 'التحكم في صورة الهيرو (Hero Image Controls)' : 'Hero Image Controls'}
+                              {isArabic ? 'التحكم في صورة وارتفاع الهيرو' : 'Hero Image & Height Controls'}
                             </span>
                           </div>
 
@@ -617,22 +897,74 @@ export const AdminCmsPage: React.FC = () => {
                               </div>
                             </div>
 
-                            {/* Additional tuning options (Darkness, Position, Height) */}
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                            {/* HEIGHT SELECTOR CARDS (FIXED & EFFECTIVE) */}
+                            <div className="space-y-2 pt-2">
+                              <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5">
+                                <Maximize2 className="w-3.5 h-3.5 text-amber-500" />
+                                <span>{isArabic ? 'ارتفاع الصورة وحجم البانر (فعال على كافة الأنماط)' : 'Banner & Image Height'}</span>
+                              </label>
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                                {[
+                                  {
+                                    id: 'compact',
+                                    labelAr: 'مدمج وناعم (Compact)',
+                                    labelEn: 'Compact (320px - 380px)',
+                                    descAr: 'ارتفاع خفيف ومناسب لتقليل المساحة وإبراز المنتجات تحته مباشرة',
+                                    descEn: 'Saves vertical space and brings products closer',
+                                  },
+                                  {
+                                    id: 'normal',
+                                    labelAr: 'متوازن قياسي (Standard)',
+                                    labelEn: 'Standard (420px - 480px)',
+                                    descAr: 'الارتفاع القياسي المتناسق لمعظم الصور والمتاجر',
+                                    descEn: 'Balanced proportions for general fashion banners',
+                                  },
+                                  {
+                                    id: 'tall',
+                                    labelAr: 'كبير وفاخر (Tall)',
+                                    labelEn: 'Tall (560px - 640px)',
+                                    descAr: 'ارتفاع ممتد للصور الطولية الفخمة وجلسات التصوير',
+                                    descEn: 'Extended height for high-end editorial model photography',
+                                  },
+                                ].map((h) => {
+                                  const isSelected = (payload.heightSize || 'normal') === h.id;
+                                  return (
+                                    <button
+                                      key={h.id}
+                                      type="button"
+                                      onClick={() => updatePayloadField(section.key, 'heightSize', h.id)}
+                                      className={`p-3 rounded-xl border text-start transition flex flex-col justify-between ${
+                                        isSelected
+                                          ? 'border-amber-500 bg-amber-500/10 text-amber-950 dark:text-amber-100 ring-1 ring-amber-500'
+                                          : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-700'
+                                      }`}
+                                    >
+                                      <span className="text-xs font-bold">{isArabic ? h.labelAr : h.labelEn}</span>
+                                      <span className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-1">
+                                        {isArabic ? h.descAr : h.descEn}
+                                      </span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {/* Additional tuning options (Darkness & Focal Position) */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                               {/* Overlay Darkness (Special for cover mode) */}
                               <div className="space-y-1">
                                 <label className="text-[11px] font-bold text-zinc-600 dark:text-zinc-400 flex items-center gap-1">
                                   <SlidersHorizontal className="w-3 h-3 text-amber-500" />
-                                  <span>{isArabic ? 'درجة تعتيم الخلفية' : 'Overlay Darkness'}</span>
+                                  <span>{isArabic ? 'درجة تعتيم الخلفية (لنمط Cover)' : 'Overlay Darkness'}</span>
                                 </label>
                                 <select
                                   value={String(payload.overlayDarkness || 'medium')}
                                   onChange={(e) => updatePayloadField(section.key, 'overlayDarkness', e.target.value)}
-                                  className="w-full text-xs font-medium bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-2 text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                                  className="w-full text-xs font-medium bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-2.5 text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-amber-500"
                                 >
-                                  <option value="light">{isArabic ? 'خفيف (30%)' : 'Light (30%)'}</option>
-                                  <option value="medium">{isArabic ? 'متوازن (55%)' : 'Medium (55%)'}</option>
-                                  <option value="dark">{isArabic ? 'داكن وواضح (75%)' : 'Dark & High Contrast (75%)'}</option>
+                                  <option value="light">{isArabic ? 'خفيف (25%)' : 'Light (25%)'}</option>
+                                  <option value="medium">{isArabic ? 'متوازن (50%)' : 'Medium (50%)'}</option>
+                                  <option value="dark">{isArabic ? 'داكن وواضح (70%)' : 'Dark & High Contrast (70%)'}</option>
                                 </select>
                               </div>
 
@@ -640,33 +972,16 @@ export const AdminCmsPage: React.FC = () => {
                               <div className="space-y-1">
                                 <label className="text-[11px] font-bold text-zinc-600 dark:text-zinc-400 flex items-center gap-1">
                                   <ImageIcon className="w-3 h-3 text-amber-500" />
-                                  <span>{isArabic ? 'موضع تركيز الصورة' : 'Image Focal Point'}</span>
+                                  <span>{isArabic ? 'موضع تركيز الصورة (Focal Point)' : 'Image Focal Point'}</span>
                                 </label>
                                 <select
                                   value={String(payload.imagePosition || 'center')}
                                   onChange={(e) => updatePayloadField(section.key, 'imagePosition', e.target.value)}
-                                  className="w-full text-xs font-medium bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-2 text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                                  className="w-full text-xs font-medium bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-2.5 text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-amber-500"
                                 >
                                   <option value="center">{isArabic ? 'منتصف (Center)' : 'Center'}</option>
-                                  <option value="top">{isArabic ? 'أعلى (Top)' : 'Top'}</option>
+                                  <option value="top">{isArabic ? 'أعلى (Top - لتركيز الرأس/الموديل)' : 'Top'}</option>
                                   <option value="bottom">{isArabic ? 'أسفل (Bottom)' : 'Bottom'}</option>
-                                </select>
-                              </div>
-
-                              {/* Height / Sizing */}
-                              <div className="space-y-1">
-                                <label className="text-[11px] font-bold text-zinc-600 dark:text-zinc-400 flex items-center gap-1">
-                                  <Maximize2 className="w-3 h-3 text-amber-500" />
-                                  <span>{isArabic ? 'ارتفاع البانر' : 'Banner Height'}</span>
-                                </label>
-                                <select
-                                  value={String(payload.heightSize || 'normal')}
-                                  onChange={(e) => updatePayloadField(section.key, 'heightSize', e.target.value)}
-                                  className="w-full text-xs font-medium bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-2 text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-amber-500"
-                                >
-                                  <option value="compact">{isArabic ? 'مدمج (Compact 380px)' : 'Compact (380px)'}</option>
-                                  <option value="normal">{isArabic ? 'قياسي (Standard 500px)' : 'Standard (500px)'}</option>
-                                  <option value="tall">{isArabic ? 'كبير وممتد (Tall 620px)' : 'Tall (620px)'}</option>
                                 </select>
                               </div>
                             </div>
@@ -765,13 +1080,13 @@ export const AdminCmsPage: React.FC = () => {
                     </div>
                   )}
 
-                  {/* NEW ARRIVALS ("جديدنا") SPECIAL FIELDS */}
+                  {/* NEW ARRIVALS / BEST SELLERS SPECIAL FIELDS */}
                   {isNewArrivals && (
                     <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20 space-y-4">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
                           <Flame className="w-4 h-4" />
-                          <span>{isArabic ? 'إعدادات سكشن جديدنا والأحدث' : 'New Arrivals Configuration'}</span>
+                          <span>{isArabic ? 'إعدادات سكشن الأكثر مبيعاً وعرض المنتجات' : 'Best Sellers & Products Showcase'}</span>
                         </span>
                         <Link
                           to="/admin/products"
@@ -781,28 +1096,21 @@ export const AdminCmsPage: React.FC = () => {
                         </Link>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <Input
-                          label={isArabic ? 'بادج السكشن (Badge)' : 'Section Subtitle / Badge'}
-                          placeholder="وصل حديثاً / NEW DROP"
-                          value={section.subtitleAr || ''}
-                          onChange={(e) => updateSectionField(section.key, 'subtitleAr', e.target.value)}
-                        />
-
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <label className="block text-xs font-semibold uppercase text-zinc-700 dark:text-zinc-300 mb-1.5">
-                            {isArabic ? 'مصدر عرض المنتجات' : 'Products Source'}
+                            {isArabic ? 'مصدر وطريقة فرز المنتجات' : 'Products Source'}
                           </label>
                           <select
-                            value={String(payload.sourceMode || 'latest')}
+                            value={String(payload.sourceMode || 'popular')}
                             onChange={(e) => updatePayloadField(section.key, 'sourceMode', e.target.value)}
                             className="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-xl text-xs font-bold text-zinc-900 dark:text-zinc-100 outline-none"
                           >
-                            <option value="latest">
-                              {isArabic ? '⚡ أحدث المنتجات تلقائياً' : '⚡ Latest Products (Auto)'}
+                            <option value="popular">
+                              {isArabic ? '🔥 الأكثر طلباً والمميزة أولاً (Best Sellers)' : '🔥 Popular & Featured First'}
                             </option>
-                            <option value="featured">
-                              {isArabic ? '⭐ المنتجات المميزة فقط (Featured)' : '⭐ Featured Products Only'}
+                            <option value="latest">
+                              {isArabic ? '⚡ أحدث الإطلاقات تلقائياً (Latest)' : '⚡ Latest Products'}
                             </option>
                           </select>
                         </div>
@@ -876,20 +1184,18 @@ export const AdminCmsPage: React.FC = () => {
                     />
                   </div>
 
-                  {!isNewArrivals && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <Input
-                        label={isArabic ? 'الوصف أو النص الفرعي (بالعربية)' : 'Subtitle / Description (Arabic)'}
-                        value={section.subtitleAr || ''}
-                        onChange={(e) => updateSectionField(section.key, 'subtitleAr', e.target.value)}
-                      />
-                      <Input
-                        label={isArabic ? 'الوصف أو النص الفرعي (بالإنجليزية)' : 'Subtitle / Description (English)'}
-                        value={section.subtitleEn || ''}
-                        onChange={(e) => updateSectionField(section.key, 'subtitleEn', e.target.value)}
-                      />
-                    </div>
-                  )}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Input
+                      label={isArabic ? 'الوصف أو النص الفرعي (بالعربية)' : 'Subtitle / Description (Arabic)'}
+                      value={section.subtitleAr || ''}
+                      onChange={(e) => updateSectionField(section.key, 'subtitleAr', e.target.value)}
+                    />
+                    <Input
+                      label={isArabic ? 'الوصف أو النص الفرعي (بالإنجليزية)' : 'Subtitle / Description (English)'}
+                      value={section.subtitleEn || ''}
+                      onChange={(e) => updateSectionField(section.key, 'subtitleEn', e.target.value)}
+                    />
+                  </div>
 
                   {/* Save Section Button */}
                   <div className="flex justify-end pt-2 border-t border-zinc-100 dark:border-zinc-800">

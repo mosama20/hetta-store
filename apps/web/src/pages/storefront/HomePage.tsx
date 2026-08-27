@@ -20,7 +20,7 @@ import { MarqueeBanner } from '../../components/storefront/MarqueeBanner.js';
 import { ProductCard } from '../../components/storefront/ProductCard.js';
 import { LoadingState } from '../../components/common/LoadingState.js';
 
-const HOME_CACHE_KEY = 'craft_home_data_cache_v3';
+const HOME_CACHE_KEY = 'craft_home_data_cache_v4';
 
 function getCachedHomeData(): {
   products: Product[];
@@ -52,7 +52,7 @@ export const HomePage: React.FC = () => {
       cmsApi.getActiveSections().catch(() => []),
       productsApi
         .getAll({ limit: 16, sortBy: 'popular' })
-        .then((res) => res.items)
+        .then((res) => res.items || [])
         .catch(() => []),
     ])
       .then(([catRes, cmsRes, prodRes]) => {
@@ -67,7 +67,7 @@ export const HomePage: React.FC = () => {
         setProducts(fetchedProds);
         setIsLoading(false);
 
-        // Cache for subsequent instant loads
+        // Cache for instant loads
         if (typeof window !== 'undefined') {
           try {
             localStorage.setItem(
@@ -100,7 +100,7 @@ export const HomePage: React.FC = () => {
   const isMarqueeSection = (s: CMSSection) => s.key === 'marquee_ticker' || s.type === 'MARQUEE';
   const isProductSection = (s: CMSSection) =>
     s.key === 'new_arrivals' || s.key === 'featured_products' || s.key === 'best_sellers' || s.type === 'NEW_ARRIVALS' || s.type === 'FEATURED_GRID';
-  const isCategoriesSection = (s: CMSSection) => s.key === 'categories_section' || s.type === 'CATEGORIES';
+  const isCategoriesSection = (s: CMSSection) => s.key === 'categories_section' || s.type === 'CATEGORIES' || s.type === 'CATEGORY_CAROUSEL';
   const isTrustSection = (s: CMSSection) => s.key === 'trust_bar' || s.type === 'TRUST_BAR';
   const isPromoSection = (s: CMSSection) =>
     s.key === 'promo_banner' || s.key === 'promo_summer' || s.key === 'home_promo_summer' || s.type === 'PROMO_BANNER';
@@ -110,8 +110,8 @@ export const HomePage: React.FC = () => {
   const defaultSections: { key: string; displayOrder: number; type: string; titleAr: string; titleEn: string }[] = [
     { key: 'hero_banner', displayOrder: 0, type: 'HERO_SLIDER', titleAr: 'البانر الرئيسي', titleEn: 'Main Hero' },
     { key: 'marquee_ticker', displayOrder: 1, type: 'CUSTOM_HTML', titleAr: 'الشريط المتحرك', titleEn: 'Marquee Ticker' },
-    { key: 'new_arrivals', displayOrder: 2, type: 'NEW_ARRIVALS', titleAr: 'الأكثر مبيعاً والمختارات الحصرية', titleEn: 'Best Sellers & Curated Drops' },
-    { key: 'categories_section', displayOrder: 3, type: 'CATEGORIES', titleAr: 'تصفح الأقسام', titleEn: 'Browse Categories' },
+    { key: 'new_arrivals', displayOrder: 2, type: 'FEATURED_GRID', titleAr: 'الأكثر مبيعاً ومختارات الموسم', titleEn: 'Best Sellers & Curated Drops' },
+    { key: 'categories_section', displayOrder: 3, type: 'CATEGORY_CAROUSEL', titleAr: 'تصفح الأقسام', titleEn: 'Browse Categories' },
     { key: 'trust_bar', displayOrder: 4, type: 'CUSTOM_HTML', titleAr: 'مميزات المتجر والضمانات', titleEn: 'Guarantees' },
     { key: 'promo_banner', displayOrder: 5, type: 'PROMO_BANNER', titleAr: 'العرض الترويجي', titleEn: 'Promo Banner' },
     { key: 'about_section', displayOrder: 6, type: 'CUSTOM_HTML', titleAr: 'عن المتجر', titleEn: 'About Brand' },
@@ -192,13 +192,13 @@ export const HomePage: React.FC = () => {
     }
   }
 
-  // If products section was not in CMS or was not rendered yet, ensure it renders prominently
+  // Ensure products showcase renders even if omitted
   if (!productSectionRendered) {
     sectionsToRender.push({
       id: 'new_arrivals_fallback',
       key: 'new_arrivals',
-      type: 'NEW_ARRIVALS' as any,
-      titleAr: 'الأكثر مبيعاً والمختارات الحصرية',
+      type: 'FEATURED_GRID' as any,
+      titleAr: 'الأكثر مبيعاً ومختارات الموسم',
       titleEn: 'Best Sellers & Curated Drops',
       displayOrder: 2,
       isActive: true,
@@ -254,13 +254,6 @@ export const HomePage: React.FC = () => {
           ? 'object-bottom'
           : 'object-center';
 
-    const heightClass =
-      heightSize === 'compact'
-        ? 'min-h-[380px] sm:min-h-[440px]'
-        : heightSize === 'tall'
-          ? 'min-h-[550px] sm:min-h-[680px]'
-          : 'min-h-[440px] sm:min-h-[540px]';
-
     const overlayClass =
       overlayDarkness === 'light'
         ? 'bg-black/25 dark:bg-black/40'
@@ -268,12 +261,27 @@ export const HomePage: React.FC = () => {
           ? 'bg-black/65 dark:bg-black/75'
           : 'bg-black/45 dark:bg-black/60';
 
+    // Exact height classes for each layout style
+    let coverHeightClass = 'min-h-[400px] sm:min-h-[480px] lg:min-h-[540px]';
+    let cardImageHeightClass = 'h-64 sm:h-80 lg:h-96';
+    let splitImageHeightClass = 'h-64 sm:h-80 md:h-[420px] lg:h-[480px] max-h-[500px]';
+
+    if (heightSize === 'compact') {
+      coverHeightClass = 'min-h-[300px] sm:min-h-[360px] lg:min-h-[400px]';
+      cardImageHeightClass = 'h-48 sm:h-60 lg:h-72';
+      splitImageHeightClass = 'h-56 sm:h-64 md:h-[320px] lg:h-[360px] max-h-[380px]';
+    } else if (heightSize === 'tall') {
+      coverHeightClass = 'min-h-[520px] sm:min-h-[620px] lg:min-h-[700px]';
+      cardImageHeightClass = 'h-80 sm:h-96 lg:h-[480px]';
+      splitImageHeightClass = 'h-80 sm:h-96 md:h-[540px] lg:h-[620px] max-h-[660px]';
+    }
+
     // Style 1: Full Background Cover Hero
     if (heroImage && heroLayout === 'cover') {
       return (
         <section
           key={section.key}
-          className={`relative overflow-hidden rounded-3xl ${heightClass} flex items-center justify-center p-6 sm:p-12 text-center text-white shadow-2xl`}
+          className={`relative overflow-hidden rounded-3xl ${coverHeightClass} flex items-center justify-center p-6 sm:p-12 text-center text-white shadow-2xl`}
         >
           <img
             src={heroImage}
@@ -349,7 +357,7 @@ export const HomePage: React.FC = () => {
                 <img
                   src={heroImage}
                   alt={heroTitle}
-                  className={`w-full h-64 sm:h-80 lg:h-96 object-cover group-hover:scale-105 transition-transform duration-700 ${positionClass}`}
+                  className={`w-full ${cardImageHeightClass} object-cover group-hover:scale-105 transition-transform duration-700 ${positionClass}`}
                 />
               </div>
             </div>
@@ -392,7 +400,7 @@ export const HomePage: React.FC = () => {
           </div>
 
           {heroImage && (
-            <div className="relative h-64 sm:h-80 md:h-full min-h-[300px] sm:min-h-[400px] overflow-hidden">
+            <div className={`relative w-full ${splitImageHeightClass} overflow-hidden`}>
               <img
                 src={heroImage}
                 alt={heroTitle}
@@ -429,7 +437,7 @@ export const HomePage: React.FC = () => {
   const renderProductShowcase = (section: CMSSection) => {
     const payload = (section.payload || {}) as Record<string, any>;
     const title = getLocalized(section.titleAr, section.titleEn, isArabic) ||
-      (isArabic ? 'الأكثر مبيعاً ومختارات الموسم' : 'Best Sellers & Exclusive Drops');
+      (isArabic ? 'الأكثر مبيعاً ومختارات الموسم' : 'Best Sellers & Curated Drops');
     const subtitle = getLocalized(section.subtitleAr, section.subtitleEn, isArabic) ||
       (isArabic
         ? 'تشكيلة مختارة بعناية من أفضل الموديلات والأكثر طلباً لتتألق بإطلالة استثنائية.'
