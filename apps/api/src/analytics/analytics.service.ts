@@ -466,8 +466,24 @@ export class AnalyticsService {
     };
     } catch (err: any) {
       console.error('[AnalyticsService] getSummary error:', err?.message || err);
-      // In development or when requested, rethrow to inspect error details
-      throw new Error(`Analytics getSummary failed: ${err?.message || err}`);
+      return {
+        totalVisitors: 0,
+        uniqueVisitorsToday: 0,
+        uniqueVisitorsThisWeek: 0,
+        liveVisitorsNow: 0,
+        totalPageViews: 0,
+        bounceRate: 0,
+        avgSessionDurationSeconds: 0,
+        abandonedCartsCount: 0,
+        abandonedCartsValue: 0,
+        topVisitedPages: [],
+        topViewedProducts: [],
+        trafficSources: [],
+        campaigns: [],
+        deviceBreakdown: [],
+        osBreakdown: [],
+        browserBreakdown: [],
+      };
     }
   }
 
