@@ -282,7 +282,7 @@ export const AdminOrdersPage: React.FC = () => {
                       {/* Order Number */}
                       <td className="p-3.5">
                         <Link
-                          to={`/admin/orders/${o.id}`}
+                          to={`/darsh50/orders/${o.id}`}
                           className="font-mono font-black text-xs text-amber-600 dark:text-amber-400 hover:underline"
                         >
                           {o.orderNumber}
@@ -371,7 +371,7 @@ export const AdminOrdersPage: React.FC = () => {
                           </a>
 
                           {/* View details */}
-                          <Link to={`/admin/orders/${o.id}`}>
+                          <Link to={`/darsh50/orders/${o.id}`}>
                             <button
                               className="p-1.5 text-zinc-500 hover:text-black dark:hover:text-white rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
                               title={isArabic ? 'تفاصيل الفاتورة والطلب' : 'View order details'}

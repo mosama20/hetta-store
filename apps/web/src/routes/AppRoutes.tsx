@@ -84,7 +84,7 @@ function ProtectedAdminRoute() {
   }
 
   if (!isAuthenticated || !user) {
-    return <Navigate to="/admin/login" state={{ from: location }} replace />;
+    return <Navigate to="/darsh50/login" state={{ from: location }} replace />;
   }
 
   return <AdminLayout />;
@@ -116,10 +116,10 @@ export const AppRoutes: React.FC = () => {
         </Route>
 
         {/* Admin Login */}
-        <Route path="/admin/login" element={<AdminLoginPage />} />
+        <Route path="/darsh50/login" element={<AdminLoginPage />} />
 
         {/* Protected Admin Routes */}
-        <Route path="/admin" element={<ProtectedAdminRoute />}>
+        <Route path="/darsh50" element={<ProtectedAdminRoute />}>
           <Route index element={<AdminDashboardPage />} />
           <Route path="analytics" element={<AdminAnalyticsPage />} />
           <Route path="products" element={<AdminProductsPage />} />

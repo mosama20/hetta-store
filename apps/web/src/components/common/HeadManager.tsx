@@ -145,7 +145,7 @@ export const HeadManager: React.FC = () => {
       pageSuffix = isArabic ? 'سياسة الاستبدال والاسترجاع' : 'Returns & Exchange';
     } else if (path === '/faq') {
       pageSuffix = isArabic ? 'الأسئلة الشائعة' : 'FAQ';
-    } else if (path.startsWith('/admin')) {
+    } else if (path.startsWith('/darsh50')) {
       pageSuffix = isArabic ? 'لوحة الإدارة' : 'Admin Portal';
     }
 

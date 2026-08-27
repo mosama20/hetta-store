@@ -149,7 +149,7 @@ export const AdminProductFormPage: React.FC = () => {
       } else {
         await productsApi.create(payload);
       }
-      navigate('/admin/products');
+      navigate('/darsh50/products');
     } catch (err: unknown) {
       setErrorMsg((err as Error).message || 'Failed to save product');
       setIsSaving(false);

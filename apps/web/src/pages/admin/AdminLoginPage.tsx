@@ -17,7 +17,7 @@ export const AdminLoginPage: React.FC = () => {
   const location = useLocation();
 
   // Target return URL after login
-  const returnUrl = (location.state as { from?: { pathname?: string } })?.from?.pathname || '/admin';
+  const returnUrl = (location.state as { from?: { pathname?: string } })?.from?.pathname || '/darsh50';
 
   // If already authenticated with user, redirect immediately
   useEffect(() => {

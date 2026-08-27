@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Search, User, ShoppingBag, Menu, X, Sun, Moon, CheckCircle2, Smartphone } from 'lucide-react';
+import { Search, ShoppingBag, Menu, X, Sun, Moon, CheckCircle2, Smartphone } from 'lucide-react';
 import { useCart, CART_ITEM_ADDED_EVENT } from '../../store/cartStore.js';
 import { useTheme } from '../../store/themeStore.js';
 import { useStoreSettings } from '../../store/settingsStore.js';
@@ -189,14 +189,6 @@ export const Header: React.FC = () => {
               )}
             </button>
 
-            {/* Admin / Account Icon */}
-            <Link
-              to="/admin/login"
-              className="p-1.5 sm:p-2 hover:text-black dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-full transition"
-              title={isArabic ? 'لوحة التحكم' : 'Admin Panel'}
-            >
-              <User className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2]" />
-            </Link>
 
             {/* Bouncing Cart Icon & Toast Popup Container */}
             <div className="relative">

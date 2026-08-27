@@ -48,7 +48,7 @@ export const AdminLayout: React.FC = () => {
 
   const handleLogout = async () => {
     await logout();
-    navigate('/admin/login');
+    navigate('/darsh50/login');
   };
 
   const navGroups: NavGroup[] = [
@@ -59,20 +59,20 @@ export const AdminLayout: React.FC = () => {
         {
           labelAr: 'نظرة عامة',
           labelEn: 'Dashboard',
-          path: '/admin',
+          path: '/darsh50',
           icon: LayoutDashboard,
         },
         {
           labelAr: 'طلبات العملاء',
           labelEn: 'Customer Orders',
-          path: '/admin/orders',
+          path: '/darsh50/orders',
           icon: ShoppingCart,
           perm: 'orders.read',
         },
         {
           labelAr: 'تحليلات الزوار والتسويق',
           labelEn: 'Visitor Analytics',
-          path: '/admin/analytics',
+          path: '/darsh50/analytics',
           icon: BarChart3,
           perm: 'audit.read',
         },
@@ -85,28 +85,28 @@ export const AdminLayout: React.FC = () => {
         {
           labelAr: 'المنتجات والمخزون',
           labelEn: 'Products',
-          path: '/admin/products',
+          path: '/darsh50/products',
           icon: Package,
           perm: 'products.read',
         },
         {
           labelAr: 'الأقسام والتصنيفات',
           labelEn: 'Categories',
-          path: '/admin/categories',
+          path: '/darsh50/categories',
           icon: Layers,
           perm: 'categories.read',
         },
         {
           labelAr: 'الألوان والمقاسات',
           labelEn: 'Attributes',
-          path: '/admin/attributes',
+          path: '/darsh50/attributes',
           icon: Palette,
           perm: 'products.read',
         },
         {
           labelAr: 'العروض والخصومات',
           labelEn: 'Discounts & Coupons',
-          path: '/admin/discounts',
+          path: '/darsh50/discounts',
           icon: Percent,
           perm: 'discounts.read',
         },
@@ -119,21 +119,21 @@ export const AdminLayout: React.FC = () => {
         {
           labelAr: 'محتوى الهوم بيج (CMS)',
           labelEn: 'Homepage CMS',
-          path: '/admin/cms',
+          path: '/darsh50/cms',
           icon: LayoutTemplate,
           perm: 'cms.read',
         },
         {
           labelAr: 'إعدادات المتجر والهوية',
           labelEn: 'Store Settings',
-          path: '/admin/settings',
+          path: '/darsh50/settings',
           icon: Settings,
           perm: 'settings.read',
         },
         {
           labelAr: 'مكتبة الوسائط',
           labelEn: 'Media Library',
-          path: '/admin/media',
+          path: '/darsh50/media',
           icon: Image,
           perm: 'media.read',
         },
@@ -146,14 +146,14 @@ export const AdminLayout: React.FC = () => {
         {
           labelAr: 'المستخدمين والصلاحيات',
           labelEn: 'Users & Roles',
-          path: '/admin/users',
+          path: '/darsh50/users',
           icon: Users,
           perm: 'users.read',
         },
         {
           labelAr: 'سجل العمليات',
           labelEn: 'Audit Logs',
-          path: '/admin/audit-logs',
+          path: '/darsh50/audit-logs',
           icon: ScrollText,
           perm: 'audit.read',
         },
@@ -196,7 +196,7 @@ export const AdminLayout: React.FC = () => {
           {/* Brand header */}
           <div className="flex items-center justify-between pb-3 border-b border-zinc-100 dark:border-zinc-800">
             <Link
-              to="/admin"
+              to="/darsh50"
               className="flex items-center space-x-2 rtl:space-x-reverse font-black text-base tracking-tight"
             >
               {settings.store_logo ? (
@@ -235,8 +235,8 @@ export const AdminLayout: React.FC = () => {
                   {visibleItems.map((item) => {
                     const Icon = item.icon;
                     const isActive =
-                      item.path === '/admin'
-                        ? location.pathname === '/admin'
+                      item.path === '/darsh50'
+                        ? location.pathname === '/darsh50'
                         : location.pathname.startsWith(item.path);
 
                     return (

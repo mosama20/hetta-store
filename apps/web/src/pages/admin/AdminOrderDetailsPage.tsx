@@ -51,7 +51,7 @@ export const AdminOrderDetailsPage: React.FC = () => {
     setIsDeleting(true);
     try {
       await ordersApi.delete(id);
-      navigate('/admin/orders');
+      navigate('/darsh50/orders');
     } catch {
       // delete error
     } finally {
@@ -86,7 +86,7 @@ export const AdminOrderDetailsPage: React.FC = () => {
     <div className="space-y-6 text-start max-w-4xl mx-auto pb-20">
       <div className="flex items-center justify-between text-xs text-zinc-500 print:hidden">
         <Link
-          to="/admin/orders"
+          to="/darsh50/orders"
           className="hover:text-zinc-900 dark:hover:text-zinc-100 flex items-center"
         >
           <ArrowLeft className="w-3.5 h-3.5 mr-1 rtl:rotate-180" />

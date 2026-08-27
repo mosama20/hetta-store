@@ -158,7 +158,7 @@ export const AdminProductsPage: React.FC = () => {
               <FileSpreadsheet className="w-4 h-4 mr-1.5 rtl:ml-1.5 rtl:mr-0 text-emerald-600" />
               <span>{isArabic ? 'استيراد إكسيل' : 'Excel Import'}</span>
             </Button>
-            <Link to="/admin/products/new">
+            <Link to="/darsh50/products/new">
               <Button variant="gold" size="sm">
                 <Plus className="w-4 h-4 mr-1.5 rtl:ml-1.5 rtl:mr-0" />
                 <span>{isArabic ? 'إضافة منتج جديد' : 'New Product'}</span>
@@ -263,7 +263,7 @@ export const AdminProductsPage: React.FC = () => {
                       </td>
                       <td className="p-3.5 text-end">
                         <div className="flex items-center justify-end space-x-2 rtl:space-x-reverse">
-                          <Link to={`/admin/products/${p.id}`}>
+                          <Link to={`/darsh50/products/${p.id}`}>
                             <Button variant="ghost" size="sm" className="p-1.5">
                               <Edit2 className="w-4 h-4" />
                             </Button>

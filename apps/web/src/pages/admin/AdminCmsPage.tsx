@@ -1097,7 +1097,7 @@ export const AdminCmsPage: React.FC = () => {
                           <span>{isArabic ? 'إعدادات سكشن الأكثر مبيعاً وعرض المنتجات' : 'Best Sellers & Products Showcase'}</span>
                         </span>
                         <Link
-                          to="/admin/products"
+                          to="/darsh50/products"
                           className="text-[11px] font-bold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1"
                         >
                           <span>{isArabic ? 'إدارة المنتجات المميزة ↗' : 'Manage Products ↗'}</span>

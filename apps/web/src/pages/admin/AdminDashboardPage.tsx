@@ -126,7 +126,7 @@ export const AdminDashboardPage: React.FC = () => {
               <RefreshCw className={`w-3.5 h-3.5 mr-1.5 rtl:ml-1.5 rtl:mr-0 ${isRefreshing ? 'animate-spin' : ''}`} />
               <span>{isArabic ? 'تحديث البيانات' : 'Refresh Data'}</span>
             </Button>
-            <Link to="/admin/products/new">
+            <Link to="/darsh50/products/new">
               <Button variant="gold" size="sm" className="shadow-md text-xs">
                 <Plus className="w-3.5 h-3.5 mr-1.5 rtl:ml-1.5 rtl:mr-0" />
                 <span>{isArabic ? 'إضافة منتج' : 'New Product'}</span>
@@ -219,7 +219,7 @@ export const AdminDashboardPage: React.FC = () => {
             </div>
           </div>
           <Link
-            to="/admin/orders"
+            to="/darsh50/orders"
             className="text-[11px] font-bold text-amber-400 hover:underline flex items-center gap-1"
           >
             <span>{isArabic ? 'كل الطلبات' : 'View All'}</span>
@@ -239,7 +239,7 @@ export const AdminDashboardPage: React.FC = () => {
           ].map((stage) => (
             <Link
               key={stage.key}
-              to={`/admin/orders?status=${stage.key}`}
+              to={`/darsh50/orders?status=${stage.key}`}
               className={`p-3 rounded-xl border border-zinc-700/80 transition flex flex-col justify-between text-start ${stage.bg} group`}
             >
               <div className="flex items-center justify-between">
@@ -262,7 +262,7 @@ export const AdminDashboardPage: React.FC = () => {
       ======================================================== */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Link
-          to="/admin/products/new"
+          to="/darsh50/products/new"
           className="p-3.5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm hover:border-amber-500 dark:hover:border-amber-500 transition flex items-center gap-3 text-start group"
         >
           <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 group-hover:scale-105 transition">
@@ -275,7 +275,7 @@ export const AdminDashboardPage: React.FC = () => {
         </Link>
 
         <Link
-          to="/admin/categories"
+          to="/darsh50/categories"
           className="p-3.5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm hover:border-blue-500 dark:hover:border-blue-500 transition flex items-center gap-3 text-start group"
         >
           <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 group-hover:scale-105 transition">
@@ -288,7 +288,7 @@ export const AdminDashboardPage: React.FC = () => {
         </Link>
 
         <Link
-          to="/admin/cms"
+          to="/darsh50/cms"
           className="p-3.5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm hover:border-purple-500 dark:hover:border-purple-500 transition flex items-center gap-3 text-start group"
         >
           <div className="p-2 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 group-hover:scale-105 transition">
@@ -301,7 +301,7 @@ export const AdminDashboardPage: React.FC = () => {
         </Link>
 
         <Link
-          to="/admin/discounts"
+          to="/darsh50/discounts"
           className="p-3.5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm hover:border-emerald-500 dark:hover:border-emerald-500 transition flex items-center gap-3 text-start group"
         >
           <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 group-hover:scale-105 transition">
@@ -328,7 +328,7 @@ export const AdminDashboardPage: React.FC = () => {
               </h3>
             </div>
             <Link
-              to="/admin/orders"
+              to="/darsh50/orders"
               className="text-xs font-bold text-amber-600 hover:text-amber-500 flex items-center gap-1"
             >
               <span>{isArabic ? 'عرض كافة الطلبات' : 'View All'}</span>
@@ -360,7 +360,7 @@ export const AdminDashboardPage: React.FC = () => {
                       <tr key={order.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition">
                         <td className="p-3">
                           <Link
-                            to={`/admin/orders/${order.id}`}
+                            to={`/darsh50/orders/${order.id}`}
                             className="font-mono font-bold text-amber-600 dark:text-amber-400 hover:underline"
                           >
                             {order.orderNumber}
@@ -396,7 +396,7 @@ export const AdminDashboardPage: React.FC = () => {
                           </select>
                         </td>
                         <td className="p-3 text-end">
-                          <Link to={`/admin/orders/${order.id}`}>
+                          <Link to={`/darsh50/orders/${order.id}`}>
                             <button
                               className="p-1.5 text-zinc-500 hover:text-black dark:hover:text-white rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
                               title={isArabic ? 'تفاصيل الطلب' : 'View order'}
@@ -424,7 +424,7 @@ export const AdminDashboardPage: React.FC = () => {
               </h3>
             </div>
             <Link
-              to="/admin/products"
+              to="/darsh50/products"
               className="text-xs font-bold text-amber-600 hover:text-amber-500 flex items-center gap-1"
             >
               <span>{isArabic ? 'الكتالوج' : 'Catalog'}</span>
@@ -469,7 +469,7 @@ export const AdminDashboardPage: React.FC = () => {
           6. VISITOR ATTRIBUTION & TRAFFIC BANNER (Single, Clean)
       ======================================================== */}
       <Link
-        to="/admin/analytics"
+        to="/darsh50/analytics"
         className="block p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700 text-white shadow-md hover:shadow-lg transition group"
       >
         <div className="flex items-center justify-between">
