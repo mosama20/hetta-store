@@ -185,12 +185,14 @@ export class AnalyticsService {
           "updated_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
           CONSTRAINT "visitor_sessions_pkey" PRIMARY KEY ("id")
         );
-        CREATE UNIQUE INDEX IF NOT EXISTS "visitor_sessions_session_id_key" ON "visitor_sessions"("session_id");
-        CREATE INDEX IF NOT EXISTS "idx_visitor_sessions_session_id" ON "visitor_sessions"("session_id");
-        CREATE INDEX IF NOT EXISTS "idx_visitor_sessions_visitor_id" ON "visitor_sessions"("visitor_id");
-        CREATE INDEX IF NOT EXISTS "idx_visitor_sessions_ip_address" ON "visitor_sessions"("ip_address");
-        CREATE INDEX IF NOT EXISTS "idx_visitor_sessions_created_at" ON "visitor_sessions"("created_at");
+      `);
+      await this.prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "visitor_sessions_session_id_key" ON "visitor_sessions"("session_id");`).catch(() => {});
+      await this.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "idx_visitor_sessions_session_id" ON "visitor_sessions"("session_id");`).catch(() => {});
+      await this.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "idx_visitor_sessions_visitor_id" ON "visitor_sessions"("visitor_id");`).catch(() => {});
+      await this.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "idx_visitor_sessions_ip_address" ON "visitor_sessions"("ip_address");`).catch(() => {});
+      await this.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "idx_visitor_sessions_created_at" ON "visitor_sessions"("created_at");`).catch(() => {});
 
+      await this.prisma.$executeRawUnsafe(`
         CREATE TABLE IF NOT EXISTS "analytics_events" (
           "id" UUID NOT NULL DEFAULT gen_random_uuid(),
           "session_id" VARCHAR(100) NOT NULL,
@@ -202,11 +204,13 @@ export class AnalyticsService {
           "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
           CONSTRAINT "analytics_events_pkey" PRIMARY KEY ("id")
         );
-        CREATE INDEX IF NOT EXISTS "idx_analytics_events_session_id" ON "analytics_events"("session_id");
-        CREATE INDEX IF NOT EXISTS "idx_analytics_events_visitor_id" ON "analytics_events"("visitor_id");
-        CREATE INDEX IF NOT EXISTS "idx_analytics_events_event_type" ON "analytics_events"("event_type");
-        CREATE INDEX IF NOT EXISTS "idx_analytics_events_created_at" ON "analytics_events"("created_at");
+      `);
+      await this.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "idx_analytics_events_session_id" ON "analytics_events"("session_id");`).catch(() => {});
+      await this.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "idx_analytics_events_visitor_id" ON "analytics_events"("visitor_id");`).catch(() => {});
+      await this.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "idx_analytics_events_event_type" ON "analytics_events"("event_type");`).catch(() => {});
+      await this.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "idx_analytics_events_created_at" ON "analytics_events"("created_at");`).catch(() => {});
 
+      await this.prisma.$executeRawUnsafe(`
         CREATE TABLE IF NOT EXISTS "abandoned_carts" (
           "id" UUID NOT NULL DEFAULT gen_random_uuid(),
           "session_id" VARCHAR(100) NOT NULL,
@@ -223,14 +227,15 @@ export class AnalyticsService {
           "updated_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
           CONSTRAINT "abandoned_carts_pkey" PRIMARY KEY ("id")
         );
-        CREATE INDEX IF NOT EXISTS "idx_abandoned_carts_session_id" ON "abandoned_carts"("session_id");
-        CREATE INDEX IF NOT EXISTS "idx_abandoned_carts_visitor_id" ON "abandoned_carts"("visitor_id");
-        CREATE INDEX IF NOT EXISTS "idx_abandoned_carts_is_recovered" ON "abandoned_carts"("is_recovered");
-        CREATE INDEX IF NOT EXISTS "idx_abandoned_carts_created_at" ON "abandoned_carts"("created_at");
       `);
+      await this.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "idx_abandoned_carts_session_id" ON "abandoned_carts"("session_id");`).catch(() => {});
+      await this.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "idx_abandoned_carts_visitor_id" ON "abandoned_carts"("visitor_id");`).catch(() => {});
+      await this.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "idx_abandoned_carts_is_recovered" ON "abandoned_carts"("is_recovered");`).catch(() => {});
+      await this.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "idx_abandoned_carts_created_at" ON "abandoned_carts"("created_at");`).catch(() => {});
+
       this.hasEnsuredTables = true;
-    } catch {
-      // Ignored
+    } catch (err: any) {
+      console.error('[AnalyticsService] Error ensuring tables:', err?.message || err);
     }
   }
 
