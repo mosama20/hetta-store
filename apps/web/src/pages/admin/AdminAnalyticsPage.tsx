@@ -40,8 +40,11 @@ export const AdminAnalyticsPage: React.FC = () => {
   const [sessions, setSessions] = useState<VisitorSession[]>([]);
   const [abandonedCarts, setAbandonedCarts] = useState<AbandonedCart[]>([]);
   const [activeTab, setActiveTab] = useState<'overview' | 'sessions' | 'behavior' | 'abandoned'>('overview');
+  const [timeRange, setTimeRange] = useState<'today' | 'week' | 'month' | 'all'>('all');
+  const [autoRefresh, setAutoRefresh] = useState(false);
 
   const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [isClearing, setIsClearing] = useState(false);
   const [showClearModal, setShowClearModal] = useState(false);
   const [sessionSearch, setSessionSearch] = useState('');
@@ -49,28 +52,38 @@ export const AdminAnalyticsPage: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [feedbackMsg, setFeedbackMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  const fetchAnalytics = useCallback(async () => {
-    setIsLoading(true);
+  const fetchAnalytics = useCallback(async (isSilent = false) => {
+    if (!isSilent) setIsLoading(true);
+    setFetchError(null);
     try {
       const [sumRes, sessRes, abnRes] = await Promise.all([
-        analyticsApi.getSummary(),
+        analyticsApi.getSummary(timeRange),
         analyticsApi.getSessions({ page, limit: 15, search: sessionSearch.trim() || undefined }),
         analyticsApi.getAbandonedCarts({ page: 1, limit: 20 }),
       ]);
       setSummary(sumRes);
-      setSessions(sessRes.items);
-      setTotalPages(sessRes.totalPages);
-      setAbandonedCarts(abnRes.items);
-    } catch {
-      // Handle error
+      setSessions(sessRes?.items || []);
+      setTotalPages(sessRes?.totalPages || 1);
+      setAbandonedCarts(abnRes?.items || []);
+    } catch (err: any) {
+      setFetchError(err?.message || (isArabic ? 'حدث خطأ أثناء تحميل بيانات التحليلات' : 'Failed to fetch analytics data'));
     } finally {
-      setIsLoading(false);
+      if (!isSilent) setIsLoading(false);
     }
-  }, [page, sessionSearch]);
+  }, [page, sessionSearch, timeRange, isArabic]);
 
   useEffect(() => {
     fetchAnalytics();
   }, [fetchAnalytics]);
+
+  // Auto-refresh interval (every 30s when enabled)
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const interval = setInterval(() => {
+      fetchAnalytics(true);
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [autoRefresh, fetchAnalytics]);
 
   const handleClearLogs = async () => {
     try {
@@ -104,6 +117,25 @@ export const AdminAnalyticsPage: React.FC = () => {
     return '🌐 Referral';
   };
 
+  const safeSummary: AnalyticsSummary = summary || {
+    totalVisitors: 0,
+    uniqueVisitorsToday: 0,
+    uniqueVisitorsThisWeek: 0,
+    liveVisitorsNow: 0,
+    totalPageViews: 0,
+    bounceRate: 0,
+    avgSessionDurationSeconds: 0,
+    abandonedCartsCount: 0,
+    abandonedCartsValue: 0,
+    topVisitedPages: [],
+    topViewedProducts: [],
+    trafficSources: [],
+    campaigns: [],
+    deviceBreakdown: [],
+    osBreakdown: [],
+    browserBreakdown: [],
+  };
+
   return (
     <div className="space-y-6 text-start pb-16">
       <AdminPageHeader
@@ -114,22 +146,36 @@ export const AdminAnalyticsPage: React.FC = () => {
             : 'Live monitoring of visitor traffic, IP logs, marketing attribution, and behavioral funnels'
         }
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Auto refresh toggle */}
+            <button
+              onClick={() => setAutoRefresh(!autoRefresh)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border ${
+                autoRefresh
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800'
+                  : 'bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700'
+              }`}
+              title={isArabic ? 'تحديث تلقائي كل 30 ثانية' : 'Auto refresh every 30s'}
+            >
+              <span className={`w-2 h-2 rounded-full ${autoRefresh ? 'bg-emerald-500 animate-ping' : 'bg-zinc-400'}`} />
+              <span>{isArabic ? (autoRefresh ? 'تحديث تلقائي مفعّل' : 'تحديث تلقائي') : (autoRefresh ? 'Live Updating' : 'Auto Refresh')}</span>
+            </button>
+
             <Button
               variant="outline"
               size="sm"
-              onClick={fetchAnalytics}
+              onClick={() => fetchAnalytics(false)}
               isLoading={isLoading}
               title={isArabic ? 'تحديث الإحصائيات' : 'Refresh Metrics'}
             >
               <RefreshCw className="w-4 h-4 mr-1 rtl:ml-1 rtl:mr-0" />
-              <span>{isArabic ? 'تحديث حي' : 'Refresh'}</span>
+              <span>{isArabic ? 'تحديث' : 'Refresh'}</span>
             </Button>
             <Button
               variant="danger"
               size="sm"
               onClick={() => setShowClearModal(true)}
-              disabled={!summary || summary.totalVisitors === 0}
+              disabled={safeSummary.totalVisitors === 0}
             >
               <Trash2 className="w-4 h-4 mr-1.5 rtl:ml-1.5 rtl:mr-0" />
               <span>{isArabic ? 'مسح بيانات الزوار' : 'Clear Visitor Logs'}</span>
@@ -137,6 +183,46 @@ export const AdminAnalyticsPage: React.FC = () => {
           </div>
         }
       />
+
+      {/* Time Range Filter Bar */}
+      <div className="flex items-center justify-between flex-wrap gap-3 bg-zinc-50 dark:bg-zinc-900/60 p-2.5 rounded-2xl border border-zinc-200/80 dark:border-zinc-800">
+        <div className="flex items-center gap-1.5 text-xs">
+          <span className="font-bold text-zinc-500 px-2">{isArabic ? 'النطاق الزمني:' : 'Time Range:'}</span>
+          {[
+            { key: 'today', ar: 'اليوم', en: 'Today' },
+            { key: 'week', ar: 'هذا الأسبوع', en: 'This Week' },
+            { key: 'month', ar: 'هذا الشهر', en: 'This Month' },
+            { key: 'all', ar: 'كافة الأوقات', en: 'All Time' },
+          ].map((t) => (
+            <button
+              key={t.key}
+              onClick={() => {
+                setTimeRange(t.key as any);
+                setPage(1);
+              }}
+              className={`px-3 py-1.5 rounded-xl font-bold transition text-xs ${
+                timeRange === t.key
+                  ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 shadow-sm'
+                  : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200/60 dark:hover:bg-zinc-800'
+              }`}
+            >
+              {isArabic ? t.ar : t.en}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {fetchError && (
+        <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60 flex items-center justify-between text-xs text-red-700 dark:text-red-300">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+            <span>{fetchError}</span>
+          </div>
+          <Button size="sm" variant="outline" onClick={() => fetchAnalytics(false)}>
+            {isArabic ? 'إعادة المحاولة' : 'Retry'}
+          </Button>
+        </div>
+      )}
 
       {feedbackMsg && (
         <div
@@ -152,46 +238,44 @@ export const AdminAnalyticsPage: React.FC = () => {
       )}
 
       {/* Top 6 High-Impact Stat Cards */}
-      {summary && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          <AdminStatCard
-            title={isArabic ? 'إجمالي الزوار' : 'Total Visitors'}
-            value={summary.totalVisitors}
-            icon={<Users className="w-5 h-5 text-blue-500" />}
-            subtitle={isArabic ? `${summary.totalPageViews} مشاهدة صفحة` : `${summary.totalPageViews} page views`}
-          />
-          <AdminStatCard
-            title={isArabic ? 'زوار اليوم' : 'Unique Today'}
-            value={summary.uniqueVisitorsToday}
-            icon={<TrendingUp className="w-5 h-5 text-emerald-500" />}
-            subtitle={isArabic ? 'زوار فريدون' : 'Unique visitors'}
-          />
-          <AdminStatCard
-            title={isArabic ? 'الزوار الآن' : 'Live Active Now'}
-            value={summary.liveVisitorsNow}
-            icon={<Activity className="w-5 h-5 text-green-500 animate-pulse" />}
-            subtitle={isArabic ? 'متواجدون حالياً 🟢' : 'Active last 5 mins'}
-          />
-          <AdminStatCard
-            title={isArabic ? 'معدل الارتداد' : 'Bounce Rate'}
-            value={`${summary.bounceRate}%`}
-            icon={<Compass className="w-5 h-5 text-amber-500" />}
-            subtitle={isArabic ? 'غادروا بعد صفحة واحدة' : 'Single-page visits'}
-          />
-          <AdminStatCard
-            title={isArabic ? 'متوسط الجلسة' : 'Avg Duration'}
-            value={`${summary.avgSessionDurationSeconds} ث`}
-            icon={<Clock className="w-5 h-5 text-purple-500" />}
-            subtitle={isArabic ? 'مدة التصفح' : 'Browsing time'}
-          />
-          <AdminStatCard
-            title={isArabic ? 'سلات متروكة' : 'Abandoned Carts'}
-            value={summary.abandonedCartsCount}
-            icon={<ShoppingCart className="w-5 h-5 text-red-500" />}
-            subtitle={formatPrice(summary.abandonedCartsValue, 'EGP', isArabic)}
-          />
-        </div>
-      )}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <AdminStatCard
+          title={isArabic ? 'إجمالي الزوار' : 'Total Visitors'}
+          value={safeSummary.totalVisitors}
+          icon={<Users className="w-5 h-5 text-blue-500" />}
+          subtitle={isArabic ? `${safeSummary.totalPageViews} مشاهدة صفحة` : `${safeSummary.totalPageViews} page views`}
+        />
+        <AdminStatCard
+          title={isArabic ? 'زوار اليوم' : 'Unique Today'}
+          value={safeSummary.uniqueVisitorsToday}
+          icon={<TrendingUp className="w-5 h-5 text-emerald-500" />}
+          subtitle={isArabic ? 'زوار فريدون' : 'Unique visitors'}
+        />
+        <AdminStatCard
+          title={isArabic ? 'الزوار الآن' : 'Live Active Now'}
+          value={safeSummary.liveVisitorsNow}
+          icon={<Activity className="w-5 h-5 text-green-500 animate-pulse" />}
+          subtitle={isArabic ? 'متواجدون حالياً 🟢' : 'Active last 5 mins'}
+        />
+        <AdminStatCard
+          title={isArabic ? 'معدل الارتداد' : 'Bounce Rate'}
+          value={`${safeSummary.bounceRate}%`}
+          icon={<Compass className="w-5 h-5 text-amber-500" />}
+          subtitle={isArabic ? 'غادروا بعد صفحة واحدة' : 'Single-page visits'}
+        />
+        <AdminStatCard
+          title={isArabic ? 'متوسط الجلسة' : 'Avg Duration'}
+          value={`${safeSummary.avgSessionDurationSeconds} ث`}
+          icon={<Clock className="w-5 h-5 text-purple-500" />}
+          subtitle={isArabic ? 'مدة التصفح' : 'Browsing time'}
+        />
+        <AdminStatCard
+          title={isArabic ? 'سلات متروكة' : 'Abandoned Carts'}
+          value={safeSummary.abandonedCartsCount}
+          icon={<ShoppingCart className="w-5 h-5 text-red-500" />}
+          subtitle={formatPrice(safeSummary.abandonedCartsValue, 'EGP', isArabic)}
+        />
+      </div>
 
       {/* Tabs Navigation */}
       <div className="flex border-b border-zinc-200 dark:border-zinc-800 space-x-2 rtl:space-x-reverse text-xs font-bold overflow-x-auto">
@@ -216,7 +300,7 @@ export const AdminAnalyticsPage: React.FC = () => {
           }`}
         >
           <Users className="w-4 h-4" />
-          <span>{isArabic ? 'سجل الزوار وعناوين الـ IP المباشر' : 'Live Visitor & IP Logs'}</span>
+          <span>{isArabic ? `سجل الزوار وعناوين الـ IP (${sessions.length})` : `Live Visitor & IP Logs (${sessions.length})`}</span>
         </button>
 
         <button
@@ -249,7 +333,7 @@ export const AdminAnalyticsPage: React.FC = () => {
       ) : (
         <>
           {/* TAB 1: OVERVIEW & TRAFFIC SOURCES / CAMPAIGNS */}
-          {activeTab === 'overview' && summary && (
+          {activeTab === 'overview' && (
             <div className="space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Traffic Sources Breakdown */}
@@ -259,14 +343,21 @@ export const AdminAnalyticsPage: React.FC = () => {
                       <Globe className="w-4 h-4 text-blue-500" />
                       <span>{isArabic ? 'مصادر الزيارات (Traffic Sources)' : 'Traffic Sources Breakdown'}</span>
                     </h3>
-                    <Badge variant="secondary">{summary.trafficSources.length} {isArabic ? 'مصادر' : 'Sources'}</Badge>
+                    <Badge variant="secondary">{safeSummary.trafficSources.length} {isArabic ? 'مصادر' : 'Sources'}</Badge>
                   </div>
 
-                  {summary.trafficSources.length === 0 ? (
-                    <p className="text-xs text-zinc-400 py-4 text-center">{isArabic ? 'لا توجد بيانات كافية بعد' : 'No traffic source data yet'}</p>
+                  {safeSummary.trafficSources.length === 0 ? (
+                    <div className="p-6 text-center space-y-1.5">
+                      <p className="text-xs text-zinc-500 font-medium">
+                        {isArabic ? 'لا توجد بيانات زيارات مسجلة لهذا النطاق الزمني.' : 'No traffic recorded for this timeframe.'}
+                      </p>
+                      <p className="text-[11px] text-zinc-400">
+                        {isArabic ? 'تصفح المتجر من متصفحك أو هاتف آخر لتسجيل الزيارات فوراً.' : 'Browse the storefront to generate live visit logs.'}
+                      </p>
+                    </div>
                   ) : (
                     <div className="space-y-3">
-                      {summary.trafficSources.map((item, idx) => (
+                      {safeSummary.trafficSources.map((item, idx) => (
                         <div key={idx} className="space-y-1">
                           <div className="flex items-center justify-between text-xs font-semibold">
                             <span className="text-zinc-800 dark:text-zinc-200">{getSourceIcon(item.source)}</span>
@@ -299,10 +390,10 @@ export const AdminAnalyticsPage: React.FC = () => {
                       <TrendingUp className="w-4 h-4 text-emerald-500" />
                       <span>{isArabic ? 'أداء الحملات الإعلانية (UTM Campaigns)' : 'Ad Campaigns (UTM)'}</span>
                     </h3>
-                    <Badge variant="gold">{summary.campaigns.length} {isArabic ? 'حملات' : 'Campaigns'}</Badge>
+                    <Badge variant="gold">{safeSummary.campaigns.length} {isArabic ? 'حملات' : 'Campaigns'}</Badge>
                   </div>
 
-                  {summary.campaigns.length === 0 ? (
+                  {safeSummary.campaigns.length === 0 ? (
                     <div className="p-6 text-center space-y-2">
                       <p className="text-xs text-zinc-500">
                         {isArabic
@@ -317,7 +408,7 @@ export const AdminAnalyticsPage: React.FC = () => {
                     </div>
                   ) : (
                     <div className="divide-y divide-zinc-100 dark:divide-zinc-800 text-xs">
-                      {summary.campaigns.map((c, idx) => (
+                      {safeSummary.campaigns.map((c, idx) => (
                         <div key={idx} className="py-2.5 flex items-center justify-between">
                           <div>
                             <span className="font-bold block text-zinc-900 dark:text-zinc-100">{c.campaign}</span>
@@ -346,17 +437,21 @@ export const AdminAnalyticsPage: React.FC = () => {
                     <Smartphone className="w-4 h-4 text-purple-500" />
                     <span>{isArabic ? 'نوع الجهاز (Device)' : 'Device Type'}</span>
                   </h4>
-                  <div className="space-y-2 text-xs">
-                    {summary.deviceBreakdown.map((d, i) => (
-                      <div key={i} className="flex justify-between items-center py-1">
-                        <span className="capitalize font-medium">{d.device === 'mobile' ? '📱 Mobile' : d.device === 'desktop' ? '💻 Desktop' : '📟 Tablet'}</span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-zinc-400">{d.count}</span>
-                          <Badge variant="secondary" className="font-mono">{d.percentage}%</Badge>
+                  {safeSummary.deviceBreakdown.length === 0 ? (
+                    <p className="text-xs text-zinc-400 py-3 text-center">{isArabic ? 'لا توجد بيانات بعد' : 'No device data yet'}</p>
+                  ) : (
+                    <div className="space-y-2 text-xs">
+                      {safeSummary.deviceBreakdown.map((d, i) => (
+                        <div key={i} className="flex justify-between items-center py-1">
+                          <span className="capitalize font-medium">{d.device === 'mobile' ? '📱 Mobile' : d.device === 'desktop' ? '💻 Desktop' : '📟 Tablet'}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-zinc-400">{d.count}</span>
+                            <Badge variant="secondary" className="font-mono">{d.percentage}%</Badge>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </Card>
 
                 {/* Operating Systems */}
@@ -365,17 +460,21 @@ export const AdminAnalyticsPage: React.FC = () => {
                     <Laptop className="w-4 h-4 text-blue-500" />
                     <span>{isArabic ? 'نظام التشغيل (OS)' : 'Operating System'}</span>
                   </h4>
-                  <div className="space-y-2 text-xs">
-                    {summary.osBreakdown.map((o, i) => (
-                      <div key={i} className="flex justify-between items-center py-1">
-                        <span className="font-medium">{o.os}</span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-zinc-400">{o.count}</span>
-                          <Badge variant="secondary" className="font-mono">{o.percentage}%</Badge>
+                  {safeSummary.osBreakdown.length === 0 ? (
+                    <p className="text-xs text-zinc-400 py-3 text-center">{isArabic ? 'لا توجد بيانات بعد' : 'No OS data yet'}</p>
+                  ) : (
+                    <div className="space-y-2 text-xs">
+                      {safeSummary.osBreakdown.map((o, i) => (
+                        <div key={i} className="flex justify-between items-center py-1">
+                          <span className="font-medium">{o.os}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-zinc-400">{o.count}</span>
+                            <Badge variant="secondary" className="font-mono">{o.percentage}%</Badge>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </Card>
 
                 {/* Browsers */}
@@ -384,17 +483,21 @@ export const AdminAnalyticsPage: React.FC = () => {
                     <Compass className="w-4 h-4 text-amber-500" />
                     <span>{isArabic ? 'المتصفح (Browser)' : 'Browser'}</span>
                   </h4>
-                  <div className="space-y-2 text-xs">
-                    {summary.browserBreakdown.map((b, i) => (
-                      <div key={i} className="flex justify-between items-center py-1">
-                        <span className="font-medium">{b.browser}</span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-zinc-400">{b.count}</span>
-                          <Badge variant="secondary" className="font-mono">{b.percentage}%</Badge>
+                  {safeSummary.browserBreakdown.length === 0 ? (
+                    <p className="text-xs text-zinc-400 py-3 text-center">{isArabic ? 'لا توجد بيانات بعد' : 'No browser data yet'}</p>
+                  ) : (
+                    <div className="space-y-2 text-xs">
+                      {safeSummary.browserBreakdown.map((b, i) => (
+                        <div key={i} className="flex justify-between items-center py-1">
+                          <span className="font-medium">{b.browser}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-zinc-400">{b.count}</span>
+                            <Badge variant="secondary" className="font-mono">{b.percentage}%</Badge>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </Card>
               </div>
             </div>
@@ -503,7 +606,7 @@ export const AdminAnalyticsPage: React.FC = () => {
           )}
 
           {/* TAB 3: BEHAVIOR & TOP VIEWED PRODUCTS */}
-          {activeTab === 'behavior' && summary && (
+          {activeTab === 'behavior' && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Top Visited Pages */}
               <Card className="p-6 space-y-4">
@@ -511,11 +614,11 @@ export const AdminAnalyticsPage: React.FC = () => {
                   <Eye className="w-4 h-4 text-blue-500" />
                   <span>{isArabic ? 'أكثر الصفحات مشاهدة وزيارة' : 'Most Visited Pages'}</span>
                 </h3>
-                {summary.topVisitedPages.length === 0 ? (
+                {safeSummary.topVisitedPages.length === 0 ? (
                   <p className="text-xs text-zinc-400 py-4 text-center">{isArabic ? 'لا توجد بيانات كافية' : 'No page view data'}</p>
                 ) : (
                   <div className="divide-y divide-zinc-100 dark:divide-zinc-800 text-xs">
-                    {summary.topVisitedPages.map((pg, i) => (
+                    {safeSummary.topVisitedPages.map((pg, i) => (
                       <div key={i} className="py-2.5 flex items-center justify-between">
                         <span className="font-mono text-zinc-700 dark:text-zinc-300">{pg.path}</span>
                         <Badge variant="secondary" className="font-mono font-bold">
@@ -533,11 +636,11 @@ export const AdminAnalyticsPage: React.FC = () => {
                   <ShoppingCart className="w-4 h-4 text-purple-500" />
                   <span>{isArabic ? 'أكثر المنتجات مشاهدة وإضافة للسلة (Funnel)' : 'Product Views & Cart Additions'}</span>
                 </h3>
-                {summary.topViewedProducts.length === 0 ? (
+                {safeSummary.topViewedProducts.length === 0 ? (
                   <p className="text-xs text-zinc-400 py-4 text-center">{isArabic ? 'لا توجد مشاهدات منتجات مسجلة' : 'No product views recorded'}</p>
                 ) : (
                   <div className="divide-y divide-zinc-100 dark:divide-zinc-800 text-xs">
-                    {summary.topViewedProducts.map((pv, i) => (
+                    {safeSummary.topViewedProducts.map((pv, i) => (
                       <div key={i} className="py-3 flex items-center justify-between">
                         <div>
                           <span className="font-bold text-zinc-900 dark:text-zinc-100 block">{pv.nameAr}</span>

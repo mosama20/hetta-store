@@ -8,25 +8,21 @@ export function useAnalyticsTracker() {
   const { items, subtotal } = useCart();
   const abandonedTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Track page view on route change (deferred to avoid blocking critical initial renders)
+  // Track page view immediately on route change
   useEffect(() => {
-    const timer = setTimeout(() => {
-      analyticsTracker.trackPageView(location.pathname + location.search);
-    }, 1200);
-
-    return () => clearTimeout(timer);
+    analyticsTracker.trackPageView(location.pathname + location.search);
   }, [location.pathname, location.search]);
 
-  // Track abandoned cart after 45 seconds of having items in cart without checkout
+  // Track abandoned cart after 30 seconds of having items in cart without checkout
   useEffect(() => {
     if (abandonedTimerRef.current) {
       clearTimeout(abandonedTimerRef.current);
     }
 
-    if (items.length > 0 && location.pathname !== '/order/success') {
+    if (items.length > 0 && !location.pathname.startsWith('/order/success') && !location.pathname.startsWith('/darsh50')) {
       abandonedTimerRef.current = setTimeout(() => {
         analyticsTracker.trackAbandonedCart(items, subtotal);
-      }, 45000); // 45s threshold
+      }, 30000); // 30s threshold
     }
 
     return () => {

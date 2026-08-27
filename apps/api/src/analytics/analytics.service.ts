@@ -12,117 +12,143 @@ export class AnalyticsService {
     const ip = detectedIp || dto.ipAddress || '127.0.0.1';
     const currentPath = dto.currentPath || '/';
 
-    const existing = await this.prisma.visitorSession.findUnique({
-      where: { sessionId: dto.sessionId },
-    });
-
-    if (existing) {
-      const updatedPages = existing.pagesVisited.includes(currentPath)
-        ? existing.pagesVisited
-        : [...existing.pagesVisited, currentPath];
-
-      const duration = Math.max(
-        0,
-        Math.floor((Date.now() - new Date(existing.createdAt).getTime()) / 1000),
-      );
-
-      return this.prisma.visitorSession.update({
+    try {
+      const existing = await this.prisma.visitorSession.findUnique({
         where: { sessionId: dto.sessionId },
+      });
+
+      if (existing) {
+        const updatedPages = existing.pagesVisited.includes(currentPath)
+          ? existing.pagesVisited
+          : [...existing.pagesVisited, currentPath];
+
+        const duration = Math.max(
+          0,
+          Math.floor((Date.now() - new Date(existing.createdAt).getTime()) / 1000),
+        );
+
+        return await this.prisma.visitorSession.update({
+          where: { sessionId: dto.sessionId },
+          data: {
+            totalPageViews: { increment: 1 },
+            pagesVisited: updatedPages,
+            durationSeconds: duration,
+            ipAddress: existing.ipAddress || ip,
+            updatedAt: new Date(),
+          },
+        });
+      }
+
+      return await this.prisma.visitorSession.create({
         data: {
-          totalPageViews: { increment: 1 },
-          pagesVisited: updatedPages,
-          durationSeconds: duration,
-          ipAddress: existing.ipAddress || ip,
-          updatedAt: new Date(),
+          sessionId: dto.sessionId,
+          visitorId: dto.visitorId,
+          ipAddress: ip,
+          deviceType: dto.deviceType || 'desktop',
+          browser: dto.browser || 'Unknown',
+          os: dto.os || 'Unknown',
+          screenResolution: dto.screenResolution,
+          referrer: dto.referrer || 'Direct',
+          utmSource: dto.utmSource,
+          utmMedium: dto.utmMedium,
+          utmCampaign: dto.utmCampaign,
+          utmContent: dto.utmContent,
+          utmTerm: dto.utmTerm,
+          pagesVisited: [currentPath],
+          totalPageViews: 1,
+          durationSeconds: 0,
         },
       });
+    } catch {
+      // Safe fallback on race condition
+      try {
+        const existing = await this.prisma.visitorSession.findUnique({
+          where: { sessionId: dto.sessionId },
+        });
+        if (existing) {
+          return await this.prisma.visitorSession.update({
+            where: { sessionId: dto.sessionId },
+            data: {
+              totalPageViews: { increment: 1 },
+              updatedAt: new Date(),
+            },
+          });
+        }
+      } catch {}
     }
-
-    return this.prisma.visitorSession.create({
-      data: {
-        sessionId: dto.sessionId,
-        visitorId: dto.visitorId,
-        ipAddress: ip,
-        deviceType: dto.deviceType || 'desktop',
-        browser: dto.browser || 'Unknown',
-        os: dto.os || 'Unknown',
-        screenResolution: dto.screenResolution,
-        referrer: dto.referrer || 'Direct',
-        utmSource: dto.utmSource,
-        utmMedium: dto.utmMedium,
-        utmCampaign: dto.utmCampaign,
-        utmContent: dto.utmContent,
-        utmTerm: dto.utmTerm,
-        pagesVisited: [currentPath],
-        totalPageViews: 1,
-        durationSeconds: 0,
-      },
-    });
   }
 
   async recordEvent(dto: RecordEventDto, detectedIp?: string) {
     const ip = detectedIp || dto.ipAddress || '127.0.0.1';
 
-    const event = await this.prisma.analyticsEvent.create({
-      data: {
-        sessionId: dto.sessionId,
-        visitorId: dto.visitorId,
-        ipAddress: ip,
-        eventType: dto.eventType,
-        path: dto.path,
-        payload: dto.payload || {},
-      },
-    });
+    try {
+      const event = await this.prisma.analyticsEvent.create({
+        data: {
+          sessionId: dto.sessionId,
+          visitorId: dto.visitorId,
+          ipAddress: ip,
+          eventType: dto.eventType,
+          path: dto.path,
+          payload: dto.payload || {},
+        },
+      });
 
-    // If purchase event, link order to session
-    if (dto.eventType === 'purchase' && dto.payload?.orderNumber) {
-      await this.prisma.visitorSession
-        .update({
-          where: { sessionId: dto.sessionId },
-          data: {
-            hasOrder: true,
-            orderNumber: String(dto.payload.orderNumber),
-          },
-        })
-        .catch(() => {});
+      // If purchase event, link order to session
+      if (dto.eventType === 'purchase' && dto.payload?.orderNumber) {
+        await this.prisma.visitorSession
+          .update({
+            where: { sessionId: dto.sessionId },
+            data: {
+              hasOrder: true,
+              orderNumber: String(dto.payload.orderNumber),
+            },
+          })
+          .catch(() => {});
+      }
+
+      return event;
+    } catch (err) {
+      return null;
     }
-
-    return event;
   }
 
   async recordAbandonedCart(dto: RecordAbandonedCartDto, detectedIp?: string) {
     const ip = detectedIp || dto.ipAddress || '127.0.0.1';
 
-    const existing = await this.prisma.abandonedCart.findFirst({
-      where: { sessionId: dto.sessionId },
-    });
+    try {
+      const existing = await this.prisma.abandonedCart.findFirst({
+        where: { sessionId: dto.sessionId },
+      });
 
-    if (existing) {
-      return this.prisma.abandonedCart.update({
-        where: { id: existing.id },
+      if (existing) {
+        return await this.prisma.abandonedCart.update({
+          where: { id: existing.id },
+          data: {
+            items: dto.items,
+            itemsCount: dto.itemsCount || dto.items.length,
+            totalValue: dto.totalValue,
+            currency: dto.currency || 'EGP',
+            lastActiveAt: new Date(),
+            ipAddress: ip,
+          },
+        });
+      }
+
+      return await this.prisma.abandonedCart.create({
         data: {
+          sessionId: dto.sessionId,
+          visitorId: dto.visitorId,
+          ipAddress: ip,
+          deviceType: dto.deviceType || 'desktop',
           items: dto.items,
           itemsCount: dto.itemsCount || dto.items.length,
           totalValue: dto.totalValue,
           currency: dto.currency || 'EGP',
-          lastActiveAt: new Date(),
-          ipAddress: ip,
         },
       });
+    } catch {
+      return null;
     }
-
-    return this.prisma.abandonedCart.create({
-      data: {
-        sessionId: dto.sessionId,
-        visitorId: dto.visitorId,
-        ipAddress: ip,
-        deviceType: dto.deviceType || 'desktop',
-        items: dto.items,
-        itemsCount: dto.itemsCount || dto.items.length,
-        totalValue: dto.totalValue,
-        currency: dto.currency || 'EGP',
-      },
-    });
   }
 
   async getSummary(timeRange?: 'today' | 'week' | 'month' | 'all') {
@@ -141,7 +167,6 @@ export class AnalyticsService {
 
     const [
       totalSessions,
-      uniqueVisitorsGroup,
       events,
       abandonedCarts,
       recentActiveSessions,
@@ -164,10 +189,7 @@ export class AnalyticsService {
           createdAt: true,
           updatedAt: true,
         },
-      }),
-      this.prisma.visitorSession.groupBy({
-        by: ['visitorId'],
-        where: whereClause,
+        orderBy: { updatedAt: 'desc' },
       }),
       this.prisma.analyticsEvent.findMany({
         where: whereClause,
@@ -191,28 +213,25 @@ export class AnalyticsService {
       }),
     ]);
 
-    const totalVisitors = uniqueVisitorsGroup.length;
-    const totalPageViews = totalSessions.reduce((acc, s) => acc + s.totalPageViews, 0);
-    const bounceCount = totalSessions.filter((s) => s.totalPageViews <= 1).length;
+    const totalVisitors = new Set(totalSessions.map((s) => s.visitorId)).size;
+    const totalPageViews = totalSessions.reduce((acc, s) => acc + (s.totalPageViews || 1), 0);
+    const bounceCount = totalSessions.filter((s) => (s.totalPageViews || 1) <= 1).length;
     const bounceRate = totalSessions.length > 0 ? Math.round((bounceCount / totalSessions.length) * 100) : 0;
     const avgSessionDurationSeconds = totalSessions.length > 0
-      ? Math.round(totalSessions.reduce((acc, s) => acc + s.durationSeconds, 0) / totalSessions.length)
+      ? Math.round(totalSessions.reduce((acc, s) => acc + (s.durationSeconds || 0), 0) / totalSessions.length)
       : 0;
 
     // Unique visitors today & this week
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const startOfWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-    const [todayGroup, weekGroup] = await Promise.all([
-      this.prisma.visitorSession.groupBy({
-        by: ['visitorId'],
-        where: { createdAt: { gte: startOfToday } },
-      }),
-      this.prisma.visitorSession.groupBy({
-        by: ['visitorId'],
-        where: { createdAt: { gte: startOfWeek } },
-      }),
-    ]);
+    const uniqueVisitorsToday = new Set(
+      totalSessions.filter((s) => new Date(s.createdAt) >= startOfToday).map((s) => s.visitorId),
+    ).size;
+
+    const uniqueVisitorsThisWeek = new Set(
+      totalSessions.filter((s) => new Date(s.createdAt) >= startOfWeek).map((s) => s.visitorId),
+    ).size;
 
     // Top Visited Pages
     const pageCounts: Record<string, number> = {};
@@ -339,8 +358,8 @@ export class AnalyticsService {
 
     return {
       totalVisitors,
-      uniqueVisitorsToday: todayGroup.length,
-      uniqueVisitorsThisWeek: weekGroup.length,
+      uniqueVisitorsToday,
+      uniqueVisitorsThisWeek,
       liveVisitorsNow: recentActiveSessions,
       totalPageViews,
       bounceRate,

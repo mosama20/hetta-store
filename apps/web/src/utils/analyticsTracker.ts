@@ -197,6 +197,28 @@ class AnalyticsTracker {
 
     await this.init();
     const ip = await getVisitorIp();
+    const device = getDeviceInfo();
+    const traffic = getTrafficSource();
+
+    // Keep session alive, update page views, pages visited, and duration
+    analyticsApi
+      .recordHit({
+        sessionId: this.sessionId,
+        visitorId: this.visitorId,
+        ipAddress: ip,
+        deviceType: device.deviceType,
+        browser: device.browser,
+        os: device.os,
+        screenResolution: device.screenResolution,
+        referrer: traffic.sourceCategory,
+        utmSource: traffic.utmSource,
+        utmMedium: traffic.utmMedium,
+        utmCampaign: traffic.utmCampaign,
+        utmContent: traffic.utmContent,
+        utmTerm: traffic.utmTerm,
+        currentPath: path,
+      })
+      .catch(() => {});
 
     analyticsApi
       .recordEvent({
