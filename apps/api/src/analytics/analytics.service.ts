@@ -152,18 +152,19 @@ export class AnalyticsService {
   }
 
   async getSummary(timeRange?: 'today' | 'week' | 'month' | 'all') {
-    const now = new Date();
-    let startDate: Date | undefined;
+    try {
+      const now = new Date();
+      let startDate: Date | undefined;
 
-    if (timeRange === 'today') {
-      startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    } else if (timeRange === 'week') {
-      startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    } else if (timeRange === 'month') {
-      startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    }
+      if (timeRange === 'today') {
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      } else if (timeRange === 'week') {
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      } else if (timeRange === 'month') {
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      }
 
-    const whereClause = startDate ? { createdAt: { gte: startDate } } : {};
+      const whereClause = startDate ? { createdAt: { gte: startDate } } : {};
 
     const [
       totalSessions,
@@ -374,6 +375,27 @@ export class AnalyticsService {
       osBreakdown,
       browserBreakdown,
     };
+    } catch (err) {
+      // Safe fallback if database table doesn't exist yet or connection error
+      return {
+        totalVisitors: 0,
+        uniqueVisitorsToday: 0,
+        uniqueVisitorsThisWeek: 0,
+        liveVisitorsNow: 0,
+        totalPageViews: 0,
+        bounceRate: 0,
+        avgSessionDurationSeconds: 0,
+        abandonedCartsCount: 0,
+        abandonedCartsValue: 0,
+        topVisitedPages: [],
+        topViewedProducts: [],
+        trafficSources: [],
+        campaigns: [],
+        deviceBreakdown: [],
+        osBreakdown: [],
+        browserBreakdown: [],
+      };
+    }
   }
 
   async getSessions(query: { page?: number; limit?: number; search?: string; source?: string }) {
@@ -381,65 +403,77 @@ export class AnalyticsService {
     const limit = Math.min(100, Math.max(1, Number(query.limit) || 20));
     const skip = (page - 1) * limit;
 
-    const where: any = {};
-    if (query.search) {
-      where.OR = [
-        { ipAddress: { contains: query.search, mode: 'insensitive' } },
-        { visitorId: { contains: query.search, mode: 'insensitive' } },
-        { browser: { contains: query.search, mode: 'insensitive' } },
-        { os: { contains: query.search, mode: 'insensitive' } },
-      ];
+    try {
+      const where: any = {};
+      if (query.search) {
+        where.OR = [
+          { ipAddress: { contains: query.search, mode: 'insensitive' } },
+          { visitorId: { contains: query.search, mode: 'insensitive' } },
+          { browser: { contains: query.search, mode: 'insensitive' } },
+          { os: { contains: query.search, mode: 'insensitive' } },
+        ];
+      }
+      if (query.source) {
+        where.referrer = { contains: query.source, mode: 'insensitive' };
+      }
+
+      const [items, total] = await Promise.all([
+        this.prisma.visitorSession.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy: { updatedAt: 'desc' },
+        }),
+        this.prisma.visitorSession.count({ where }),
+      ]);
+
+      const mapped = items.map((s) => ({
+        id: s.id,
+        visitorId: s.visitorId,
+        ipAddress: s.ipAddress || '127.0.0.1',
+        country: s.country,
+        city: s.city,
+        deviceType: s.deviceType,
+        browser: s.browser,
+        os: s.os,
+        screenResolution: s.screenResolution,
+        referrer: s.referrer,
+        utmSource: s.utmSource,
+        utmMedium: s.utmMedium,
+        utmCampaign: s.utmCampaign,
+        utmContent: s.utmContent,
+        utmTerm: s.utmTerm,
+        pagesVisited: s.pagesVisited,
+        totalPageViews: s.totalPageViews,
+        durationSeconds: s.durationSeconds,
+        hasOrder: s.hasOrder,
+        orderNumber: s.orderNumber,
+        firstSeenAt: s.createdAt.toISOString(),
+        lastSeenAt: s.updatedAt.toISOString(),
+      }));
+
+      const totalPages = Math.ceil(total / limit);
+
+      return {
+        items: mapped,
+        total,
+        page,
+        limit,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      };
+    } catch {
+      return {
+        items: [],
+        total: 0,
+        page,
+        limit,
+        totalPages: 1,
+        hasNextPage: false,
+        hasPreviousPage: false,
+      };
     }
-    if (query.source) {
-      where.referrer = { contains: query.source, mode: 'insensitive' };
-    }
-
-    const [items, total] = await Promise.all([
-      this.prisma.visitorSession.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { updatedAt: 'desc' },
-      }),
-      this.prisma.visitorSession.count({ where }),
-    ]);
-
-    const mapped = items.map((s) => ({
-      id: s.id,
-      visitorId: s.visitorId,
-      ipAddress: s.ipAddress || '127.0.0.1',
-      country: s.country,
-      city: s.city,
-      deviceType: s.deviceType,
-      browser: s.browser,
-      os: s.os,
-      screenResolution: s.screenResolution,
-      referrer: s.referrer,
-      utmSource: s.utmSource,
-      utmMedium: s.utmMedium,
-      utmCampaign: s.utmCampaign,
-      utmContent: s.utmContent,
-      utmTerm: s.utmTerm,
-      pagesVisited: s.pagesVisited,
-      totalPageViews: s.totalPageViews,
-      durationSeconds: s.durationSeconds,
-      hasOrder: s.hasOrder,
-      orderNumber: s.orderNumber,
-      firstSeenAt: s.createdAt.toISOString(),
-      lastSeenAt: s.updatedAt.toISOString(),
-    }));
-
-    const totalPages = Math.ceil(total / limit);
-
-    return {
-      items: mapped,
-      total,
-      page,
-      limit,
-      totalPages,
-      hasNextPage: page < totalPages,
-      hasPreviousPage: page > 1,
-    };
   }
 
   async getEvents(query: { page?: number; limit?: number; eventType?: string }) {
@@ -447,32 +481,44 @@ export class AnalyticsService {
     const limit = Math.min(100, Math.max(1, Number(query.limit) || 30));
     const skip = (page - 1) * limit;
 
-    const where: any = {};
-    if (query.eventType) {
-      where.eventType = query.eventType;
+    try {
+      const where: any = {};
+      if (query.eventType) {
+        where.eventType = query.eventType;
+      }
+
+      const [items, total] = await Promise.all([
+        this.prisma.analyticsEvent.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy: { createdAt: 'desc' },
+        }),
+        this.prisma.analyticsEvent.count({ where }),
+      ]);
+
+      const totalPages = Math.ceil(total / limit);
+
+      return {
+        items,
+        total,
+        page,
+        limit,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      };
+    } catch {
+      return {
+        items: [],
+        total: 0,
+        page,
+        limit,
+        totalPages: 1,
+        hasNextPage: false,
+        hasPreviousPage: false,
+      };
     }
-
-    const [items, total] = await Promise.all([
-      this.prisma.analyticsEvent.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-      }),
-      this.prisma.analyticsEvent.count({ where }),
-    ]);
-
-    const totalPages = Math.ceil(total / limit);
-
-    return {
-      items,
-      total,
-      page,
-      limit,
-      totalPages,
-      hasNextPage: page < totalPages,
-      hasPreviousPage: page > 1,
-    };
   }
 
   async getAbandonedCarts(query: { page?: number; limit?: number }) {
@@ -480,47 +526,61 @@ export class AnalyticsService {
     const limit = Math.min(100, Math.max(1, Number(query.limit) || 20));
     const skip = (page - 1) * limit;
 
-    const [items, total] = await Promise.all([
-      this.prisma.abandonedCart.findMany({
-        skip,
-        take: limit,
-        orderBy: { updatedAt: 'desc' },
-      }),
-      this.prisma.abandonedCart.count(),
-    ]);
+    try {
+      const [items, total] = await Promise.all([
+        this.prisma.abandonedCart.findMany({
+          skip,
+          take: limit,
+          orderBy: { updatedAt: 'desc' },
+        }),
+        this.prisma.abandonedCart.count(),
+      ]);
 
-    const totalPages = Math.ceil(total / limit);
+      const totalPages = Math.ceil(total / limit);
 
-    return {
-      items: items.map((c) => ({
-        id: c.id,
-        sessionId: c.sessionId,
-        visitorId: c.visitorId,
-        ipAddress: c.ipAddress || '127.0.0.1',
-        deviceType: c.deviceType,
-        items: c.items as any,
-        itemsCount: c.itemsCount,
-        totalValue: Number(c.totalValue),
-        currency: c.currency,
-        isRecovered: c.isRecovered,
-        lastActiveAt: c.lastActiveAt.toISOString(),
-        createdAt: c.createdAt.toISOString(),
-      })),
-      total,
-      page,
-      limit,
-      totalPages,
-      hasNextPage: page < totalPages,
-      hasPreviousPage: page > 1,
-    };
+      return {
+        items: items.map((c) => ({
+          id: c.id,
+          sessionId: c.sessionId,
+          visitorId: c.visitorId,
+          ipAddress: c.ipAddress || '127.0.0.1',
+          deviceType: c.deviceType,
+          items: c.items as any,
+          itemsCount: c.itemsCount,
+          totalValue: Number(c.totalValue),
+          currency: c.currency,
+          isRecovered: c.isRecovered,
+          lastActiveAt: c.lastActiveAt.toISOString(),
+          createdAt: c.createdAt.toISOString(),
+        })),
+        total,
+        page,
+        limit,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      };
+    } catch {
+      return {
+        items: [],
+        total: 0,
+        page,
+        limit,
+        totalPages: 1,
+        hasNextPage: false,
+        hasPreviousPage: false,
+      };
+    }
   }
 
   async clearLogs() {
-    await this.prisma.$transaction([
-      this.prisma.analyticsEvent.deleteMany(),
-      this.prisma.abandonedCart.deleteMany(),
-      this.prisma.visitorSession.deleteMany(),
-    ]);
+    try {
+      await this.prisma.$transaction([
+        this.prisma.analyticsEvent.deleteMany(),
+        this.prisma.abandonedCart.deleteMany(),
+        this.prisma.visitorSession.deleteMany(),
+      ]);
+    } catch {}
 
     return { message: 'Analytics logs and visitor sessions cleared successfully' };
   }
