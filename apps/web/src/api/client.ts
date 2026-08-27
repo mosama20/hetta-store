@@ -1,10 +1,23 @@
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL ||
-  (typeof window !== 'undefined'
-    ? (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-        ? `http://${window.location.hostname}:4000/api`
-        : '/api')
-    : 'http://localhost:4000/api');
+export function getApiBaseUrl(): string {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (envUrl && envUrl.trim() !== '' && envUrl !== '/api' && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
+    return envUrl.endsWith('/') ? envUrl.slice(0, -1) : envUrl;
+  }
+
+  if (typeof window !== 'undefined') {
+    // Local desktop dev on Vite port 5173
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (isLocalhost && window.location.port === '5173') {
+      return `http://${window.location.hostname}:4000/api`;
+    }
+    // Mobile browsers, local network WiFi, Vercel serverless, or production domains
+    return '/api';
+  }
+
+  return 'http://localhost:4000/api';
+}
+
+const API_BASE_URL = getApiBaseUrl();
 
 export interface RequestOptions extends RequestInit {
   params?: Record<string, string | number | boolean | undefined>;
