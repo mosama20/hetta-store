@@ -375,7 +375,8 @@ export class AnalyticsService {
       osBreakdown,
       browserBreakdown,
     };
-    } catch (err) {
+    } catch (err: any) {
+      console.error('[AnalyticsService] getSummary error:', err?.message || err);
       // Safe fallback if database table doesn't exist yet or connection error
       return {
         totalVisitors: 0,
@@ -463,7 +464,8 @@ export class AnalyticsService {
         hasNextPage: page < totalPages,
         hasPreviousPage: page > 1,
       };
-    } catch {
+    } catch (err: any) {
+      console.error('[AnalyticsService] getSessions error:', err?.message || err);
       return {
         items: [],
         total: 0,
@@ -508,7 +510,8 @@ export class AnalyticsService {
         hasNextPage: page < totalPages,
         hasPreviousPage: page > 1,
       };
-    } catch {
+    } catch (err: any) {
+      console.error('[AnalyticsService] getEvents error:', err?.message || err);
       return {
         items: [],
         total: 0,
@@ -560,7 +563,8 @@ export class AnalyticsService {
         hasNextPage: page < totalPages,
         hasPreviousPage: page > 1,
       };
-    } catch {
+    } catch (err: any) {
+      console.error('[AnalyticsService] getAbandonedCarts error:', err?.message || err);
       return {
         items: [],
         total: 0,
