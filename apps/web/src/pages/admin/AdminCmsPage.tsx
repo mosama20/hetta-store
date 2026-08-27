@@ -36,11 +36,6 @@ import {
   Smartphone,
   Monitor,
   ShoppingBag,
-  Truck,
-  RotateCcw,
-  Award,
-  ArrowRight,
-  ArrowLeft,
   Sun,
   Moon,
 } from 'lucide-react';
