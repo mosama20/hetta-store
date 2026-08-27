@@ -20,7 +20,7 @@ import { MarqueeBanner } from '../../components/storefront/MarqueeBanner.js';
 import { ProductCard } from '../../components/storefront/ProductCard.js';
 import { LoadingState } from '../../components/common/LoadingState.js';
 
-const HOME_CACHE_KEY = 'craft_home_data_cache_v4';
+const HOME_CACHE_KEY = 'craft_home_data_cache_v5';
 
 function getCachedHomeData(): {
   products: Product[];
@@ -59,8 +59,8 @@ export const HomePage: React.FC = () => {
         const sortedCats = [...(catRes || [])].sort(
           (a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0),
         );
-        const fetchedCms = cmsRes || [];
-        const fetchedProds = prodRes || [];
+        const fetchedCms = Array.isArray(cmsRes) ? cmsRes : [];
+        const fetchedProds = Array.isArray(prodRes) ? prodRes : [];
 
         setCategories(sortedCats);
         setCmsSections(fetchedCms);
@@ -86,6 +86,17 @@ export const HomePage: React.FC = () => {
 
   useEffect(() => {
     loadData();
+
+    if (typeof window !== 'undefined') {
+      const handleSync = () => {
+        try {
+          localStorage.removeItem(HOME_CACHE_KEY);
+        } catch {}
+        loadData();
+      };
+      window.addEventListener('craft_store_sync', handleSync);
+      return () => window.removeEventListener('craft_store_sync', handleSync);
+    }
   }, []);
 
   if (isLoading) {
@@ -106,45 +117,22 @@ export const HomePage: React.FC = () => {
     s.key === 'promo_banner' || s.key === 'promo_summer' || s.key === 'home_promo_summer' || s.type === 'PROMO_BANNER';
   const isAboutSection = (s: CMSSection) => s.key === 'about_section' || s.key === 'about_craft' || s.type === 'ABOUT';
 
-  // Default Sections Sequence Fallback if CMS returns empty
-  const defaultSections: { key: string; displayOrder: number; type: string; titleAr: string; titleEn: string }[] = [
-    { key: 'hero_banner', displayOrder: 0, type: 'HERO_SLIDER', titleAr: 'البانر الرئيسي', titleEn: 'Main Hero' },
-    { key: 'marquee_ticker', displayOrder: 1, type: 'CUSTOM_HTML', titleAr: 'الشريط المتحرك', titleEn: 'Marquee Ticker' },
-    { key: 'new_arrivals', displayOrder: 2, type: 'FEATURED_GRID', titleAr: 'الأكثر مبيعاً ومختارات الموسم', titleEn: 'Best Sellers & Curated Drops' },
-    { key: 'categories_section', displayOrder: 3, type: 'CATEGORY_CAROUSEL', titleAr: 'تصفح الأقسام', titleEn: 'Browse Categories' },
-    { key: 'trust_bar', displayOrder: 4, type: 'CUSTOM_HTML', titleAr: 'مميزات المتجر والضمانات', titleEn: 'Guarantees' },
-    { key: 'promo_banner', displayOrder: 5, type: 'PROMO_BANNER', titleAr: 'العرض الترويجي', titleEn: 'Promo Banner' },
-    { key: 'about_section', displayOrder: 6, type: 'CUSTOM_HTML', titleAr: 'عن المتجر', titleEn: 'About Brand' },
+  // Default fallback sections ONLY when cmsSections has no data from DB at all
+  const defaultSections: CMSSection[] = [
+    { id: 'hero_banner', key: 'hero_banner', displayOrder: 0, type: 'HERO_SLIDER' as any, titleAr: 'البانر الرئيسي', titleEn: 'Main Hero', isActive: true, payload: {} },
+    { id: 'marquee_ticker', key: 'marquee_ticker', displayOrder: 1, type: 'CUSTOM_HTML' as any, titleAr: 'الشريط المتحرك', titleEn: 'Marquee Ticker', isActive: true, payload: {} },
+    { id: 'new_arrivals', key: 'new_arrivals', displayOrder: 2, type: 'FEATURED_GRID' as any, titleAr: 'الأكثر مبيعاً ومختارات الموسم', titleEn: 'Best Sellers & Curated Drops', isActive: true, payload: {} },
+    { id: 'categories_section', key: 'categories_section', displayOrder: 3, type: 'CATEGORY_CAROUSEL' as any, titleAr: 'تصفح الأقسام', titleEn: 'Browse Categories', isActive: true, payload: {} },
+    { id: 'trust_bar', key: 'trust_bar', displayOrder: 4, type: 'CUSTOM_HTML' as any, titleAr: 'مميزات المتجر والضمانات', titleEn: 'Guarantees', isActive: true, payload: {} },
+    { id: 'promo_banner', key: 'promo_banner', displayOrder: 5, type: 'PROMO_BANNER' as any, titleAr: 'العرض الترويجي', titleEn: 'Promo Banner', isActive: true, payload: {} },
+    { id: 'about_section', key: 'about_section', displayOrder: 6, type: 'CUSTOM_HTML' as any, titleAr: 'عن المتجر', titleEn: 'About Brand', isActive: true, payload: {} },
   ];
 
-  // Merge CMS sections or fallback to default sections
-  const existingKeys = new Set(cmsSections.map((s) => s.key));
-  const rawSections: CMSSection[] = [...cmsSections];
+  // If CMS sections were returned from server, respect EXACTLY what's active in CMS!
+  const sectionsSource = cmsSections.length > 0 ? cmsSections : defaultSections;
+  const sortedSections = [...sectionsSource].sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
 
-  for (const def of defaultSections) {
-    const isHeroCovered = def.key === 'hero_banner' && (existingKeys.has('hero_banner') || existingKeys.has('home_hero_slider') || existingKeys.has('hero_section'));
-    const isPromoCovered = def.key === 'promo_banner' && (existingKeys.has('promo_banner') || existingKeys.has('home_promo_summer') || existingKeys.has('promo_summer'));
-    const isAboutCovered = def.key === 'about_section' && (existingKeys.has('about_section') || existingKeys.has('about_craft'));
-    const isProductsCovered = def.key === 'new_arrivals' && (existingKeys.has('new_arrivals') || existingKeys.has('featured_products') || existingKeys.has('best_sellers'));
-
-    if (!existingKeys.has(def.key) && !isHeroCovered && !isPromoCovered && !isAboutCovered && !isProductsCovered) {
-      rawSections.push({
-        id: def.key,
-        key: def.key,
-        type: def.type as any,
-        titleAr: def.titleAr,
-        titleEn: def.titleEn,
-        displayOrder: def.displayOrder,
-        isActive: true,
-        payload: {},
-      });
-    }
-  }
-
-  // Sort by displayOrder
-  const sortedSections = rawSections.sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
-
-  // Deduplicate sections so ONLY 1 hero, 1 marquee, 1 products showcase, 1 trust, 1 promo, 1 about renders
+  // Deduplicate sections
   let heroRendered = false;
   let marqueeRendered = false;
   let productSectionRendered = false;
@@ -190,20 +178,6 @@ export const HomePage: React.FC = () => {
     } else if (isCategoriesSection(s)) {
       sectionsToRender.push(s);
     }
-  }
-
-  // Ensure products showcase renders even if omitted
-  if (!productSectionRendered) {
-    sectionsToRender.push({
-      id: 'new_arrivals_fallback',
-      key: 'new_arrivals',
-      type: 'FEATURED_GRID' as any,
-      titleAr: 'الأكثر مبيعاً ومختارات الموسم',
-      titleEn: 'Best Sellers & Curated Drops',
-      displayOrder: 2,
-      isActive: true,
-      payload: {},
-    });
   }
 
   // ========================================================

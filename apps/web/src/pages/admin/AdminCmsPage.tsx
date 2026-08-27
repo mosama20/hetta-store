@@ -83,6 +83,17 @@ export const AdminCmsPage: React.FC = () => {
     setCollapsedKeys((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const purgeHomeCache = () => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem('craft_home_data_cache_v2');
+        localStorage.removeItem('craft_home_data_cache_v3');
+        localStorage.removeItem('craft_home_data_cache_v4');
+        localStorage.removeItem('craft_home_data_cache_v5');
+      } catch {}
+    }
+  };
+
   const handleUpdate = async (section: CMSSection) => {
     setIsSaving(true);
     try {
@@ -95,6 +106,7 @@ export const AdminCmsPage: React.FC = () => {
         payload: section.payload,
         displayOrder: section.displayOrder,
       });
+      purgeHomeCache();
       triggerStoreSync();
       setSaveSuccessMsg(
         isArabic
@@ -125,6 +137,7 @@ export const AdminCmsPage: React.FC = () => {
           }),
         ),
       );
+      purgeHomeCache();
       triggerStoreSync();
       setSaveSuccessMsg(
         isArabic
