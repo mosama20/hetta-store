@@ -157,13 +157,46 @@ export class CategoriesService {
       throw new NotFoundException(`Category with ID ${id} not found`);
     }
 
-    if (category._count.products > 0) {
-      throw new BadRequestException(
-        `Cannot delete category with ${category._count.products} associated active products`,
-      );
-    }
+    await this.prisma.$transaction(async (tx) => {
+      // 1. Decouple child categories (set parentId to this category's parentId or null)
+      await tx.category.updateMany({
+        where: { parentId: id },
+        data: { parentId: category.parentId || null },
+      });
 
-    await this.prisma.category.delete({ where: { id } });
+      // 2. If there are products associated with this category, reassign them to a fallback category
+      if (category._count.products > 0) {
+        let fallbackCategory = await tx.category.findFirst({
+          where: { id: { not: id } },
+          orderBy: { displayOrder: 'asc' },
+        });
+
+        if (!fallbackCategory) {
+          fallbackCategory = await tx.category.create({
+            data: {
+              nameAr: 'عام',
+              nameEn: 'General',
+              slug: `general-${Date.now().toString().slice(-4)}`,
+              displayOrder: 0,
+              isActive: true,
+            },
+          });
+        }
+
+        await tx.product.updateMany({
+          where: { categoryId: id },
+          data: { categoryId: fallbackCategory.id },
+        });
+      }
+
+      // 3. Delete any discount associations
+      await tx.discountCategory.deleteMany({
+        where: { categoryId: id },
+      });
+
+      // 4. Delete the category itself
+      await tx.category.delete({ where: { id } });
+    });
 
     await this.auditService.log({
       userId,

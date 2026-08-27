@@ -23,6 +23,7 @@ import {
   Layers,
   Eye,
   EyeOff,
+  AlertTriangle,
 } from 'lucide-react';
 import { triggerStoreSync } from '../../store/settingsStore.js';
 
@@ -33,6 +34,9 @@ export const AdminCategoriesPage: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCat, setEditingCat] = useState<Category | null>(null);
   const [successMsg, setSuccessMsg] = useState('');
+  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const [nameAr, setNameAr] = useState('');
   const [nameEn, setNameEn] = useState('');
@@ -114,16 +118,21 @@ export const AdminCategoriesPage: React.FC = () => {
     fetchCategories();
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm(isArabic ? 'هل أنت متأكد من حذف هذا القسم؟' : 'Delete this category?')) return;
+  const handleConfirmDelete = async () => {
+    if (!categoryToDelete) return;
+    setIsDeleting(true);
+    setDeleteError('');
     try {
-      await categoriesApi.delete(id);
+      await categoriesApi.delete(categoryToDelete.id);
       triggerStoreSync();
       fetchCategories();
       setSuccessMsg(isArabic ? 'تم حذف القسم بنجاح' : 'Category deleted successfully');
       setTimeout(() => setSuccessMsg(''), 3000);
+      setCategoryToDelete(null);
     } catch (err: unknown) {
-      alert((err as Error).message);
+      setDeleteError((err as Error).message || (isArabic ? 'حدث خطأ أثناء حذف القسم' : 'Failed to delete category'));
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -402,7 +411,10 @@ export const AdminCategoriesPage: React.FC = () => {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDelete(c.id)}
+                          onClick={() => {
+                            setCategoryToDelete(c);
+                            setDeleteError('');
+                          }}
                           className="p-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg"
                           title={isArabic ? 'حذف' : 'Delete'}
                         >
@@ -422,6 +434,7 @@ export const AdminCategoriesPage: React.FC = () => {
       <Modal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
+        maxWidth="lg"
         title={
           editingCat
             ? isArabic
@@ -486,7 +499,7 @@ export const AdminCategoriesPage: React.FC = () => {
             value={imageUrl}
             onChange={setImageUrl}
             folder="categories"
-            aspectRatio="square"
+            aspectRatio="auto"
             compact
           />
 
@@ -513,6 +526,57 @@ export const AdminCategoriesPage: React.FC = () => {
             </div>
           </div>
         </form>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={!!categoryToDelete}
+        onClose={() => setCategoryToDelete(null)}
+        title={isArabic ? 'تأكيد حذف القسم' : 'Confirm Delete Category'}
+      >
+        <div className="space-y-4 text-start">
+          {deleteError && (
+            <div className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl text-red-700 dark:text-red-300 text-xs font-bold flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0 text-red-500" />
+              <span>{deleteError}</span>
+            </div>
+          )}
+
+          <div className="flex items-start gap-3 p-3.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 rounded-2xl">
+            <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div className="text-xs text-amber-900 dark:text-amber-200 space-y-1">
+              <p className="font-bold">
+                {isArabic
+                  ? `هل أنت متأكد من حذف قسم "${categoryToDelete?.nameAr}"؟`
+                  : `Are you sure you want to delete category "${categoryToDelete?.nameEn}"?`}
+              </p>
+              <p className="text-[11px] text-amber-700 dark:text-amber-400 leading-relaxed">
+                {isArabic
+                  ? 'سيتم حذف القسم تلقائياً وإعادة توجيه أي منتجات كانت بداخله، ولن يتوقف النظام.'
+                  : 'The category will be deleted and any associated products will be safely moved.'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setCategoryToDelete(null)}
+              disabled={isDeleting}
+            >
+              {isArabic ? 'إلغاء' : 'Cancel'}
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              onClick={handleConfirmDelete}
+              isLoading={isDeleting}
+            >
+              {isArabic ? 'نعم، احذف القسم' : 'Yes, Delete'}
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );
