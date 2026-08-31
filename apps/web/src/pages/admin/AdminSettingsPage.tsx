@@ -18,8 +18,8 @@ import {
   AlertTriangle,
   Image as ImageIcon,
   Globe,
-  Sparkles,
   Share2,
+  Eye,
 } from 'lucide-react';
 
 export const AdminSettingsPage: React.FC = () => {
@@ -210,7 +210,7 @@ export const AdminSettingsPage: React.FC = () => {
         const parsed = JSON.parse(text);
 
         const confirmMsg = isArabic
-          ? '⚠️ هل أنت متأكد من استعادة هذه النسخة الاحتياطية؟ سيتم استبدال كافة بيانات الموقع والمنتجات والأقسام والطلبات الحالية بالبيانات الموجودة في الملف.'
+          ? 'هل أنت متأكد من استعادة هذه النسخة الاحتياطية؟ سيتم استبدال كافة بيانات الموقع والمنتجات والأقسام والطلبات الحالية بالبيانات الموجودة في الملف.'
           : 'Are you sure you want to restore this backup? Current products, categories, orders, and settings will be replaced.';
 
         if (!window.confirm(confirmMsg)) {
@@ -246,7 +246,7 @@ export const AdminSettingsPage: React.FC = () => {
   // 3. Reset to Factory Defaults
   const handleResetDefaults = async () => {
     const confirmMsg = isArabic
-      ? '🚨 تحذير: هل أنت متأكد من إعادة ضبط المصنع للمتجر؟ سيتم استرجاع البيانات والمنتجات الافتراضية الأولية.'
+      ? 'تحذير: هل أنت متأكد من إعادة ضبط المصنع للمتجر؟ سيتم استرجاع البيانات والمنتجات الافتراضية الأولية.'
       : 'WARNING: Reset database to factory defaults? All current changes will be replaced with initial default seed data.';
 
     if (!window.confirm(confirmMsg)) return;
@@ -387,7 +387,7 @@ export const AdminSettingsPage: React.FC = () => {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-zinc-100 dark:border-zinc-800">
             <div className="flex items-center space-x-2.5 rtl:space-x-reverse">
               <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                <Sparkles className="w-5 h-5" />
+                <Globe className="w-5 h-5" />
               </div>
               <div>
                 <h3 className="text-sm font-black text-zinc-900 dark:text-zinc-100">
@@ -507,7 +507,7 @@ export const AdminSettingsPage: React.FC = () => {
           <div className="mt-4 p-4 rounded-2xl bg-zinc-900 text-white border border-zinc-800 space-y-3">
             <div className="flex items-center justify-between text-xs text-zinc-400 border-b border-zinc-800 pb-2">
               <span className="font-bold text-amber-400 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5" />
+                <Eye className="w-3.5 h-3.5" />
                 {isArabic ? 'معاينة حية ومباشرة (Live Preview)' : 'Live Real-time Preview'}
               </span>
               <span className="text-[10px]">
@@ -789,8 +789,8 @@ export const AdminSettingsPage: React.FC = () => {
           {/* Real-time Preview of Active Social Bar */}
           <div className="p-4 rounded-2xl bg-zinc-900 text-white border border-zinc-800 space-y-2.5">
             <div className="flex items-center justify-between text-xs text-zinc-400 border-b border-zinc-800 pb-2">
-              <span className="font-bold text-pink-400 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5" />
+              <span className="font-bold text-zinc-100 flex items-center gap-1.5">
+                <Share2 className="w-3.5 h-3.5" />
                 {isArabic ? 'معاينة شكل أيقونات التواصل في الفوتر والموقع' : 'Footer Social Icons Real-time Preview'}
               </span>
               <span className="text-[10px]">
@@ -808,13 +808,13 @@ export const AdminSettingsPage: React.FC = () => {
                       className="px-3 py-1.5 rounded-xl bg-zinc-800 border border-zinc-700 text-xs font-bold text-zinc-200 flex items-center gap-1.5 shadow-sm"
                       title={v.url}
                     >
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                      <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
                       <span className="capitalize">{k}</span>
                     </span>
                   ))
               ) : (
                 <span className="text-xs text-zinc-500 italic">
-                  {isArabic ? '⚠️ لم يتم تفعيل أي أيقونة (لن تظهر أي أيقونات تواصل في الفوتر)' : 'No active social links selected'}
+                  {isArabic ? 'لم يتم تفعيل أي أيقونة (لن تظهر أي أيقونات تواصل في الفوتر)' : 'No active social links selected'}
                 </span>
               )}
             </div>
@@ -842,7 +842,7 @@ export const AdminSettingsPage: React.FC = () => {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="block text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-300">
-                {isArabic ? 'قالب رسالة تأكيد الطلب على واتساب (WhatsApp Template)' : 'WhatsApp Order Message Template'}
+                {isArabic ? 'قالب رسالة تأكيد الطلب على واتساب' : 'WhatsApp Order Message Template'}
               </label>
               <span className="text-[10px] text-zinc-400">
                 {isArabic ? 'يدعم كافة بيانات الطلب والعميل' : 'Supports all order & customer variables'}
@@ -852,12 +852,12 @@ export const AdminSettingsPage: React.FC = () => {
               rows={8}
               value={whatsappTemplate}
               onChange={(e) => setWhatsappTemplate(e.target.value)}
-              placeholder="🛍️ تأكيد طلب جديد من متجر {storeName}..."
+              placeholder="تأكيد طلب جديد من متجر {storeName}..."
               className="w-full font-mono text-xs px-3.5 py-2.5 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-xl text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 transition leading-relaxed"
             />
             <div className="p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl space-y-1.5 border border-zinc-200 dark:border-zinc-800">
               <span className="text-[11px] font-bold text-zinc-600 dark:text-zinc-300 block">
-                {isArabic ? '💡 المتغيرات التلقائية المتاحة:' : 'Available Dynamic Variables:'}
+                {isArabic ? 'المتغيرات التلقائية المتاحة:' : 'Available Dynamic Variables:'}
               </span>
               <div className="flex flex-wrap gap-1.5 font-mono text-[10px]">
                 {['{storeName}', '{orderNumber}', '{orderDate}', '{customerName}', '{customerPhone}', '{city}', '{customerAddress}', '{notesSection}', '{itemsSummary}', '{subtotal}', '{couponSection}', '{shippingFee}', '{total}', '{currency}'].map((token) => (
@@ -918,7 +918,7 @@ export const AdminSettingsPage: React.FC = () => {
                 rows={3}
                 value={announcementTextAr}
                 onChange={(e) => setAnnouncementTextAr(e.target.value)}
-                placeholder="🔥 خصم 30% على تشكيلة الصيف | 🚚 شحن مجاني للطلبات فوق 1000 جنيه | ⚡ استبدال مجاني وسهل خلال 14 يوم"
+                placeholder="خصم 30% على تشكيلة الصيف | شحن مجاني للطلبات فوق 1000 جنيه | استبدال مجاني وسهل خلال 14 يوم"
                 className="w-full text-xs px-3.5 py-2.5 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-xl text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 transition"
               />
             </div>
@@ -931,7 +931,7 @@ export const AdminSettingsPage: React.FC = () => {
                 rows={3}
                 value={announcementTextEn}
                 onChange={(e) => setAnnouncementTextEn(e.target.value)}
-                placeholder="🔥 Season Sale: Up to 30% OFF | 🚚 Free Shipping on orders over 1000 EGP | ⚡ Easy 14-day returns"
+                placeholder="Season Sale: Up to 30% OFF | Free Shipping on orders over 1000 EGP | Easy 14-day returns"
                 className="w-full text-xs px-3.5 py-2.5 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-xl text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 transition"
               />
             </div>

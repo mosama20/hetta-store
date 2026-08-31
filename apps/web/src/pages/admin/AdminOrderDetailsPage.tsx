@@ -263,7 +263,7 @@ export const AdminOrderDetailsPage: React.FC = () => {
 
             <div className="flex justify-between text-zinc-600 dark:text-zinc-400">
               <span>{isArabic ? 'مصاريف الشحن:' : 'Shipping Fee:'}</span>
-              <span className="font-semibold">{shippingFee === 0 ? (isArabic ? 'مجاني 🔥' : 'Free') : formatPrice(shippingFee, 'EGP', isArabic)}</span>
+              <span className="font-semibold">{shippingFee === 0 ? (isArabic ? 'مجاني' : 'Free') : formatPrice(shippingFee, 'EGP', isArabic)}</span>
             </div>
 
             <div className="flex justify-between pt-2 border-t border-zinc-200 dark:border-zinc-800 text-sm font-black text-zinc-900 dark:text-zinc-100">

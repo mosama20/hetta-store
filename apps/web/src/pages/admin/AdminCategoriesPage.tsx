@@ -18,7 +18,6 @@ import {
   Image as ImageIcon,
   ArrowUp,
   ArrowDown,
-  Sparkles,
   CheckCircle2,
   Layers,
   Eye,
@@ -243,11 +242,11 @@ export const AdminCategoriesPage: React.FC = () => {
       {/* Info helper banner */}
       <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300 flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
+          <Layers className="w-4 h-4 text-amber-500 shrink-0" />
           <span>
             {isArabic
-              ? '💡 يمكنك استخدام أسهم الترتيب (⬆️ / ⬇️) لتغيير أولوية ظهور الأقسام في القوائم والهوم بيج فورياً.'
-              : 'Use the reorder arrows (⬆️ / ⬇️) to reorder categories in menus and homepage instantly.'}
+              ? 'يمكنك استخدام أسهم الترتيب لتغيير أولوية ظهور الأقسام في القوائم والهوم بيج فورياً.'
+              : 'Use the reorder arrows to reorder categories in menus and homepage instantly.'}
           </span>
         </div>
         <span className="font-mono text-[11px] font-bold opacity-80">

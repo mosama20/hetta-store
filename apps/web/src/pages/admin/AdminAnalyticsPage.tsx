@@ -108,13 +108,13 @@ export const AdminAnalyticsPage: React.FC = () => {
 
   const getSourceIcon = (source: string) => {
     const s = source.toLowerCase();
-    if (s.includes('facebook') || s.includes('fb')) return '🔵 Facebook';
-    if (s.includes('instagram')) return '📸 Instagram';
-    if (s.includes('tiktok')) return '🎵 TikTok';
-    if (s.includes('google')) return '🔍 Google';
-    if (s.includes('snapchat')) return '👻 Snapchat';
-    if (s.includes('direct')) return '⚡ Direct / مباشر';
-    return '🌐 Referral';
+    if (s.includes('facebook') || s.includes('fb')) return 'Facebook';
+    if (s.includes('instagram')) return 'Instagram';
+    if (s.includes('tiktok')) return 'TikTok';
+    if (s.includes('google')) return 'Google';
+    if (s.includes('snapchat')) return 'Snapchat';
+    if (s.includes('direct')) return 'Direct / مباشر';
+    return 'Referral';
   };
 
   const safeSummary: AnalyticsSummary = summary || {
@@ -255,7 +255,7 @@ export const AdminAnalyticsPage: React.FC = () => {
           title={isArabic ? 'الزوار الآن' : 'Live Active Now'}
           value={safeSummary.liveVisitorsNow}
           icon={<Activity className="w-5 h-5 text-green-500 animate-pulse" />}
-          subtitle={isArabic ? 'متواجدون حالياً 🟢' : 'Active last 5 mins'}
+          subtitle={isArabic ? 'متواجدون حالياً' : 'Active last 5 mins'}
         />
         <AdminStatCard
           title={isArabic ? 'معدل الارتداد' : 'Bounce Rate'}
@@ -402,7 +402,7 @@ export const AdminAnalyticsPage: React.FC = () => {
                       </p>
                       <p className="text-[11px] text-zinc-400">
                         {isArabic
-                          ? '💡 نصيحة: أضف ?utm_source=facebook&utm_campaign=summer_sale لروابط إعلاناتك لقياس المبيعات تلقائياً.'
+                          ? 'نصيحة: أضف ?utm_source=facebook&utm_campaign=summer_sale لروابط إعلاناتك لقياس المبيعات تلقائياً.'
                           : 'Tip: Add ?utm_source=facebook&utm_campaign=summer_sale to track your ads ROI automatically.'}
                       </p>
                     </div>
@@ -443,7 +443,7 @@ export const AdminAnalyticsPage: React.FC = () => {
                     <div className="space-y-2 text-xs">
                       {safeSummary.deviceBreakdown.map((d, i) => (
                         <div key={i} className="flex justify-between items-center py-1">
-                          <span className="capitalize font-medium">{d.device === 'mobile' ? '📱 Mobile' : d.device === 'desktop' ? '💻 Desktop' : '📟 Tablet'}</span>
+                          <span className="capitalize font-medium">{d.device === 'mobile' ? 'Mobile' : d.device === 'desktop' ? 'Desktop' : 'Tablet'}</span>
                           <div className="flex items-center gap-2">
                             <span className="text-zinc-400">{d.count}</span>
                             <Badge variant="secondary" className="font-mono">{d.percentage}%</Badge>
@@ -695,7 +695,7 @@ export const AdminAnalyticsPage: React.FC = () => {
                               {c.ipAddress}
                             </td>
                             <td className="p-3.5 capitalize font-medium">
-                              {c.deviceType === 'mobile' ? '📱 Mobile' : '💻 Desktop'}
+                              {c.deviceType === 'mobile' ? 'Mobile' : 'Desktop'}
                             </td>
                             <td className="p-3.5">
                               <div className="space-y-1">

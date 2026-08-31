@@ -191,8 +191,8 @@ export const AdminDashboardPage: React.FC = () => {
           subtitle={
             stats.lowStockCount > 0
               ? isArabic
-                ? `⚠️ ${stats.lowStockCount} مقاسات قريبة من النفاذ`
-                : `⚠️ ${stats.lowStockCount} items low stock`
+                ? `${stats.lowStockCount} مقاسات قريبة من النفاذ`
+                : `${stats.lowStockCount} items low stock`
               : isArabic
                 ? 'المخزون متوفر ومستقر'
                 : 'Inventory healthy'
@@ -387,12 +387,12 @@ export const AdminDashboardPage: React.FC = () => {
                               isUpdating ? 'opacity-50 animate-pulse' : ''
                             }`}
                           >
-                            <option value="PENDING">⏳ {isArabic ? 'قيد الانتظار' : 'Pending'}</option>
-                            <option value="CONTACTED">📞 {isArabic ? 'تم التواصل' : 'Contacted'}</option>
-                            <option value="CONFIRMED">✅ {isArabic ? 'مؤكد' : 'Confirmed'}</option>
-                            <option value="PROCESSING">📦 {isArabic ? 'قيد التجهيز' : 'Processing'}</option>
-                            <option value="COMPLETED">🎉 {isArabic ? 'تم التسليم' : 'Completed'}</option>
-                            <option value="CANCELLED">❌ {isArabic ? 'ملغي' : 'Cancelled'}</option>
+                            <option value="PENDING">{isArabic ? 'قيد الانتظار' : 'Pending'}</option>
+                            <option value="CONTACTED">{isArabic ? 'تم التواصل' : 'Contacted'}</option>
+                            <option value="CONFIRMED">{isArabic ? 'مؤكد' : 'Confirmed'}</option>
+                            <option value="PROCESSING">{isArabic ? 'قيد التجهيز' : 'Processing'}</option>
+                            <option value="COMPLETED">{isArabic ? 'تم التسليم' : 'Completed'}</option>
+                            <option value="CANCELLED">{isArabic ? 'ملغي' : 'Cancelled'}</option>
                           </select>
                         </td>
                         <td className="p-3 text-end">

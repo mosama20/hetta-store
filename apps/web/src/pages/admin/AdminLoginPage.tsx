@@ -6,7 +6,7 @@ import { useStoreSettings } from '../../store/settingsStore.js';
 import { Button } from '../../components/common/Button.js';
 import { Input } from '../../components/common/Input.js';
 import { Card } from '../../components/common/Card.js';
-import { Lock, Shield, KeyRound, ArrowLeft, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Lock, Shield, KeyRound, ArrowLeft, ArrowRight, CheckCircle2, AlertCircle, X } from 'lucide-react';
 import { authApi } from '../../api/index.js';
 
 export const AdminLoginPage: React.FC = () => {
@@ -274,9 +274,9 @@ export const AdminLoginPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsForgotModalOpen(false)}
-                className="text-zinc-400 hover:text-white text-sm px-2 py-1 rounded"
+                className="text-zinc-400 hover:text-white p-1 rounded"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 

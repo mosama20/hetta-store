@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, Flame, Zap, ShieldCheck } from 'lucide-react';
+import { Flame, Zap, ShieldCheck, Check } from 'lucide-react';
 import { useTheme } from '../../store/themeStore.js';
 
 interface MarqueeBannerProps {
@@ -13,18 +13,18 @@ export const MarqueeBanner: React.FC<MarqueeBannerProps> = ({ variant = 'dark', 
 
   const itemsAr = [
     { text: text || 'كولكشن الصيف الجديد متوفر الآن', icon: <Flame className="w-3.5 h-3.5 text-amber-400" /> },
-    { text: 'قطن مصري 100% عالي الجودة', icon: <Sparkles className="w-3.5 h-3.5 text-amber-400" /> },
+    { text: 'قطن مصري 100% عالي الجودة', icon: <Check className="w-3.5 h-3.5 text-amber-400" /> },
     { text: 'شحن مجاني للطلبات فوق 1000 ج', icon: <Zap className="w-3.5 h-3.5 text-amber-400" /> },
     { text: 'استبدال مجاني خلال 14 يوم', icon: <ShieldCheck className="w-3.5 h-3.5 text-amber-400" /> },
-    { text: 'تصاميم بسيطة لكن مختلفة', icon: <Sparkles className="w-3.5 h-3.5 text-amber-400" /> },
+    { text: 'تصاميم بسيطة لكن مختلفة', icon: <Check className="w-3.5 h-3.5 text-amber-400" /> },
   ];
 
   const itemsEn = [
     { text: text || 'NEW SUMMER COLLECTION DROP', icon: <Flame className="w-3.5 h-3.5 text-amber-400" /> },
-    { text: '100% COMBED PREMIUM COTTON', icon: <Sparkles className="w-3.5 h-3.5 text-amber-400" /> },
+    { text: '100% COMBED PREMIUM COTTON', icon: <Check className="w-3.5 h-3.5 text-amber-400" /> },
     { text: 'FREE SHIPPING ON ORDERS OVER 1000 EGP', icon: <Zap className="w-3.5 h-3.5 text-amber-400" /> },
     { text: 'HASSLE-FREE 14-DAY RETURNS', icon: <ShieldCheck className="w-3.5 h-3.5 text-amber-400" /> },
-    { text: 'MINIMAL SILHOUETTES • MAXIMAL CRAFT', icon: <Sparkles className="w-3.5 h-3.5 text-amber-400" /> },
+    { text: 'MINIMAL SILHOUETTES • MAXIMAL CRAFT', icon: <Check className="w-3.5 h-3.5 text-amber-400" /> },
   ];
 
   const activeItems = isArabic ? itemsAr : itemsEn;
@@ -51,7 +51,7 @@ export const MarqueeBanner: React.FC<MarqueeBannerProps> = ({ variant = 'dark', 
               {item.icon}
               <span>{item.text}</span>
             </span>
-            <span className="text-amber-500 font-bold opacity-60">✦</span>
+            <span className="text-zinc-500 font-bold opacity-60">•</span>
           </div>
         ))}
       </div>

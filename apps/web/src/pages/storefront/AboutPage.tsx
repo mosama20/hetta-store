@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useTheme } from '../../store/themeStore.js';
 import { useStoreSettings } from '../../store/settingsStore.js';
-import { ShieldCheck, Award, Sparkles, HeartHandshake, ArrowRight, ArrowLeft } from 'lucide-react';
+import { ShieldCheck, Award, Compass, HeartHandshake, ArrowRight, ArrowLeft } from 'lucide-react';
 
 export const AboutPage: React.FC = () => {
   const { isArabic } = useTheme();
@@ -70,7 +70,7 @@ export const AboutPage: React.FC = () => {
           </div>
 
           <div className="p-6 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 space-y-3">
-            <Sparkles className="w-6 h-6 text-amber-500" />
+            <Compass className="w-6 h-6 text-amber-500" />
             <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
               {isArabic ? 'تصاميم عصرية' : 'Modern Silhouettes'}
             </h3>

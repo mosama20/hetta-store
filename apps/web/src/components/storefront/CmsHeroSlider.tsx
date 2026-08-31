@@ -4,7 +4,7 @@ import { CMSSection } from '../../types/index.js';
 import { useTheme } from '../../store/themeStore.js';
 import { getLocalized } from '../../utils/formatters.js';
 import { Button } from '../common/Button.js';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 
 export const CmsHeroSlider: React.FC<{ section: CMSSection }> = ({ section }) => {
   const { isArabic } = useTheme();
@@ -45,8 +45,7 @@ export const CmsHeroSlider: React.FC<{ section: CMSSection }> = ({ section }) =>
       {/* Content Container */}
       <div className="relative max-w-7xl mx-auto px-6 sm:px-12 lg:px-16 w-full text-start">
         <div className="max-w-2xl space-y-6">
-          <div className="inline-flex items-center space-x-2 rtl:space-x-reverse px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-xs font-semibold">
-            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+          <div className="inline-flex items-center px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-xs font-semibold">
             <span>{badge}</span>
           </div>
 

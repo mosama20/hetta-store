@@ -12,7 +12,7 @@ import { Card } from '../../components/common/Card.js';
 import { Badge } from '../../components/common/Badge.js';
 import { Pagination } from '../../components/common/Pagination.js';
 import { LoadingState } from '../../components/common/LoadingState.js';
-import { Plus, Edit2, Trash2, FileSpreadsheet, Download, Sparkles } from 'lucide-react';
+import { Plus, Edit2, Trash2, FileSpreadsheet, Download, Flame } from 'lucide-react';
 import { ExcelImportModal } from '../../components/admin/ExcelImportModal.js';
 
 export const AdminProductsPage: React.FC = () => {
@@ -247,7 +247,7 @@ export const AdminProductsPage: React.FC = () => {
                                 : 'Click to feature in New Arrivals'
                           }
                         >
-                          <Sparkles className={`w-3.5 h-3.5 ${p.isFeatured ? 'fill-amber-500 text-amber-500' : ''}`} />
+                          <Flame className={`w-3.5 h-3.5 ${p.isFeatured ? 'fill-amber-500 text-amber-500' : ''}`} />
                         </button>
                       </td>
                       <td className="p-3.5">

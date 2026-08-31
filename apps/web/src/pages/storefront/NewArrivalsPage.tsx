@@ -11,7 +11,7 @@ import { EmptyState } from '../../components/common/EmptyState.js';
 import { Pagination } from '../../components/common/Pagination.js';
 import { Select } from '../../components/common/Select.js';
 import { Input } from '../../components/common/Input.js';
-import { Sparkles, SlidersHorizontal, RotateCcw, Flame, Check } from 'lucide-react';
+import { SlidersHorizontal, RotateCcw, Flame, Check } from 'lucide-react';
 
 export const NewArrivalsPage: React.FC = () => {
   const { isArabic } = useTheme();
@@ -112,8 +112,7 @@ export const NewArrivalsPage: React.FC = () => {
       {/* 1. Header Banner */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-500/10 via-zinc-50 to-zinc-100 dark:from-amber-950/20 dark:via-zinc-900 dark:to-zinc-950 p-6 sm:p-10 border border-amber-500/20 dark:border-zinc-800">
         <div className="max-w-2xl space-y-3">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-black uppercase tracking-wider">
-            <Sparkles className="w-3.5 h-3.5 fill-amber-500" />
+          <div className="inline-flex items-center px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-black uppercase tracking-wider">
             <span>{isArabic ? 'وصل حديثاً' : 'JUST IN / NEW DROPS'}</span>
           </div>
 

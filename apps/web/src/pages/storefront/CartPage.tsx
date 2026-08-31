@@ -220,7 +220,7 @@ export const CartPage: React.FC = () => {
               <div className="flex justify-between">
                 <span>{isArabic ? 'مصاريف الشحن' : 'Estimated Delivery'}</span>
                 <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                  {subtotal >= 1000 ? (isArabic ? 'شحن مجاني 🔥' : 'Free Shipping 🔥') : (isArabic ? 'تحدد عند الدفع' : 'At checkout')}
+                  {subtotal >= 1000 ? (isArabic ? 'شحن مجاني' : 'Free Shipping') : (isArabic ? 'تحدد عند الدفع' : 'At checkout')}
                 </span>
               </div>
             </div>

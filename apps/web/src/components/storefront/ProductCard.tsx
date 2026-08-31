@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, ShoppingBag, Eye, Sparkles } from 'lucide-react';
+import { Heart, ShoppingBag, Eye } from 'lucide-react';
 import { Product } from '../../types/index.js';
 import { useTheme } from '../../store/themeStore.js';
 import { formatPrice, getLocalized } from '../../utils/formatters.js';
@@ -86,7 +86,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, badgeType }) 
         <div className="absolute top-2.5 left-2.5 rtl:left-auto rtl:right-2.5 flex flex-col gap-1.5 pointer-events-none z-10">
           {isBestSeller && (
             <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-500 text-black text-[10px] font-black uppercase rounded-lg shadow-md tracking-wider">
-              <Sparkles className="w-3 h-3 fill-black" />
               <span>{isArabic ? 'الأكثر طلباً' : 'HOT'}</span>
             </span>
           )}

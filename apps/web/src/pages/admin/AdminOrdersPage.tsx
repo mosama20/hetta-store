@@ -23,7 +23,6 @@ import {
   Check,
   XCircle,
   PhoneCall,
-  Sparkles,
 } from 'lucide-react';
 
 export const AdminOrdersPage: React.FC = () => {
@@ -132,7 +131,7 @@ export const AdminOrdersPage: React.FC = () => {
   };
 
   const statusFilterTabs = [
-    { key: '', labelAr: 'جميع الطلبات', labelEn: 'All Orders', icon: Sparkles },
+    { key: '', labelAr: 'جميع الطلبات', labelEn: 'All Orders', icon: null },
     { key: 'PENDING', labelAr: 'قيد الانتظار', labelEn: 'Pending', icon: Clock },
     { key: 'CONTACTED', labelAr: 'تم التواصل', labelEn: 'Contacted', icon: PhoneCall },
     { key: 'CONFIRMED', labelAr: 'مؤكدة', labelEn: 'Confirmed', icon: Check },
@@ -194,7 +193,7 @@ export const AdminOrdersPage: React.FC = () => {
                     : 'bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
                 }`}
               >
-                <Icon className="w-3.5 h-3.5" />
+                {Icon && <Icon className="w-3.5 h-3.5" />}
                 <span>{isArabic ? tab.labelAr : tab.labelEn}</span>
               </button>
             );
@@ -206,7 +205,7 @@ export const AdminOrdersPage: React.FC = () => {
           <div className="w-full sm:w-80">
             <Input
               placeholder={
-                isArabic ? '🔍 بحث برقم الطلب، اسم العميل، الهاتف...' : '🔍 Search by order #, name, phone...'
+                isArabic ? 'بحث برقم الطلب، اسم العميل، الهاتف...' : 'Search by order #, name, phone...'
               }
               value={search}
               onChange={(e) => {
@@ -347,12 +346,12 @@ export const AdminOrdersPage: React.FC = () => {
                             isRowUpdating ? 'opacity-50 animate-pulse' : ''
                           }`}
                         >
-                          <option value="PENDING">⏳ {isArabic ? 'قيد الانتظار (Pending)' : 'Pending'}</option>
-                          <option value="CONTACTED">📞 {isArabic ? 'تم التواصل (Contacted)' : 'Contacted'}</option>
-                          <option value="CONFIRMED">✅ {isArabic ? 'مؤكد (Confirmed)' : 'Confirmed'}</option>
-                          <option value="PROCESSING">📦 {isArabic ? 'قيد التجهيز (Processing)' : 'Processing'}</option>
-                          <option value="COMPLETED">🎉 {isArabic ? 'تم التسليم (Completed)' : 'Completed'}</option>
-                          <option value="CANCELLED">❌ {isArabic ? 'ملغي (Cancelled)' : 'Cancelled'}</option>
+                          <option value="PENDING">{isArabic ? 'قيد الانتظار (Pending)' : 'Pending'}</option>
+                          <option value="CONTACTED">{isArabic ? 'تم التواصل (Contacted)' : 'Contacted'}</option>
+                          <option value="CONFIRMED">{isArabic ? 'مؤكد (Confirmed)' : 'Confirmed'}</option>
+                          <option value="PROCESSING">{isArabic ? 'قيد التجهيز (Processing)' : 'Processing'}</option>
+                          <option value="COMPLETED">{isArabic ? 'تم التسليم (Completed)' : 'Completed'}</option>
+                          <option value="CANCELLED">{isArabic ? 'ملغي (Cancelled)' : 'Cancelled'}</option>
                         </select>
                       </td>
 

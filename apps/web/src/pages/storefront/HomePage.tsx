@@ -5,7 +5,6 @@ import {
   RotateCcw,
   Award,
   Truck,
-  Sparkles,
   ArrowRight,
   ArrowLeft,
   Flame,
@@ -265,8 +264,7 @@ export const HomePage: React.FC = () => {
           <div className={`absolute inset-0 ${overlayClass} backdrop-blur-[1px]`} />
 
           <div className="relative z-10 max-w-2xl mx-auto space-y-4 sm:space-y-6">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white text-[10px] sm:text-xs font-black uppercase tracking-widest shadow-sm">
-              <Sparkles className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+            <div className="inline-flex items-center px-3 py-1 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white text-[10px] sm:text-xs font-black uppercase tracking-widest shadow-sm">
               <span>{heroBadge}</span>
             </div>
             <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight drop-shadow-md">
@@ -302,8 +300,7 @@ export const HomePage: React.FC = () => {
         >
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
             <div className="lg:col-span-7 space-y-4 sm:space-y-6 text-start">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] sm:text-xs font-black uppercase tracking-wider">
-                <Sparkles className="w-3.5 h-3.5 fill-amber-400" />
+              <div className="inline-flex items-center px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] sm:text-xs font-black uppercase tracking-wider">
                 <span>{heroBadge}</span>
               </div>
               <h1 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight text-white">
@@ -348,8 +345,7 @@ export const HomePage: React.FC = () => {
       >
         <div className={`grid items-center w-full h-full ${heroImage ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
           <div className="p-6 sm:p-10 lg:p-14 space-y-4 sm:space-y-6 text-start">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/5 dark:bg-white/10 text-zinc-900 dark:text-zinc-100 text-[10px] sm:text-xs font-black uppercase tracking-wider">
-              <Sparkles className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+            <div className="inline-flex items-center px-3 py-1 rounded-full bg-black/5 dark:bg-white/10 text-zinc-900 dark:text-zinc-100 text-[10px] sm:text-xs font-black uppercase tracking-wider">
               <span>{heroBadge}</span>
             </div>
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-zinc-900 dark:text-zinc-100 leading-tight tracking-tight">
@@ -469,9 +465,9 @@ export const HomePage: React.FC = () => {
         {/* Tab Filter Switchers */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
           {[
-            { id: 'bestseller', labelAr: '🔥 الأكثر طلباً', labelEn: '🔥 Best Sellers' },
-            { id: 'latest', labelAr: '✨ أحدث الإطلاقات', labelEn: '✨ New Arrivals' },
-            { id: 'sale', labelAr: '🏷️ عروض وتخفيضات', labelEn: '🏷️ Special Offers' },
+            { id: 'bestseller', labelAr: 'الأكثر طلباً', labelEn: 'Best Sellers' },
+            { id: 'latest', labelAr: 'أحدث الإطلاقات', labelEn: 'New Arrivals' },
+            { id: 'sale', labelAr: 'عروض وتخفيضات', labelEn: 'Special Offers' },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -555,7 +551,7 @@ export const HomePage: React.FC = () => {
               className="group p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200/70 dark:border-zinc-800 hover:border-black dark:hover:border-white transition-all text-center space-y-2 hover:shadow-md"
             >
               <div className="w-12 h-12 mx-auto rounded-full bg-white dark:bg-zinc-800 flex items-center justify-center font-bold text-base shadow-sm group-hover:scale-110 transition-transform">
-                {cat.nameAr?.charAt(0) || cat.nameEn?.charAt(0) || '👕'}
+                {cat.nameAr?.charAt(0) || cat.nameEn?.charAt(0) || '•'}
               </div>
               <div>
                 <p className="font-bold text-xs text-zinc-900 dark:text-zinc-100 group-hover:underline">
