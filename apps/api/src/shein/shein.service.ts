@@ -1,17 +1,103 @@
-import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
 import { ExtractSheinUrlDto, CreateSheinOrderDto, UpdateSheinOrderStatusDto } from './dto/shein-order.dto';
 import { SheinOrderStatus } from '@prisma/client';
 
 @Injectable()
-export class SheinService {
+export class SheinService implements OnModuleInit {
   private readonly logger = new Logger(SheinService.name);
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly settingsService: SettingsService,
   ) { }
+
+  async onModuleInit() {
+    await this.ensureSheinTables();
+  }
+
+  /**
+   * Self-healing: verify and create shein_orders tables if missing in database
+   */
+  async ensureSheinTables() {
+    try {
+      await this.prisma.$executeRawUnsafe(`
+        DO $$ 
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'shein_order_status') THEN
+                CREATE TYPE "shein_order_status" AS ENUM ('PENDING', 'CONFIRMED', 'PURCHASED', 'IN_TRANSIT', 'DELIVERED', 'CANCELLED');
+            END IF;
+        END $$;
+      `);
+
+      await this.prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "shein_orders" (
+            "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+            "order_number" VARCHAR(35) NOT NULL,
+            "customer_name" VARCHAR(150) NOT NULL,
+            "customer_phone" VARCHAR(30) NOT NULL,
+            "customer_city" VARCHAR(100),
+            "customer_district" VARCHAR(100),
+            "customer_address" TEXT,
+            "payment_method" VARCHAR(50) NOT NULL DEFAULT 'CASH_ON_DELIVERY',
+            "notes" TEXT,
+            "status" "shein_order_status" NOT NULL DEFAULT 'PENDING',
+            "products_total" DECIMAL(10,2) NOT NULL,
+            "shein_shipping_fee" DECIMAL(10,2) NOT NULL,
+            "service_fee" DECIMAL(10,2) NOT NULL,
+            "delivery_fee" DECIMAL(10,2) NOT NULL,
+            "total_amount" DECIMAL(10,2) NOT NULL,
+            "currency" VARCHAR(10) NOT NULL DEFAULT 'EGP',
+            "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            "updated_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            CONSTRAINT "shein_orders_pkey" PRIMARY KEY ("id")
+        );
+      `);
+
+      await this.prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "shein_orders_order_number_key" ON "shein_orders"("order_number");`);
+      await this.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "idx_shein_orders_order_number" ON "shein_orders"("order_number");`);
+      await this.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "idx_shein_orders_customer_phone" ON "shein_orders"("customer_phone");`);
+      await this.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "idx_shein_orders_status" ON "shein_orders"("status");`);
+      await this.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "idx_shein_orders_created_at" ON "shein_orders"("created_at");`);
+
+      await this.prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "shein_order_items" (
+            "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+            "order_id" UUID NOT NULL,
+            "product_url" TEXT NOT NULL,
+            "title" VARCHAR(500) NOT NULL,
+            "image_url" TEXT,
+            "color" VARCHAR(50),
+            "size" VARCHAR(30),
+            "unit_price" DECIMAL(10,2) NOT NULL,
+            "quantity" INTEGER NOT NULL DEFAULT 1,
+            "subtotal" DECIMAL(10,2) NOT NULL,
+            "notes" TEXT,
+            "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            CONSTRAINT "shein_order_items_pkey" PRIMARY KEY ("id")
+        );
+      `);
+
+      await this.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "idx_shein_order_items_order_id" ON "shein_order_items"("order_id");`);
+
+      await this.prisma.$executeRawUnsafe(`
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint WHERE conname = 'shein_order_items_order_id_fkey'
+            ) THEN
+                ALTER TABLE "shein_order_items" ADD CONSTRAINT "shein_order_items_order_id_fkey" 
+                FOREIGN KEY ("order_id") REFERENCES "shein_orders"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+            END IF;
+        END $$;
+      `);
+
+      this.logger.log('✓ Verified and ensured shein_orders tables exist in database');
+    } catch (err: any) {
+      this.logger.warn(`Could not ensure SHEIN tables via raw SQL: ${err?.message || err}`);
+    }
+  }
 
   /**
    * Extract metadata from a SHEIN URL (Smart URL sanitizer, redirect resolver, slug parser, and HTML scraper)
@@ -243,32 +329,46 @@ export class SheinService {
     const deliveryFee = pricing.deliveryFee;
     const totalAmount = productsTotal + sheinShippingFee + serviceFee + deliveryFee;
 
-    // Save order in PostgreSQL database via Prisma
-    const order = await this.prisma.sheinOrder.create({
-      data: {
-        orderNumber,
-        customerName: dto.customerName,
-        customerPhone: dto.customerPhone,
-        customerCity: dto.customerCity || null,
-        customerDistrict: dto.customerDistrict || null,
-        customerAddress: dto.customerAddress || null,
-        paymentMethod: dto.paymentMethod || 'CASH_ON_DELIVERY',
-        notes: dto.notes || null,
-        status: SheinOrderStatus.PENDING,
-        productsTotal,
-        sheinShippingFee,
-        serviceFee,
-        deliveryFee,
-        totalAmount,
-        currency: 'EGP',
-        items: {
-          create: orderItems,
+    // Save order in PostgreSQL database via Prisma (with self-healing fallback)
+    const orderData = {
+      orderNumber,
+      customerName: dto.customerName,
+      customerPhone: dto.customerPhone,
+      customerCity: dto.customerCity || null,
+      customerDistrict: dto.customerDistrict || null,
+      customerAddress: dto.customerAddress || null,
+      paymentMethod: dto.paymentMethod || 'CASH_ON_DELIVERY',
+      notes: dto.notes || null,
+      status: SheinOrderStatus.PENDING,
+      productsTotal,
+      sheinShippingFee,
+      serviceFee,
+      deliveryFee,
+      totalAmount,
+      currency: 'EGP',
+      items: {
+        create: orderItems,
+      },
+    };
+
+    let order;
+    try {
+      order = await this.prisma.sheinOrder.create({
+        data: orderData,
+        include: {
+          items: true,
         },
-      },
-      include: {
-        items: true,
-      },
-    });
+      });
+    } catch (createErr: any) {
+      this.logger.warn(`Failed to create SHEIN order on first attempt: ${createErr?.message}. Ensuring tables exist...`);
+      await this.ensureSheinTables();
+      order = await this.prisma.sheinOrder.create({
+        data: orderData,
+        include: {
+          items: true,
+        },
+      });
+    }
 
     this.logger.log(`Created SHEIN order ${order.orderNumber} for customer ${order.customerName}`);
 
