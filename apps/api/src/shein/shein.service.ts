@@ -14,153 +14,173 @@ export class SheinService {
   ) { }
 
   /**
-   * Extract metadata from a SHEIN URL (OpenGraph / HTML scraper)
+   * Extract metadata from a SHEIN URL (Smart URL sanitizer, redirect resolver, slug parser, and HTML scraper)
    */
   async extractMetadata(dto: ExtractSheinUrlDto) {
-    const rawUrl = dto.url.trim();
+    const rawInput = (dto.url || '').trim();
 
-    // Basic URL validation
-    if (!rawUrl.startsWith('http://') && !rawUrl.startsWith('https://')) {
-      throw new BadRequestException('يرجى إدخال رابط صحيح يبدأ بـ https://');
+    // 1. Sanitize & extract URL from any pasted text (handles text copied from the SHEIN mobile app)
+    const urlMatch = rawInput.match(/(https?:\/\/[^\s]+)/i);
+    if (!urlMatch) {
+      throw new BadRequestException('يرجى إدخال رابط صحيح لمنتج SHEIN');
     }
 
-    // Verify it is a SHEIN link
-    const isShein = /shein\.(com|top|net)/i.test(rawUrl) || /ar\.shein\.com/i.test(rawUrl);
+    let targetUrl = urlMatch[1].trim();
+
+    // 2. Verify it is a valid SHEIN domain
+    const isShein = /shein\.(com|top|net)/i.test(targetUrl) || /ar\.shein\.com/i.test(targetUrl);
     if (!isShein) {
       throw new BadRequestException('الرابط المدخل ليس رابط منتج من موقع SHEIN');
     }
 
+    // 3. Resolve shortlinks / appjump links (shein.top, sharejump)
     try {
-      // Follow redirects and fetch page with standard browser headers
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 12000);
+      if (targetUrl.includes('shein.top') || targetUrl.includes('sharejump') || targetUrl.includes('appjump')) {
+        const headRes = await fetch(targetUrl, {
+          method: 'GET',
+          redirect: 'manual',
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148',
+          },
+        });
+        const loc = headRes.headers.get('location');
+        if (loc && loc.startsWith('http')) {
+          targetUrl = loc;
+        }
+      }
+    } catch {
+      // Ignore redirect resolution error and continue with targetUrl
+    }
 
-      const response = await fetch(rawUrl, {
+    // 4. Extract Goods ID from URL structure
+    let goodsId = '';
+    const goodsMatch =
+      targetUrl.match(/-p-(\d+)/i) ||
+      targetUrl.match(/goods_id=(\d+)/i) ||
+      targetUrl.match(/goods-p-(\d+)/i) ||
+      targetUrl.match(/item_id=(\d+)/i);
+    if (goodsMatch && goodsMatch[1]) {
+      goodsId = goodsMatch[1];
+    }
+
+    // 5. Extract Product Name Slug from URL
+    let slugTitle = '';
+    const slugMatch = targetUrl.match(/\/([^\/?#]+)-p-\d+/i);
+    if (slugMatch && slugMatch[1] && slugMatch[1].toLowerCase() !== 'goods' && slugMatch[1].toLowerCase() !== 'pd') {
+      try {
+        slugTitle = decodeURIComponent(slugMatch[1]).replace(/[-_]/g, ' ').trim();
+      } catch {
+        slugTitle = slugMatch[1].replace(/[-_]/g, ' ').trim();
+      }
+    }
+
+    // 6. Attempt page fetch for OpenGraph tags (with short timeout)
+    let extractedTitle = '';
+    let imageUrl: string | null = null;
+    const images: string[] = [];
+    let extractedPrice = 0;
+    let currency = 'EGP';
+    const scrapedSizes: string[] = [];
+
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 6000);
+
+      const response = await fetch(targetUrl, {
         headers: {
           'User-Agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
           'Accept-Language': 'ar-EG,ar;q=0.9,en-US;q=0.8,en;q=0.7',
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Referer': 'https://www.google.com/',
         },
         redirect: 'follow',
         signal: controller.signal,
       });
-
       clearTimeout(timeout);
 
-      const finalUrl = response.url || rawUrl;
       const html = await response.text();
 
-      // 1. Extract Title
-      let title = '';
-      const ogTitleMatch = html.match(/<meta\s+property=["']og:title["']\s+content=["'](.*?)["']/i) ||
-        html.match(/<meta\s+content=["'](.*?)["']\s+property=["']og:title["']/i);
-      if (ogTitleMatch && ogTitleMatch[1]) {
-        title = ogTitleMatch[1].trim();
-      } else {
-        const titleTagMatch = html.match(/<title>(.*?)<\/title>/i);
-        if (titleTagMatch && titleTagMatch[1]) {
-          title = titleTagMatch[1].replace(/\|\s*SHEIN.*$/i, '').trim();
+      // Ensure response is not a Cloudflare/Akamai bot challenge page
+      if (!html.includes('risk/challenge') && !html.includes('Just a moment...') && !html.includes('cf-browser-verification')) {
+        // Extract Title
+        const ogTitleMatch =
+          html.match(/<meta\s+property=["']og:title["']\s+content=["'](.*?)["']/i) ||
+          html.match(/<meta\s+content=["'](.*?)["']\s+property=["']og:title["']/i);
+        if (ogTitleMatch && ogTitleMatch[1] && !ogTitleMatch[1].includes('شي إن |')) {
+          extractedTitle = ogTitleMatch[1].trim();
+        } else {
+          const titleTagMatch = html.match(/<title>(.*?)<\/title>/i);
+          if (titleTagMatch && titleTagMatch[1] && !titleTagMatch[1].includes('شي إن |')) {
+            extractedTitle = titleTagMatch[1].replace(/\|\s*SHEIN.*$/i, '').trim();
+          }
         }
-      }
 
-      // 2. Extract Primary Image
-      let imageUrl = '';
-      const ogImageMatch = html.match(/<meta\s+property=["']og:image["']\s+content=["'](.*?)["']/i) ||
-        html.match(/<meta\s+content=["'](.*?)["']\s+property=["']og:image["']/i);
-      if (ogImageMatch && ogImageMatch[1]) {
-        imageUrl = ogImageMatch[1].trim();
-        if (imageUrl.startsWith('//')) imageUrl = 'https:' + imageUrl;
-      }
-
-      // 3. Extract Additional Images
-      const images: string[] = [];
-      if (imageUrl) images.push(imageUrl);
-      const imgRegex = /https?:\/\/[^"'\s]+\.(?:jpg|jpeg|webp|png)/gi;
-      const matches = html.match(imgRegex) || [];
-      for (const m of matches) {
-        if (m.includes('shein') && m.includes('/goods/') && !images.includes(m) && images.length < 5) {
-          images.push(m);
+        // Extract Image
+        const ogImageMatch =
+          html.match(/<meta\s+property=["']og:image["']\s+content=["'](.*?)["']/i) ||
+          html.match(/<meta\s+content=["'](.*?)["']\s+property=["']og:image["']/i);
+        if (ogImageMatch && ogImageMatch[1]) {
+          imageUrl = ogImageMatch[1].trim();
+          if (imageUrl.startsWith('//')) imageUrl = 'https:' + imageUrl;
+          images.push(imageUrl);
         }
-      }
 
-      // 4. Extract Price
-      let extractedPrice = 0;
-      let currency = 'EGP';
+        // Extract Price
+        const ogPriceMatch =
+          html.match(/<meta\s+property=["']product:price:amount["']\s+content=["'](.*?)["']/i) ||
+          html.match(/<meta\s+content=["'](.*?)["']\s+property=["']product:price:amount["']/i);
+        if (ogPriceMatch && ogPriceMatch[1]) {
+          extractedPrice = parseFloat(ogPriceMatch[1]) || 0;
+        }
 
-      const ogPriceMatch = html.match(/<meta\s+property=["']product:price:amount["']\s+content=["'](.*?)["']/i) ||
-        html.match(/<meta\s+content=["'](.*?)["']\s+property=["']product:price:amount["']/i);
-      if (ogPriceMatch && ogPriceMatch[1]) {
-        extractedPrice = parseFloat(ogPriceMatch[1]) || 0;
-      }
+        const ogCurrencyMatch = html.match(/<meta\s+property=["']product:price:currency["']\s+content=["'](.*?)["']/i);
+        if (ogCurrencyMatch && ogCurrencyMatch[1]) {
+          currency = ogCurrencyMatch[1].trim();
+        }
 
-      const ogCurrencyMatch = html.match(/<meta\s+property=["']product:price:currency["']\s+content=["'](.*?)["']/i);
-      if (ogCurrencyMatch && ogCurrencyMatch[1]) {
-        currency = ogCurrencyMatch[1].trim();
-      }
-
-      // If price not found via meta, look for price in script tags / JSON-LD
-      if (!extractedPrice) {
-        const jsonLdMatch = html.match(/<script\s+type=["']application\/ld\+json["']>([\s\S]*?)<\/script>/i);
-        if (jsonLdMatch && jsonLdMatch[1]) {
-          try {
-            const data = JSON.parse(jsonLdMatch[1]);
-            if (data.offers?.price) {
-              extractedPrice = parseFloat(data.offers.price) || 0;
-              if (data.offers.priceCurrency) currency = data.offers.priceCurrency;
+        // Extract sizes if in HTML
+        const sizeMatches = html.match(/"attr_value_name":"([^"]+)"/g);
+        if (sizeMatches) {
+          for (const sm of sizeMatches) {
+            const val = sm.replace(/"attr_value_name":"([^"]+)"/, '$1');
+            if (val && !scrapedSizes.includes(val) && scrapedSizes.length < 8) {
+              scrapedSizes.push(val);
             }
-          } catch {
-            // Ignore parse errors
           }
         }
       }
-
-      // Fetch dynamic settings for fee calculation
-      const settings = await this.settingsService.getPublicSettings();
-      const exchangeRate = parseFloat(settings.shein_exchange_rate || '1') || 1;
-
-      // Calculate estimated price in EGP
-      let estimatedEgpPrice = extractedPrice > 0 ? Math.round(extractedPrice * exchangeRate) : 0;
-
-      // Extract available sizes if possible from HTML
-      const sizes: string[] = [];
-      const sizeMatches = html.match(/"attr_value_name":"([^"]+)"/g);
-      if (sizeMatches) {
-        for (const sm of sizeMatches) {
-          const val = sm.replace(/"attr_value_name":"([^"]+)"/, '$1');
-          if (val && !sizes.includes(val) && sizes.length < 8) {
-            sizes.push(val);
-          }
-        }
-      }
-
-      return {
-        success: true,
-        url: finalUrl,
-        title: title || 'منتج من SHEIN',
-        imageUrl: imageUrl || images[0] || null,
-        images: images.length > 0 ? images : (imageUrl ? [imageUrl] : []),
-        originalPrice: extractedPrice,
-        currency,
-        estimatedPriceEgp: estimatedEgpPrice,
-        sizes: sizes.length > 0 ? sizes : ['S', 'M', 'L', 'XL'],
-      };
-    } catch (error: any) {
-      this.logger.warn(`Failed to extract SHEIN URL metadata: ${error?.message || error}`);
-      // Return a graceful response so user can still complete with manual inputs
-      return {
-        success: false,
-        url: rawUrl,
-        title: 'منتج من SHEIN',
-        imageUrl: null,
-        images: [],
-        originalPrice: 0,
-        currency: 'EGP',
-        estimatedPriceEgp: 0,
-        sizes: ['S', 'M', 'L', 'XL'],
-        message: 'تعذر جلب تفاصيل الرابط تلقائياً بسبب حماية موقع SHEIN. يمكنك إدخال تفاصيل المنتج يدوياً وإتمام الطلب بسهولة!',
-      };
+    } catch {
+      // Ignore network / scrape errors gracefully
     }
+
+    // Determine best available title
+    const finalTitle =
+      extractedTitle ||
+      slugTitle ||
+      (goodsId ? `منتج SHEIN (#${goodsId})` : 'منتج من SHEIN');
+
+    // Fetch dynamic exchange rate & fees
+    const settings = await this.settingsService.getPublicSettings();
+    const exchangeRate = parseFloat(settings.shein_exchange_rate || '1') || 1;
+    const estimatedPriceEgp = extractedPrice > 0 ? Math.round(extractedPrice * exchangeRate) : 0;
+
+    const finalSizes = scrapedSizes.length > 0 ? scrapedSizes : ['S', 'M', 'L', 'XL', 'XXL', 'Free Size'];
+
+    return {
+      success: true,
+      url: targetUrl,
+      goodsId: goodsId || undefined,
+      title: finalTitle,
+      imageUrl: imageUrl || null,
+      images: images.length > 0 ? images : imageUrl ? [imageUrl] : [],
+      originalPrice: extractedPrice,
+      currency,
+      estimatedPriceEgp,
+      sizes: finalSizes,
+      message: 'تم التحقق من الرابط بنجاح! يمكنك تأكيد اسم المنتج وتحديد المقاس واللون والسعر لإتمام الطلب.',
+    };
   }
 
   /**
@@ -250,27 +270,38 @@ export class SheinService {
       },
     });
 
+    this.logger.log(`Created SHEIN order ${order.orderNumber} for customer ${order.customerName}`);
+
     // Build WhatsApp confirmation message
-    let whatsappText = `*طلب جديد من SHEIN #${order.orderNumber}*\n\n`;
-    whatsappText += `👤 *الاسم:* ${order.customerName}\n`;
-    whatsappText += `📱 *الهاتف:* ${order.customerPhone}\n`;
-    if (order.customerCity) whatsappText += `📍 *المحافظة/العنوان:* ${order.customerCity} - ${order.customerAddress || ''}\n`;
-    whatsappText += `\n🛍️ *المنتجات المطلوبة:* (${order.items.length})\n`;
+    let whatsappText = `🛍️ *طلب استيراد جديد من SHEIN - حته ستور*\n`;
+    whatsappText += `📋 *رقم الطلب:* #${order.orderNumber}\n\n`;
+    whatsappText += `👤 *اسم العميل:* ${order.customerName}\n`;
+    whatsappText += `📱 *رقم الهاتف:* ${order.customerPhone}\n`;
+    if (order.customerCity) {
+      whatsappText += `📍 *المحافظة والعنوان:* ${order.customerCity} - ${order.customerAddress || ''}\n`;
+    }
+    if (order.notes) {
+      whatsappText += `📝 *ملاحظات الشحن:* ${order.notes}\n`;
+    }
+
+    whatsappText += `\n👗 *المنتجات المطلوبة من شي إن:* (${order.items.length})\n`;
 
     order.items.forEach((item: any, idx: number) => {
       whatsappText += `\n${idx + 1}. *${item.title}*\n`;
       whatsappText += `🔗 *الرابط:* ${item.productUrl}\n`;
-      if (item.size) whatsappText += `📏 *المقاس:* ${item.size} | `;
-      if (item.color) whatsappText += `🎨 *اللون:* ${item.color} | `;
+      if (item.size) whatsappText += `📏 *المقاس:* ${item.size}  |  `;
+      if (item.color) whatsappText += `🎨 *اللون:* ${item.color}  |  `;
       whatsappText += `🔢 *الكمية:* ${item.quantity}\n`;
       whatsappText += `💰 *السعر:* ${item.subtotal} ج.م\n`;
+      if (item.notes) whatsappText += `📌 *ملاحظات القطعة:* ${item.notes}\n`;
     });
 
-    whatsappText += `\n💵 *إجمالي المنتجات:* ${order.productsTotal} ج.م\n`;
+    whatsappText += `\n─────────────────\n`;
+    whatsappText += `💵 *إجمالي المنتجات:* ${order.productsTotal} ج.م\n`;
     whatsappText += `📦 *الشحن الدولي:* ${order.sheinShippingFee} ج.م\n`;
-    whatsappText += `⚡ *رسوم الخدمة:* ${order.serviceFee} ج.م\n`;
-    whatsappText += `🚚 *التوصيل المحلي:* ${order.deliveryFee} ج.م\n`;
-    whatsappText += `\n💳 *الإجمالي الكلي التقديري:* ${order.totalAmount} ج.م\n`;
+    whatsappText += `⚡ *رسوم الخدمة والتخليص:* ${order.serviceFee} ج.م\n`;
+    whatsappText += `🚚 *التوصيل الداخلي:* ${order.deliveryFee} ج.م\n`;
+    whatsappText += `💳 *الإجمالي النهائي التقديري:* ${order.totalAmount} ج.م\n`;
 
     const cleanPhone = (pricing.whatsappNumber || '').replace(/[^0-9]/g, '');
     const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(whatsappText)}`;

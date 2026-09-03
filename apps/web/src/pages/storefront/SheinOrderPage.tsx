@@ -72,13 +72,16 @@ export const SheinOrderPage: React.FC = () => {
   });
 
   // Extraction State
+  // Extraction State
   const [urlInput, setUrlInput] = useState('');
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractError, setExtractError] = useState<string | null>(null);
+  const [extractSuccessMsg, setExtractSuccessMsg] = useState<string | null>(null);
 
   // Current Active Extracted Product
   const [currentProduct, setCurrentProduct] = useState<SheinExtractResult | null>(null);
-  const [selectedColor, setSelectedColor] = useState<string>('');
+  const [productTitle, setProductTitle] = useState<string>('');
+  const [selectedColor, setSelectedColor] = useState<string>('حسب الرابط');
   const [selectedSize, setSelectedSize] = useState<string>('M');
   const [quantity, setQuantity] = useState<number>(1);
   const [itemNotes, setItemNotes] = useState<string>('');
@@ -139,29 +142,41 @@ export const SheinOrderPage: React.FC = () => {
     const cleanUrl = urlInput.trim();
     if (!cleanUrl) {
       setExtractError(isArabic ? 'يرجى إدخال رابط منتج من SHEIN أولاً' : 'Please enter a SHEIN product URL');
+      setExtractSuccessMsg(null);
       return;
     }
 
     setIsExtracting(true);
     setExtractError(null);
+    setExtractSuccessMsg(null);
 
     try {
       const res = await sheinApi.extractMetadata(cleanUrl);
       setCurrentProduct(res);
+      setProductTitle(res.title || '');
       setSelectedSize(res.sizes?.[0] || 'M');
+      setSelectedColor(isArabic ? 'حسب الرابط' : 'As in link');
       setQuantity(1);
       setItemNotes('');
-      setInputPriceValue('');
-      setManualPrice(0);
-      setInputCurrency('SAR');
 
-      if (!res.success && res.message) {
-        setExtractError(res.message);
+      if (res.estimatedPriceEgp && res.estimatedPriceEgp > 0) {
+        setManualPrice(res.estimatedPriceEgp);
+        setInputPriceValue(String(res.originalPrice || res.estimatedPriceEgp));
+        setInputCurrency(res.currency === 'SAR' ? 'SAR' : 'EGP');
+      } else {
+        setInputPriceValue('');
+        setManualPrice(0);
+        setInputCurrency('SAR');
       }
+
+      setExtractSuccessMsg(
+        res.message || (isArabic ? 'تم التحقق من الرابط بنجاح! راجع اسم ومواصفات القطعة أدناه.' : 'Link verified successfully! Check details below.')
+      );
     } catch (err: any) {
       setExtractError(
         err?.message || (isArabic ? 'تعذر جلب بيانات الرابط. تأكد من صحة رابط SHEIN' : 'Failed to fetch link details'),
       );
+      setExtractSuccessMsg(null);
     } finally {
       setIsExtracting(false);
     }
@@ -180,7 +195,7 @@ export const SheinOrderPage: React.FC = () => {
     const newItem: CartSheinItem = {
       id: Math.random().toString(36).substring(2, 9),
       productUrl: currentProduct?.url || urlInput.trim(),
-      title: currentProduct?.title || (isArabic ? 'منتج من SHEIN' : 'SHEIN Product'),
+      title: productTitle.trim() || currentProduct?.title || (isArabic ? 'منتج من SHEIN' : 'SHEIN Product'),
       color: selectedColor || (isArabic ? 'حسب الرابط' : 'As in link'),
       size: selectedSize || 'Free Size',
       unitPrice: price,
@@ -192,11 +207,13 @@ export const SheinOrderPage: React.FC = () => {
 
     // Reset current active preview to allow pasting next URL
     setCurrentProduct(null);
+    setProductTitle('');
     setUrlInput('');
     setItemNotes('');
-    setSelectedColor('');
+    setSelectedColor('حسب الرابط');
     setInputPriceValue('');
     setManualPrice(0);
+    setExtractSuccessMsg(null);
   };
 
   // Remove item from cart
@@ -235,7 +252,7 @@ export const SheinOrderPage: React.FC = () => {
         allItems.push({
           id: 'active',
           productUrl: currentProduct.url,
-          title: currentProduct.title,
+          title: productTitle.trim() || currentProduct.title || (isArabic ? 'منتج من SHEIN' : 'SHEIN Product'),
           color: selectedColor || (isArabic ? 'حسب الرابط' : 'As in link'),
           size: selectedSize || 'Free Size',
           unitPrice: price,
@@ -351,8 +368,15 @@ export const SheinOrderPage: React.FC = () => {
           </Button>
         </form>
 
+        {extractSuccessMsg && (
+          <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 text-xs font-semibold flex items-center gap-2 border border-emerald-200 dark:border-emerald-800/60">
+            <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+            <span>{extractSuccessMsg}</span>
+          </div>
+        )}
+
         {extractError && (
-          <div className="p-3 rounded-xl bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-300 text-xs font-semibold flex items-center gap-2">
+          <div className="p-3.5 rounded-2xl bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-300 text-xs font-semibold flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{extractError}</span>
           </div>
@@ -368,37 +392,42 @@ export const SheinOrderPage: React.FC = () => {
             <div className="p-5 sm:p-6 bg-zinc-50 dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-zinc-800">
                 <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                   <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300">
-                    {isArabic ? 'تم التحقق من الرابط بنجاح' : 'Product Extracted'}
+                    {isArabic ? 'الرابط معتمد وجاهز' : 'Product Link Ready'}
                   </span>
                 </div>
                 <a
                   href={currentProduct.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:text-black dark:hover:text-white underline flex items-center gap-1"
+                  className="text-xs font-semibold text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 underline flex items-center gap-1"
                 >
-                  <span>{isArabic ? 'عرض على SHEIN' : 'View on SHEIN'}</span>
+                  <span>{isArabic ? 'فتح الرابط في SHEIN' : 'View on SHEIN'}</span>
                   <ExternalLink className="w-3.5 h-3.5" />
                 </a>
               </div>
 
-              {/* Title & Goods ID */}
-              <div>
-                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">
-                  {isArabic ? 'اسم المنتج المطلوب:' : 'Product Title:'}
-                </span>
-                <div className="flex items-baseline justify-between gap-3 mt-1">
-                  <h3 className="text-sm sm:text-base font-bold text-zinc-900 dark:text-zinc-100 leading-snug">
-                    {currentProduct.title}
-                  </h3>
+              {/* Editable Product Title & Goods ID */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-300">
+                    {isArabic ? 'اسم أو وصف القطعة المطلوب شراؤها *' : 'Item Name / Description *'}
+                  </label>
                   {currentProduct.goodsId && (
-                    <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 shrink-0">
+                    <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
                       #{currentProduct.goodsId}
                     </span>
                   )}
                 </div>
+                <input
+                  type="text"
+                  value={productTitle}
+                  onChange={(e) => setProductTitle(e.target.value)}
+                  placeholder={isArabic ? 'اكتب اسم القطعة (مثال: فستان سهرة أحمر، تيشيرت...)' : 'Enter item name...'}
+                  className="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm text-zinc-900 dark:text-zinc-100 font-bold outline-none focus:ring-2 focus:ring-zinc-900 transition"
+                  required
+                />
               </div>
 
               {/* Price & Currency Switcher Row */}
@@ -490,12 +519,31 @@ export const SheinOrderPage: React.FC = () => {
 
               {/* Color & Quantity Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input
-                  label={isArabic ? 'اللون المطلوب' : 'Color'}
-                  placeholder={isArabic ? 'مثال: أسود، أبيض...' : 'e.g. Black'}
-                  value={selectedColor}
-                  onChange={(e) => setSelectedColor(e.target.value)}
-                />
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-700 dark:text-zinc-300">
+                    {isArabic ? 'اللون المطلوب *' : 'Color *'}
+                  </label>
+                  <div className="flex flex-wrap gap-1.5 mb-1.5">
+                    {['حسب الرابط', 'أسود', 'أبيض', 'بيج', 'أحمر', 'كحلي / أزرق'].map((col) => (
+                      <button
+                        key={col}
+                        type="button"
+                        onClick={() => setSelectedColor(col)}
+                        className={`px-2 py-0.5 rounded text-[11px] font-bold transition ${selectedColor === col
+                            ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900'
+                            : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200'
+                          }`}
+                      >
+                        {col}
+                      </button>
+                    ))}
+                  </div>
+                  <Input
+                    placeholder={isArabic ? 'أو اكتب اللون هنا...' : 'Or type color here...'}
+                    value={selectedColor}
+                    onChange={(e) => setSelectedColor(e.target.value)}
+                  />
+                </div>
 
                 <div className="space-y-1.5">
                   <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-700 dark:text-zinc-300">

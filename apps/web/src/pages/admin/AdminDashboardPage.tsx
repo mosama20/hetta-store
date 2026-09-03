@@ -102,7 +102,7 @@ export const AdminDashboardPage: React.FC = () => {
     }
   };
 
-  if (isLoading && !stats) {
+  if (isLoading || !stats) {
     return (
       <LoadingState message={isArabic ? 'جاري تحميل مؤشرات المتجر المباشرة...' : 'Loading live metrics...'} />
     );
