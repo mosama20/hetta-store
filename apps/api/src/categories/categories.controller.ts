@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Header } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
@@ -16,6 +16,7 @@ export class CategoriesController {
 
   @Public()
   @Get()
+  @Header('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300')
   @ApiOperation({ summary: 'List public active categories' })
   async findAll(@Query('all') all?: string) {
     return this.categoriesService.findAll(all === 'true');
@@ -23,6 +24,7 @@ export class CategoriesController {
 
   @Public()
   @Get('tree')
+  @Header('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300')
   @ApiOperation({ summary: 'Get nested hierarchical category tree' })
   async findTree() {
     return this.categoriesService.findTree();

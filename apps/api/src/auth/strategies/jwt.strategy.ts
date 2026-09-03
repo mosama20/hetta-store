@@ -3,6 +3,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
+import { CacheService } from '../../common/cache/cache.service';
 import { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 
 export interface JwtPayload {
@@ -17,6 +18,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(
     configService: ConfigService,
     private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
   ) {
     const secret = configService.get<string>(
       'JWT_ACCESS_SECRET',
@@ -30,45 +32,48 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   }
 
   async validate(payload: JwtPayload): Promise<AuthenticatedUser> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: payload.sub },
-      include: {
-        userRoles: {
-          include: {
-            role: {
-              include: {
-                rolePermissions: {
-                  include: {
-                    permission: true,
+    const cacheKey = `auth:user:${payload.sub}`;
+    return this.cache.getOrSet(cacheKey, 30000, async () => {
+      const user = await this.prisma.user.findUnique({
+        where: { id: payload.sub },
+        include: {
+          userRoles: {
+            include: {
+              role: {
+                include: {
+                  rolePermissions: {
+                    include: {
+                      permission: true,
+                    },
                   },
                 },
               },
             },
           },
         },
-      },
-    });
+      });
 
-    if (!user || !user.isActive) {
-      throw new UnauthorizedException('User account is inactive or no longer exists');
-    }
-
-    const roles: string[] = [];
-    const permissionSet = new Set<string>();
-
-    for (const ur of user.userRoles) {
-      roles.push(ur.role.name);
-      for (const rp of ur.role.rolePermissions) {
-        permissionSet.add(rp.permission.name);
+      if (!user || !user.isActive) {
+        throw new UnauthorizedException('User account is inactive or no longer exists');
       }
-    }
 
-    return {
-      id: user.id,
-      email: user.email,
-      fullName: user.fullName,
-      roles,
-      permissions: Array.from(permissionSet),
-    };
+      const roles: string[] = [];
+      const permissionSet = new Set<string>();
+
+      for (const ur of user.userRoles) {
+        roles.push(ur.role.name);
+        for (const rp of ur.role.rolePermissions) {
+          permissionSet.add(rp.permission.name);
+        }
+      }
+
+      return {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        roles,
+        permissions: Array.from(permissionSet),
+      };
+    });
   }
 }

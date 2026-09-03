@@ -1,5 +1,5 @@
 import { CartItem, Product, Order } from '../types/index.js';
-import { analyticsApi } from '../api/index.js';
+import { getApiBaseUrl } from '../api/client.js';
 
 const VISITOR_ID_KEY = 'fs_visitor_id';
 const SESSION_ID_KEY = 'fs_session_id';
@@ -134,8 +134,7 @@ export function getTrafficSource(): {
 
 let cachedIp: string | null = null;
 
-// Fetch visitor IP with local cache (server enriches automatically via headers)
-export async function getVisitorIp(): Promise<string> {
+export function getVisitorIp(): string {
   if (cachedIp) return cachedIp;
   try {
     const stored = sessionStorage.getItem(IP_CACHE_KEY);
@@ -149,13 +148,47 @@ export async function getVisitorIp(): Promise<string> {
   return cachedIp;
 }
 
+/**
+ * Non-blocking fire-and-forget analytics dispatcher.
+ * Uses navigator.sendBeacon with fetch(..., { keepalive: true }) fallback.
+ * Never awaits or blocks the application render pipeline.
+ */
+function sendAnalytics(endpoint: string, payload: unknown): void {
+  if (typeof window === 'undefined') return;
+
+  try {
+    const baseUrl = getApiBaseUrl();
+    const url = `${baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+    const bodyStr = JSON.stringify(payload);
+
+    // 1. Try navigator.sendBeacon
+    if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
+      const blob = new Blob([bodyStr], { type: 'application/json' });
+      const queued = navigator.sendBeacon(url, blob);
+      if (queued) return;
+    }
+
+    // 2. Fallback to fetch with keepalive: true
+    if (typeof fetch === 'function') {
+      fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: bodyStr,
+        keepalive: true,
+      }).catch(() => {});
+    }
+  } catch {
+    // Fail silently — analytics must never affect application execution
+  }
+}
+
 class AnalyticsTracker {
   private visitorId: string = '';
   private sessionId: string = '';
   private lastPath: string = '';
   private initialized = false;
 
-  public async init() {
+  private ensureInit(): void {
     if (this.initialized || typeof window === 'undefined') return;
     this.initialized = true;
 
@@ -166,199 +199,188 @@ class AnalyticsTracker {
       sessionStorage.setItem(SESSION_START_KEY, Date.now().toString());
     }
 
-    const ip = await getVisitorIp();
+    const ip = getVisitorIp();
     const device = getDeviceInfo();
     const traffic = getTrafficSource();
 
-    // Register initial session hit
-    analyticsApi
-      .recordHit({
-        sessionId: this.sessionId,
-        visitorId: this.visitorId,
-        ipAddress: ip,
-        deviceType: device.deviceType,
-        browser: device.browser,
-        os: device.os,
-        screenResolution: device.screenResolution,
-        referrer: traffic.sourceCategory,
-        utmSource: traffic.utmSource,
-        utmMedium: traffic.utmMedium,
-        utmCampaign: traffic.utmCampaign,
-        utmContent: traffic.utmContent,
-        utmTerm: traffic.utmTerm,
-        currentPath: window.location.pathname,
-      })
-      .catch(() => {});
+    sendAnalytics('/analytics/hit', {
+      sessionId: this.sessionId,
+      visitorId: this.visitorId,
+      ipAddress: ip,
+      deviceType: device.deviceType,
+      browser: device.browser,
+      os: device.os,
+      screenResolution: device.screenResolution,
+      referrer: traffic.sourceCategory,
+      utmSource: traffic.utmSource,
+      utmMedium: traffic.utmMedium,
+      utmCampaign: traffic.utmCampaign,
+      utmContent: traffic.utmContent,
+      utmTerm: traffic.utmTerm,
+      currentPath: window.location.pathname,
+    });
   }
 
-  public async trackPageView(path: string, title?: string) {
+  public init(): void {
+    this.ensureInit();
+  }
+
+  public trackPageView(path: string, title?: string): void {
     if (path === this.lastPath) return;
     this.lastPath = path;
 
-    await this.init();
-    const ip = await getVisitorIp();
+    this.ensureInit();
+    const ip = getVisitorIp();
     const device = getDeviceInfo();
     const traffic = getTrafficSource();
 
-    // Keep session alive, update page views, pages visited, and duration
-    analyticsApi
-      .recordHit({
-        sessionId: this.sessionId,
-        visitorId: this.visitorId,
-        ipAddress: ip,
-        deviceType: device.deviceType,
-        browser: device.browser,
-        os: device.os,
-        screenResolution: device.screenResolution,
-        referrer: traffic.sourceCategory,
+    // Session update hit
+    sendAnalytics('/analytics/hit', {
+      sessionId: this.sessionId,
+      visitorId: this.visitorId,
+      ipAddress: ip,
+      deviceType: device.deviceType,
+      browser: device.browser,
+      os: device.os,
+      screenResolution: device.screenResolution,
+      referrer: traffic.sourceCategory,
+      utmSource: traffic.utmSource,
+      utmMedium: traffic.utmMedium,
+      utmCampaign: traffic.utmCampaign,
+      utmContent: traffic.utmContent,
+      utmTerm: traffic.utmTerm,
+      currentPath: path,
+    });
+
+    // Page view event
+    sendAnalytics('/analytics/event', {
+      sessionId: this.sessionId,
+      visitorId: this.visitorId,
+      ipAddress: ip,
+      eventType: 'page_view',
+      path,
+      payload: {
+        title: title || (typeof document !== 'undefined' ? document.title : ''),
+        url: typeof window !== 'undefined' ? window.location.href : '',
+      },
+    });
+  }
+
+  public trackViewProduct(product: Product): void {
+    this.ensureInit();
+    const ip = getVisitorIp();
+
+    sendAnalytics('/analytics/event', {
+      sessionId: this.sessionId,
+      visitorId: this.visitorId,
+      ipAddress: ip,
+      eventType: 'view_product',
+      path: `/product/${product.slug}`,
+      payload: {
+        productId: product.id,
+        productNameAr: product.nameAr,
+        productNameEn: product.nameEn,
+        slug: product.slug,
+        basePrice: product.basePrice,
+        categoryId: product.categoryId,
+        categoryName: product.category?.nameAr,
+      },
+    });
+  }
+
+  public trackAddToCart(item: CartItem): void {
+    this.ensureInit();
+    const ip = getVisitorIp();
+
+    sendAnalytics('/analytics/event', {
+      sessionId: this.sessionId,
+      visitorId: this.visitorId,
+      ipAddress: ip,
+      eventType: 'add_to_cart',
+      path: typeof window !== 'undefined' ? window.location.pathname : '/',
+      payload: {
+        productId: item.product.id,
+        productName: item.product.nameAr,
+        variantId: item.variantId,
+        sku: item.variant.sku,
+        price: item.variant.price,
+        quantity: item.quantity,
+        color: item.selectedColor?.nameAr,
+        size: item.selectedSize?.nameAr,
+        totalPrice: Number(item.variant.price) * item.quantity,
+      },
+    });
+  }
+
+  public trackInitiateCheckout(items: CartItem[], totalAmount: number): void {
+    this.ensureInit();
+    const ip = getVisitorIp();
+
+    sendAnalytics('/analytics/event', {
+      sessionId: this.sessionId,
+      visitorId: this.visitorId,
+      ipAddress: ip,
+      eventType: 'initiate_checkout',
+      path: '/checkout',
+      payload: {
+        itemsCount: items.length,
+        totalAmount,
+        items: items.map((i) => ({
+          name: i.product.nameAr,
+          color: i.selectedColor?.nameAr,
+          size: i.selectedSize?.nameAr,
+          qty: i.quantity,
+          price: i.variant.price,
+        })),
+      },
+    });
+  }
+
+  public trackPurchase(order: Order): void {
+    this.ensureInit();
+    const ip = getVisitorIp();
+    const traffic = getTrafficSource();
+
+    sendAnalytics('/analytics/event', {
+      sessionId: this.sessionId,
+      visitorId: this.visitorId,
+      ipAddress: ip,
+      eventType: 'purchase',
+      path: '/order/success',
+      payload: {
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        totalAmount: order.totalAmount,
+        customerName: order.customerName,
+        customerPhone: order.customerPhone,
+        city: order.customerCity,
+        appliedCoupon: order.appliedCoupon,
         utmSource: traffic.utmSource,
-        utmMedium: traffic.utmMedium,
         utmCampaign: traffic.utmCampaign,
-        utmContent: traffic.utmContent,
-        utmTerm: traffic.utmTerm,
-        currentPath: path,
-      })
-      .catch(() => {});
-
-    analyticsApi
-      .recordEvent({
-        sessionId: this.sessionId,
-        visitorId: this.visitorId,
-        ipAddress: ip,
-        eventType: 'page_view',
-        path,
-        payload: {
-          title: title || document.title,
-          url: window.location.href,
-        },
-      })
-      .catch(() => {});
+        itemsCount: order.items?.length || 0,
+      },
+    });
   }
 
-  public async trackViewProduct(product: Product) {
-    await this.init();
-    const ip = await getVisitorIp();
-
-    analyticsApi
-      .recordEvent({
-        sessionId: this.sessionId,
-        visitorId: this.visitorId,
-        ipAddress: ip,
-        eventType: 'view_product',
-        path: `/product/${product.slug}`,
-        payload: {
-          productId: product.id,
-          productNameAr: product.nameAr,
-          productNameEn: product.nameEn,
-          slug: product.slug,
-          basePrice: product.basePrice,
-          categoryId: product.categoryId,
-          categoryName: product.category?.nameAr,
-        },
-      })
-      .catch(() => {});
-  }
-
-  public async trackAddToCart(item: CartItem) {
-    await this.init();
-    const ip = await getVisitorIp();
-
-    analyticsApi
-      .recordEvent({
-        sessionId: this.sessionId,
-        visitorId: this.visitorId,
-        ipAddress: ip,
-        eventType: 'add_to_cart',
-        path: window.location.pathname,
-        payload: {
-          productId: item.product.id,
-          productName: item.product.nameAr,
-          variantId: item.variantId,
-          sku: item.variant.sku,
-          price: item.variant.price,
-          quantity: item.quantity,
-          color: item.selectedColor?.nameAr,
-          size: item.selectedSize?.nameAr,
-          totalPrice: Number(item.variant.price) * item.quantity,
-        },
-      })
-      .catch(() => {});
-  }
-
-  public async trackInitiateCheckout(items: CartItem[], totalAmount: number) {
-    await this.init();
-    const ip = await getVisitorIp();
-
-    analyticsApi
-      .recordEvent({
-        sessionId: this.sessionId,
-        visitorId: this.visitorId,
-        ipAddress: ip,
-        eventType: 'initiate_checkout',
-        path: '/checkout',
-        payload: {
-          itemsCount: items.length,
-          totalAmount,
-          items: items.map((i) => ({
-            name: i.product.nameAr,
-            color: i.selectedColor?.nameAr,
-            size: i.selectedSize?.nameAr,
-            qty: i.quantity,
-            price: i.variant.price,
-          })),
-        },
-      })
-      .catch(() => {});
-  }
-
-  public async trackPurchase(order: Order) {
-    await this.init();
-    const ip = await getVisitorIp();
-    const traffic = getTrafficSource();
-
-    analyticsApi
-      .recordEvent({
-        sessionId: this.sessionId,
-        visitorId: this.visitorId,
-        ipAddress: ip,
-        eventType: 'purchase',
-        path: '/order/success',
-        payload: {
-          orderId: order.id,
-          orderNumber: order.orderNumber,
-          totalAmount: order.totalAmount,
-          customerName: order.customerName,
-          customerPhone: order.customerPhone,
-          city: order.customerCity,
-          appliedCoupon: order.appliedCoupon,
-          utmSource: traffic.utmSource,
-          utmCampaign: traffic.utmCampaign,
-          itemsCount: order.items?.length || 0,
-        },
-      })
-      .catch(() => {});
-  }
-
-  public async trackAbandonedCart(items: CartItem[], totalValue: number) {
+  public trackAbandonedCart(items: CartItem[], totalValue: number): void {
     if (!items || items.length === 0) return;
-    await this.init();
-    const ip = await getVisitorIp();
+    this.ensureInit();
+    const ip = getVisitorIp();
     const device = getDeviceInfo();
 
-    analyticsApi
-      .recordAbandonedCart({
-        sessionId: this.sessionId,
-        visitorId: this.visitorId,
-        ipAddress: ip,
-        deviceType: device.deviceType,
-        items,
-        itemsCount: items.reduce((sum, i) => sum + i.quantity, 0),
-        totalValue,
-      })
-      .catch(() => {});
+    sendAnalytics('/analytics/abandoned-cart', {
+      sessionId: this.sessionId,
+      visitorId: this.visitorId,
+      ipAddress: ip,
+      deviceType: device.deviceType,
+      items,
+      itemsCount: items.reduce((sum, i) => sum + i.quantity, 0),
+      totalValue,
+    });
   }
 
   public getSessionContext() {
+    this.ensureInit();
     return {
       visitorId: this.visitorId,
       sessionId: this.sessionId,

@@ -27,13 +27,21 @@ import {
 
 export const AdminOrdersPage: React.FC = () => {
   const { isArabic } = useTheme();
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<Order[]>(() => {
+    try {
+      const cached = sessionStorage.getItem('craft_admin_orders_p1');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [selectedStatus, setSelectedStatus] = useState<string>('');
   const [search, setSearch] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(orders.length === 0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [toastMsg, setToastMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
 
@@ -42,7 +50,12 @@ export const AdminOrdersPage: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchOrders = () => {
-    setIsLoading(true);
+    if (orders.length === 0) {
+      setIsLoading(true);
+    } else {
+      setIsRefreshing(true);
+    }
+
     ordersApi
       .getAll({
         page,
@@ -54,9 +67,18 @@ export const AdminOrdersPage: React.FC = () => {
         setOrders(res.items);
         setTotalPages(res.totalPages);
         setTotalCount(res.total);
+        if (page === 1 && !selectedStatus && !search) {
+          try {
+            sessionStorage.setItem('craft_admin_orders_p1', JSON.stringify(res.items));
+          } catch {}
+        }
         setIsLoading(false);
+        setIsRefreshing(false);
       })
-      .catch(() => setIsLoading(false));
+      .catch(() => {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      });
   };
 
   useEffect(() => {
@@ -65,6 +87,14 @@ export const AdminOrdersPage: React.FC = () => {
 
   const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
     setUpdatingOrderId(orderId);
+    const prevOrder = orders.find((o) => o.id === orderId);
+    const prevStatus = prevOrder?.status;
+
+    // Optimistic UI update
+    setOrders((prev) =>
+      prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o)),
+    );
+
     try {
       const updated = await ordersApi.updateStatus(orderId, newStatus);
       setOrders((prev) =>
@@ -78,6 +108,12 @@ export const AdminOrdersPage: React.FC = () => {
       });
       setTimeout(() => setToastMsg(null), 3000);
     } catch {
+      // Rollback
+      if (prevStatus) {
+        setOrders((prev) =>
+          prev.map((o) => (o.id === orderId ? { ...o, status: prevStatus } : o)),
+        );
+      }
       setToastMsg({
         type: 'error',
         text: isArabic ? 'فشل تحديث حالة الطلب' : 'Failed to update order status',
@@ -233,8 +269,8 @@ export const AdminOrdersPage: React.FC = () => {
       {/* ========================================================
           2. ORDERS LIVE DATA TABLE
       ======================================================== */}
-      <Card className="overflow-hidden border border-zinc-200 dark:border-zinc-800">
-        {isLoading ? (
+      <Card className={`overflow-hidden border border-zinc-200 dark:border-zinc-800 transition-opacity duration-200 ${isRefreshing ? 'opacity-75' : 'opacity-100'}`}>
+        {isLoading && orders.length === 0 ? (
           <LoadingState message={isArabic ? 'جاري تحميل الطلبات...' : 'Loading orders...'} />
         ) : orders.length === 0 ? (
           <div className="p-14 text-center text-zinc-500 space-y-3">

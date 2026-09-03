@@ -6,13 +6,17 @@ import {
 } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
+import { CacheService } from '../common/cache/cache.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { QueryUsersDto } from './dto/query-users.dto';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
+  ) {}
 
   async findAll(query: QueryUsersDto) {
     const { page = 1, limit = 20, search, role, isActive } = query;
@@ -236,6 +240,9 @@ export class UsersService {
       }
     });
 
+    // Invalidate cached auth user permissions immediately
+    this.cache.delete(`auth:user:${id}`);
+
     return this.findOne(id);
   }
 
@@ -266,6 +273,9 @@ export class UsersService {
       await tx.userRole.deleteMany({ where: { userId: id } });
       await tx.user.delete({ where: { id } });
     });
+
+    // Invalidate cached auth user permissions immediately
+    this.cache.delete(`auth:user:${id}`);
 
     return { message: 'User deleted successfully' };
   }

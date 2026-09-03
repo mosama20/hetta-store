@@ -31,19 +31,29 @@ import {
 
 export const AdminDashboardPage: React.FC = () => {
   const { isArabic } = useTheme();
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [stats, setStats] = useState<DashboardStats | null>(() => {
+    try {
+      const cached = sessionStorage.getItem('craft_admin_dashboard_stats');
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [isLoading, setIsLoading] = useState(!stats);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
   const [statusFeedback, setStatusFeedback] = useState<string | null>(null);
 
-  const fetchStats = (showLoading = true) => {
-    if (showLoading) setIsLoading(true);
+  const fetchStats = (showLoading = false) => {
+    if (showLoading && !stats) setIsLoading(true);
     setIsRefreshing(true);
     dashboardApi
       .getStats()
       .then((data) => {
         setStats(data);
+        try {
+          sessionStorage.setItem('craft_admin_dashboard_stats', JSON.stringify(data));
+        } catch {}
         setIsLoading(false);
         setIsRefreshing(false);
       })
@@ -59,6 +69,17 @@ export const AdminDashboardPage: React.FC = () => {
 
   const handleQuickStatusChange = async (orderId: string, newStatus: OrderStatus) => {
     setUpdatingOrderId(orderId);
+    // Optimistic UI update
+    const previousOrders = stats?.recentOrders;
+    if (stats && previousOrders) {
+      setStats({
+        ...stats,
+        recentOrders: previousOrders.map((o) =>
+          o.id === orderId ? { ...o, status: newStatus } : o,
+        ),
+      });
+    }
+
     try {
       await ordersApi.updateStatus(orderId, newStatus);
       setStatusFeedback(
@@ -70,6 +91,10 @@ export const AdminDashboardPage: React.FC = () => {
       // Refresh stats in background without full reload
       fetchStats(false);
     } catch {
+      // Rollback on failure
+      if (stats && previousOrders) {
+        setStats({ ...stats, recentOrders: previousOrders });
+      }
       setStatusFeedback(isArabic ? 'فشل تحديث الحالة' : 'Failed to update status');
       setTimeout(() => setStatusFeedback(null), 2500);
     } finally {
@@ -77,7 +102,7 @@ export const AdminDashboardPage: React.FC = () => {
     }
   };
 
-  if (isLoading || !stats) {
+  if (isLoading && !stats) {
     return (
       <LoadingState message={isArabic ? 'جاري تحميل مؤشرات المتجر المباشرة...' : 'Loading live metrics...'} />
     );

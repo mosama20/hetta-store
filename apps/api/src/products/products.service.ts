@@ -5,12 +5,14 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { QueryProductsDto } from './dto/query-products.dto';
 import { AuditService } from '../audit/audit.service';
+import { CacheService } from '../common/cache/cache.service';
 
 @Injectable()
 export class ProductsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly cache: CacheService,
   ) {}
 
   async findAll(query: QueryProductsDto) {
@@ -76,6 +78,14 @@ export class ProductsService {
       };
     }
 
+    // Check cache for public catalog queries
+    const isPublicCatalog = !all && !search;
+    const cacheKey = isPublicCatalog ? `products:public:${JSON.stringify(query)}` : null;
+    if (cacheKey) {
+      const cached = this.cache.get<any>(cacheKey);
+      if (cached) return cached;
+    }
+
     // Sorting
     let orderBy: Prisma.ProductOrderByWithRelationInput | Prisma.ProductOrderByWithRelationInput[] = { createdAt: 'desc' };
     if (sortBy === 'price_asc') orderBy = { basePrice: 'asc' };
@@ -95,12 +105,35 @@ export class ProductsService {
           },
           images: {
             orderBy: { displayOrder: 'asc' },
+            select: {
+              id: true,
+              productId: true,
+              url: true,
+              altTextAr: true,
+              altTextEn: true,
+              displayOrder: true,
+              isPrimary: true,
+            },
           },
           variants: {
             where: all ? {} : { isActive: true },
-            include: {
-              color: true,
-              size: true,
+            select: {
+              id: true,
+              productId: true,
+              colorId: true,
+              sizeId: true,
+              sku: true,
+              price: true,
+              compareAtPrice: true,
+              stockQuantity: true,
+              lowStockThreshold: true,
+              isActive: true,
+              color: {
+                select: { id: true, nameAr: true, nameEn: true, hexCode: true, displayOrder: true },
+              },
+              size: {
+                select: { id: true, nameAr: true, nameEn: true, displayOrder: true },
+              },
             },
           },
         },
@@ -109,7 +142,7 @@ export class ProductsService {
 
     const totalPages = Math.ceil(total / limit);
 
-    return {
+    const result = {
       items: products,
       total,
       page,
@@ -118,6 +151,12 @@ export class ProductsService {
       hasNextPage: page < totalPages,
       hasPreviousPage: page > 1,
     };
+
+    if (cacheKey) {
+      this.cache.set(cacheKey, result, 30000); // 30s TTL
+    }
+
+    return result;
   }
 
   async findBySlug(slug: string) {
@@ -229,6 +268,9 @@ export class ProductsService {
         newValues: { ...dto },
       });
 
+      this.cache.deleteByPrefix('products:');
+      this.cache.deleteByPrefix('dashboard:');
+
       return this.findOne(product.id);
     });
   }
@@ -272,8 +314,8 @@ export class ProductsService {
         },
       });
 
-      // Update images if provided
-      if (dto.images !== undefined) {
+      // Handle Image updates if provided
+      if (dto.images) {
         await tx.productImage.deleteMany({ where: { productId: id } });
         if (dto.images.length > 0) {
           await tx.productImage.createMany({
@@ -290,6 +332,28 @@ export class ProductsService {
         }
       }
 
+      // Handle Variant updates if provided
+      if (dto.variants) {
+        await tx.productVariant.deleteMany({ where: { productId: id } });
+        if (dto.variants.length > 0) {
+          for (const v of dto.variants) {
+            await tx.productVariant.create({
+              data: {
+                productId: id,
+                colorId: v.colorId,
+                sizeId: v.sizeId,
+                sku: v.sku.toUpperCase().trim(),
+                price: v.price ?? dto.basePrice,
+                compareAtPrice: v.compareAtPrice,
+                stockQuantity: v.stockQuantity ?? 0,
+                lowStockThreshold: v.lowStockThreshold ?? 5,
+                isActive: v.isActive ?? true,
+              },
+            });
+          }
+        }
+      }
+
       await this.auditService.log({
         userId,
         action: 'PRODUCT_UPDATE',
@@ -298,6 +362,9 @@ export class ProductsService {
         oldValues: { ...product },
         newValues: { ...dto },
       });
+
+      this.cache.deleteByPrefix('products:');
+      this.cache.deleteByPrefix('dashboard:');
 
       return this.findOne(id);
     });
@@ -314,6 +381,9 @@ export class ProductsService {
       where: { id },
       data: { deletedAt: new Date(), isActive: false },
     });
+
+    this.cache.deleteByPrefix('products:');
+    this.cache.deleteByPrefix('dashboard:');
 
     await this.auditService.log({
       userId,
@@ -343,6 +413,9 @@ export class ProductsService {
       where: { id: variantId },
       data: { stockQuantity: newStock },
     });
+
+    this.cache.deleteByPrefix('products:');
+    this.cache.deleteByPrefix('dashboard:');
 
     await this.auditService.log({
       userId,
@@ -548,6 +621,11 @@ export class ProductsService {
       } catch (err: any) {
         errors.push(`Row ${i + 1}: ${err.message}`);
       }
+    }
+
+    if (importedCount > 0) {
+      this.cache.deleteByPrefix('products:');
+      this.cache.deleteByPrefix('dashboard:');
     }
 
     return {

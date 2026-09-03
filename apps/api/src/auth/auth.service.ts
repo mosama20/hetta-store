@@ -14,6 +14,8 @@ import { MailService } from './mail.service';
 
 // Removed in-memory Map in favor of database persistent PasswordResetToken model
 
+import { CacheService } from '../common/cache/cache.service';
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -21,7 +23,8 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly mailService: MailService,
-  ) { }
+    private readonly cache: CacheService,
+  ) {}
 
   private hashToken(token: string): string {
     return crypto.createHash('sha256').update(token).digest('hex');
@@ -208,6 +211,9 @@ export class AuthService {
       data: { revokedAt: new Date() },
     });
 
+    // Invalidate cached auth user permissions immediately
+    this.cache.delete(`auth:user:${user.id}`);
+
     return { message: 'Password updated successfully' };
   }
 
@@ -300,6 +306,9 @@ export class AuthService {
       where: { userId: user.id, revokedAt: null },
       data: { revokedAt: new Date() },
     });
+
+    // Invalidate cached auth user permissions immediately
+    this.cache.delete(`auth:user:${user.id}`);
 
     return {
       success: true,

@@ -1,7 +1,9 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { validate } from './config/env.validation';
 import { PrismaModule } from './prisma/prisma.module';
+import { CacheModule } from './common/cache/cache.module';
+import { RequestTimingMiddleware } from './common/middleware/request-timing.middleware';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
@@ -15,6 +17,7 @@ import { SettingsModule } from './settings/settings.module';
 import { MediaModule } from './media/media.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { SheinModule } from './shein/shein.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -24,6 +27,7 @@ import { AppService } from './app.service';
       isGlobal: true,
       validate,
     }),
+    CacheModule,
     PrismaModule,
     AuditModule,
     AuthModule,
@@ -38,9 +42,14 @@ import { AppService } from './app.service';
     MediaModule,
     DashboardModule,
     AnalyticsModule,
+    SheinModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(RequestTimingMiddleware).forRoutes('*');
+  }
+}
 

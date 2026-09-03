@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import * as XLSX from 'xlsx';
 import { Product } from '../../types/index.js';
 import { productsApi } from '../../api/index.js';
 import { useTheme } from '../../store/themeStore.js';
@@ -107,6 +106,7 @@ export const AdminProductsPage: React.FC = () => {
         }
       });
 
+      const XLSX = await import('xlsx');
       const worksheet = XLSX.utils.json_to_sheet(exportRows);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Products');

@@ -2,15 +2,21 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { SettingGroup, CMSSectionType, DiscountType, OrderStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { CacheService } from '../common/cache/cache.service';
 
 @Injectable()
 export class SettingsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
-  ) {}
+    private readonly cache: CacheService,
+  ) { }
 
   async getPublicSettings() {
+    const cacheKey = 'settings:public';
+    const cached = this.cache.get<Record<string, string>>(cacheKey);
+    if (cached) return cached;
+
     const settings = await this.prisma.storeSetting.findMany({
       where: { isPublic: true },
     });
@@ -31,6 +37,13 @@ export class SettingsService {
         tiktok: 'https://tiktok.com/@craftwear',
       }),
       support_email: 'hello@craftwear.com',
+      // SHEIN Concierge Settings (EGP)
+      shein_enabled: 'true',
+      shein_shipping_fee: '100', // EGP
+      shein_service_fee: '75', // EGP
+      shein_delivery_fee: '60', // EGP (local delivery in Egypt)
+      shein_exchange_rate: '1', // If price is already in EGP, or multiplier
+      shein_estimated_days: '10-15 يوم عمل',
     };
 
     const result: Record<string, string> = { ...defaultSettings };
@@ -40,12 +53,17 @@ export class SettingsService {
       }
     });
 
+    const ttl = Number(process.env.PUBLIC_CACHE_TTL_SECONDS || '60') * 1000;
+    this.cache.set(cacheKey, result, ttl);
+
     return result;
   }
 
   async getAllSettings() {
-    return this.prisma.storeSetting.findMany({
-      orderBy: { key: 'asc' },
+    return this.cache.getOrSet('settings:all', 60000, async () => {
+      return this.prisma.storeSetting.findMany({
+        orderBy: { key: 'asc' },
+      });
     });
   }
 
@@ -55,6 +73,9 @@ export class SettingsService {
       update: { value, isPublic: true, ...(group ? { group } : {}) },
       create: { key, value, group: group || SettingGroup.GENERAL, isPublic: true },
     });
+
+    // Invalidate settings cache
+    this.cache.deleteByPrefix('settings:');
 
     await this.auditService.log({
       userId,
@@ -536,6 +557,9 @@ export class SettingsService {
       }
     });
 
+    // Invalidate settings cache
+    this.cache.deleteByPrefix('settings:');
+
     await this.auditService.log({
       userId,
       action: 'RESTORE_BACKUP',
@@ -587,6 +611,9 @@ export class SettingsService {
         create: { key: s.key, value: s.value, group: s.group, isPublic: true },
       });
     }
+
+    // Invalidate settings cache
+    this.cache.deleteByPrefix('settings:');
 
     await this.auditService.log({
       userId,

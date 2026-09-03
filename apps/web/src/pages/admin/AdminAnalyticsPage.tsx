@@ -36,14 +36,21 @@ import {
 
 export const AdminAnalyticsPage: React.FC = () => {
   const { isArabic } = useTheme();
-  const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
+  const [summary, setSummary] = useState<AnalyticsSummary | null>(() => {
+    try {
+      const cached = sessionStorage.getItem('craft_admin_analytics_summary');
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  });
   const [sessions, setSessions] = useState<VisitorSession[]>([]);
   const [abandonedCarts, setAbandonedCarts] = useState<AbandonedCart[]>([]);
   const [activeTab, setActiveTab] = useState<'overview' | 'sessions' | 'behavior' | 'abandoned'>('overview');
   const [timeRange, setTimeRange] = useState<'today' | 'week' | 'month' | 'all'>('all');
   const [autoRefresh, setAutoRefresh] = useState(false);
 
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!summary);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [isClearing, setIsClearing] = useState(false);
   const [showClearModal, setShowClearModal] = useState(false);
@@ -53,7 +60,8 @@ export const AdminAnalyticsPage: React.FC = () => {
   const [feedbackMsg, setFeedbackMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const fetchAnalytics = useCallback(async (isSilent = false) => {
-    if (!isSilent) setIsLoading(true);
+    const silent = isSilent || summary !== null;
+    if (!silent) setIsLoading(true);
     setFetchError(null);
     try {
       const [sumRes, sessRes, abnRes] = await Promise.all([
@@ -62,15 +70,18 @@ export const AdminAnalyticsPage: React.FC = () => {
         analyticsApi.getAbandonedCarts({ page: 1, limit: 20 }),
       ]);
       setSummary(sumRes);
+      try {
+        sessionStorage.setItem('craft_admin_analytics_summary', JSON.stringify(sumRes));
+      } catch {}
       setSessions(sessRes?.items || []);
       setTotalPages(sessRes?.totalPages || 1);
       setAbandonedCarts(abnRes?.items || []);
     } catch (err: any) {
       setFetchError(err?.message || (isArabic ? 'حدث خطأ أثناء تحميل بيانات التحليلات' : 'Failed to fetch analytics data'));
     } finally {
-      if (!isSilent) setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
-  }, [page, sessionSearch, timeRange, isArabic]);
+  }, [page, sessionSearch, timeRange, isArabic, summary]);
 
   useEffect(() => {
     fetchAnalytics();

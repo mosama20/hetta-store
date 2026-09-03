@@ -4,12 +4,14 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { AuditService } from '../audit/audit.service';
+import { CacheService } from '../common/cache/cache.service';
 
 @Injectable()
 export class OrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly cache: CacheService,
   ) { }
 
   private generateOrderNumber(): string {
@@ -140,7 +142,7 @@ export class OrdersService {
     )}`;
 
     // Execute atomic transaction: create order, create snapshot items, reserve/decrement stock
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const order = await tx.order.create({
         data: {
           orderNumber,
@@ -176,6 +178,13 @@ export class OrdersService {
         whatsappMessage: generatedMessage,
       };
     });
+
+    // Invalidate affected order, dashboard, and analytics caches
+    this.cache.deleteByPrefix('orders:');
+    this.cache.deleteByPrefix('dashboard:');
+    this.cache.deleteByPrefix('analytics:');
+
+    return result;
   }
 
   async findAll(query: { page?: number; limit?: number; status?: OrderStatus; search?: string }) {
@@ -183,40 +192,44 @@ export class OrdersService {
     const limit = Number(query.limit) || 20;
     const skip = (page - 1) * limit;
 
-    const where: Record<string, unknown> = {};
-    if (query.status) where['status'] = query.status;
-    if (query.search) {
-      where['OR'] = [
-        { orderNumber: { contains: query.search, mode: 'insensitive' } },
-        { customerName: { contains: query.search, mode: 'insensitive' } },
-        { customerPhone: { contains: query.search, mode: 'insensitive' } },
-      ];
-    }
+    const cacheKey = `orders:p_${page}:l_${limit}:s_${query.status || 'all'}:q_${query.search ? query.search.trim().toLowerCase() : ''}`;
 
-    const [total, orders] = await Promise.all([
-      this.prisma.order.count({ where }),
-      this.prisma.order.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          items: true,
-        },
-      }),
-    ]);
+    return this.cache.getOrSet(cacheKey, 15000, async () => {
+      const where: Record<string, unknown> = {};
+      if (query.status) where['status'] = query.status;
+      if (query.search) {
+        where['OR'] = [
+          { orderNumber: { contains: query.search, mode: 'insensitive' } },
+          { customerName: { contains: query.search, mode: 'insensitive' } },
+          { customerPhone: { contains: query.search, mode: 'insensitive' } },
+        ];
+      }
 
-    const totalPages = Math.ceil(total / limit);
+      const [total, orders] = await Promise.all([
+        this.prisma.order.count({ where }),
+        this.prisma.order.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy: { createdAt: 'desc' },
+          include: {
+            items: true,
+          },
+        }),
+      ]);
 
-    return {
-      items: orders,
-      total,
-      page,
-      limit,
-      totalPages,
-      hasNextPage: page < totalPages,
-      hasPreviousPage: page > 1,
-    };
+      const totalPages = Math.ceil(total / limit);
+
+      return {
+        items: orders,
+        total,
+        page,
+        limit,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      };
+    });
   }
 
   async findOne(id: string) {
@@ -243,6 +256,10 @@ export class OrdersService {
       data: { status: dto.status },
     });
 
+    // Invalidate affected caches immediately
+    this.cache.deleteByPrefix('orders:');
+    this.cache.deleteByPrefix('dashboard:');
+
     await this.auditService.log({
       userId,
       action: 'ORDER_STATUS_UPDATE',
@@ -263,6 +280,10 @@ export class OrdersService {
 
     await this.prisma.orderItem.deleteMany({ where: { orderId: id } });
     await this.prisma.order.delete({ where: { id } });
+
+    // Invalidate affected caches immediately
+    this.cache.deleteByPrefix('orders:');
+    this.cache.deleteByPrefix('dashboard:');
 
     await this.auditService.log({
       userId,

@@ -60,6 +60,7 @@ coverage/
 tmp/
 temp/
 .temp/
+scratch/
 
 # Vercel
 .vercel/

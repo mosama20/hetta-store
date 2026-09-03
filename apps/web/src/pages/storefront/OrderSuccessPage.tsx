@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import { Order } from '../../types/index.js';
+import { Order, SheinOrder } from '../../types/index.js';
 import { useTheme } from '../../store/themeStore.js';
 import { formatPrice } from '../../utils/formatters.js';
 import { Button } from '../../components/common/Button.js';
@@ -9,7 +9,7 @@ import { CheckCircle2, MessageCircle, ArrowRight } from 'lucide-react';
 export const OrderSuccessPage: React.FC = () => {
   const location = useLocation();
   const { isArabic } = useTheme();
-  const state = location.state as { order?: Order; whatsappUrl?: string } | undefined;
+  const state = location.state as { order?: Order | SheinOrder; whatsappUrl?: string } | undefined;
 
   const order = state?.order;
   const whatsappUrl = state?.whatsappUrl;
@@ -24,6 +24,10 @@ export const OrderSuccessPage: React.FC = () => {
       </div>
     );
   }
+
+  const isShein = order.orderNumber.startsWith('SHN-') || 'productsTotal' in order;
+  const sheinOrder = isShein ? (order as SheinOrder) : null;
+  const standardOrder = !isShein ? (order as Order) : null;
 
   return (
     <div className="py-12 max-w-xl mx-auto space-y-8 text-center">
@@ -80,24 +84,53 @@ export const OrderSuccessPage: React.FC = () => {
               {order.customerPhone}
             </span>
           </div>
-          {order.subtotal !== undefined && (
-            <div className="flex justify-between">
-              <span className="text-zinc-500">{isArabic ? 'المجموع الفرعي:' : 'Subtotal:'}</span>
-              <span className="font-semibold">{formatPrice(Number(order.subtotal), 'EGP', isArabic)}</span>
-            </div>
+
+          {/* Shein Specific Breakdown */}
+          {sheinOrder && (
+            <>
+              <div className="flex justify-between">
+                <span className="text-zinc-500">{isArabic ? 'إجمالي المنتجات من SHEIN:' : 'Products Subtotal:'}</span>
+                <span className="font-semibold">{formatPrice(Number(sheinOrder.productsTotal), 'EGP', isArabic)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-zinc-500">{isArabic ? 'الشحن الدولي من SHEIN:' : 'SHEIN International Shipping:'}</span>
+                <span className="font-semibold">{formatPrice(Number(sheinOrder.sheinShippingFee), 'EGP', isArabic)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-zinc-500">{isArabic ? 'رسوم الخدمة والتخليص:' : 'Service & Handling:'}</span>
+                <span className="font-semibold">{formatPrice(Number(sheinOrder.serviceFee), 'EGP', isArabic)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-zinc-500">{isArabic ? 'التوصيل الداخلي بمصر:' : 'Domestic Delivery:'}</span>
+                <span className="font-semibold">{formatPrice(Number(sheinOrder.deliveryFee), 'EGP', isArabic)}</span>
+              </div>
+            </>
           )}
-          {!!order.discountAmount && order.discountAmount > 0 && (
-            <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold">
-              <span>{isArabic ? `خصم الكوبون ${order.appliedCoupon ? `(${order.appliedCoupon})` : ''}:` : `Discount ${order.appliedCoupon ? `(${order.appliedCoupon})` : ''}:`}</span>
-              <span>-{formatPrice(Number(order.discountAmount), 'EGP', isArabic)}</span>
-            </div>
+
+          {/* Standard Order Breakdown */}
+          {standardOrder && (
+            <>
+              {standardOrder.subtotal !== undefined && (
+                <div className="flex justify-between">
+                  <span className="text-zinc-500">{isArabic ? 'المجموع الفرعي:' : 'Subtotal:'}</span>
+                  <span className="font-semibold">{formatPrice(Number(standardOrder.subtotal), 'EGP', isArabic)}</span>
+                </div>
+              )}
+              {!!standardOrder.discountAmount && standardOrder.discountAmount > 0 && (
+                <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold">
+                  <span>{isArabic ? `خصم الكوبون ${standardOrder.appliedCoupon ? `(${standardOrder.appliedCoupon})` : ''}:` : `Discount ${standardOrder.appliedCoupon ? `(${standardOrder.appliedCoupon})` : ''}:`}</span>
+                  <span>-{formatPrice(Number(standardOrder.discountAmount), 'EGP', isArabic)}</span>
+                </div>
+              )}
+              {standardOrder.shippingFee !== undefined && (
+                <div className="flex justify-between">
+                  <span className="text-zinc-500">{isArabic ? 'مصاريف الشحن:' : 'Shipping:'}</span>
+                  <span className="font-semibold">{standardOrder.shippingFee === 0 ? (isArabic ? 'مجاني' : 'Free') : formatPrice(Number(standardOrder.shippingFee), 'EGP', isArabic)}</span>
+                </div>
+              )}
+            </>
           )}
-          {order.shippingFee !== undefined && (
-            <div className="flex justify-between">
-              <span className="text-zinc-500">{isArabic ? 'مصاريف الشحن:' : 'Shipping:'}</span>
-              <span className="font-semibold">{order.shippingFee === 0 ? (isArabic ? 'مجاني' : 'Free') : formatPrice(Number(order.shippingFee), 'EGP', isArabic)}</span>
-            </div>
-          )}
+
           <div className="flex justify-between pt-2 border-t border-zinc-200 dark:border-zinc-800">
             <span className="text-zinc-700 dark:text-zinc-300 font-bold">{isArabic ? 'الإجمالي النهائي المطلوب:' : 'Final Total Amount:'}</span>
             <span className="font-black text-sm text-zinc-900 dark:text-zinc-100">

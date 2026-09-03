@@ -42,6 +42,26 @@ export class EnvironmentVariables {
   @IsString()
   @IsOptional()
   STORAGE_PROVIDER: string = 'LOCAL';
+
+  @IsNumber()
+  @IsOptional()
+  DATABASE_CONNECTION_LIMIT: number = 5;
+
+  @IsNumber()
+  @IsOptional()
+  DATABASE_POOL_TIMEOUT: number = 10;
+
+  @IsNumber()
+  @IsOptional()
+  PUBLIC_CACHE_TTL_SECONDS: number = 60;
+
+  @IsNumber()
+  @IsOptional()
+  PUBLIC_CACHE_STALE_SECONDS: number = 300;
+
+  @IsString()
+  @IsOptional()
+  LOG_REQUEST_TIMING: string = 'false';
 }
 
 export function validate(config: Record<string, unknown>) {

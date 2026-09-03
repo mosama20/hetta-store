@@ -20,6 +20,7 @@ import {
   Menu,
   X,
   Store,
+  Sparkles,
 } from 'lucide-react';
 import { useAuth } from '../../store/authStore.js';
 import { useTheme } from '../../store/themeStore.js';
@@ -67,6 +68,13 @@ export const AdminLayout: React.FC = () => {
           labelEn: 'Customer Orders',
           path: '/darsh50/orders',
           icon: ShoppingCart,
+          perm: 'orders.read',
+        },
+        {
+          labelAr: 'طلبات SHEIN (الوسيط)',
+          labelEn: 'SHEIN Orders',
+          path: '/darsh50/shein-orders',
+          icon: Sparkles,
           perm: 'orders.read',
         },
         {

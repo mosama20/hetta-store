@@ -5,6 +5,7 @@ import {
   Post,
   Body,
   Param,
+  Header,
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
@@ -23,6 +24,7 @@ export class SettingsController {
 
   @Public()
   @Get('public')
+  @Header('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300')
   @ApiOperation({ summary: 'Get public storefront settings (branding, WhatsApp number, currency)' })
   async getPublicSettings() {
     return this.settingsService.getPublicSettings();

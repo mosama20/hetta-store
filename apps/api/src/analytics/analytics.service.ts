@@ -1,15 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { CacheService } from '../common/cache/cache.service';
 import { RecordHitDto } from './dto/record-hit.dto';
 import { RecordEventDto } from './dto/record-event.dto';
 import { RecordAbandonedCartDto } from './dto/record-abandoned-cart.dto';
 
 @Injectable()
 export class AnalyticsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
+  ) {}
 
   async recordHit(dto: RecordHitDto, detectedIp?: string) {
-    await this.ensureTablesExist();
     const ip = detectedIp || dto.ipAddress || '127.0.0.1';
     const currentPath = dto.currentPath || '/';
 
@@ -80,7 +83,6 @@ export class AnalyticsService {
   }
 
   async recordEvent(dto: RecordEventDto, detectedIp?: string) {
-    await this.ensureTablesExist();
     const ip = detectedIp || dto.ipAddress || '127.0.0.1';
 
     try {
@@ -153,179 +155,133 @@ export class AnalyticsService {
     }
   }
 
-  private hasEnsuredTables = false;
 
-  private async ensureTablesExist() {
-    if (this.hasEnsuredTables) return;
-    try {
-      await this.prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "visitor_sessions" (
-          "id" UUID NOT NULL DEFAULT gen_random_uuid(),
-          "session_id" VARCHAR(100) NOT NULL,
-          "visitor_id" VARCHAR(100) NOT NULL,
-          "ip_address" VARCHAR(45),
-          "country" VARCHAR(100),
-          "city" VARCHAR(100),
-          "device_type" VARCHAR(20) NOT NULL DEFAULT 'desktop',
-          "browser" VARCHAR(100) NOT NULL DEFAULT 'Unknown',
-          "os" VARCHAR(100) NOT NULL DEFAULT 'Unknown',
-          "screen_resolution" VARCHAR(50),
-          "referrer" VARCHAR(255) NOT NULL DEFAULT 'Direct',
-          "utm_source" VARCHAR(100),
-          "utm_medium" VARCHAR(100),
-          "utm_campaign" VARCHAR(100),
-          "utm_content" VARCHAR(100),
-          "utm_term" VARCHAR(100),
-          "pages_visited" TEXT[] DEFAULT ARRAY[]::TEXT[],
-          "total_page_views" INTEGER NOT NULL DEFAULT 1,
-          "duration_seconds" INTEGER NOT NULL DEFAULT 0,
-          "has_order" BOOLEAN NOT NULL DEFAULT false,
-          "order_number" VARCHAR(50),
-          "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          "updated_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          CONSTRAINT "visitor_sessions_pkey" PRIMARY KEY ("id")
-        );
-      `);
-      await this.prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "visitor_sessions_session_id_key" ON "visitor_sessions"("session_id");`).catch(() => {});
-      await this.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "idx_visitor_sessions_session_id" ON "visitor_sessions"("session_id");`).catch(() => {});
-      await this.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "idx_visitor_sessions_visitor_id" ON "visitor_sessions"("visitor_id");`).catch(() => {});
-      await this.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "idx_visitor_sessions_ip_address" ON "visitor_sessions"("ip_address");`).catch(() => {});
-      await this.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "idx_visitor_sessions_created_at" ON "visitor_sessions"("created_at");`).catch(() => {});
-
-      await this.prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "analytics_events" (
-          "id" UUID NOT NULL DEFAULT gen_random_uuid(),
-          "session_id" VARCHAR(100) NOT NULL,
-          "visitor_id" VARCHAR(100) NOT NULL,
-          "ip_address" VARCHAR(45),
-          "event_type" VARCHAR(50) NOT NULL,
-          "path" VARCHAR(255) NOT NULL,
-          "payload" JSONB,
-          "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          CONSTRAINT "analytics_events_pkey" PRIMARY KEY ("id")
-        );
-      `);
-      await this.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "idx_analytics_events_session_id" ON "analytics_events"("session_id");`).catch(() => {});
-      await this.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "idx_analytics_events_visitor_id" ON "analytics_events"("visitor_id");`).catch(() => {});
-      await this.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "idx_analytics_events_event_type" ON "analytics_events"("event_type");`).catch(() => {});
-      await this.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "idx_analytics_events_created_at" ON "analytics_events"("created_at");`).catch(() => {});
-
-      await this.prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "abandoned_carts" (
-          "id" UUID NOT NULL DEFAULT gen_random_uuid(),
-          "session_id" VARCHAR(100) NOT NULL,
-          "visitor_id" VARCHAR(100) NOT NULL,
-          "ip_address" VARCHAR(45),
-          "device_type" VARCHAR(20) NOT NULL DEFAULT 'desktop',
-          "items" JSONB NOT NULL,
-          "items_count" INTEGER NOT NULL DEFAULT 0,
-          "total_value" DECIMAL(10,2) NOT NULL,
-          "currency" VARCHAR(10) NOT NULL DEFAULT 'EGP',
-          "is_recovered" BOOLEAN NOT NULL DEFAULT false,
-          "last_active_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          "updated_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          CONSTRAINT "abandoned_carts_pkey" PRIMARY KEY ("id")
-        );
-      `);
-      await this.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "idx_abandoned_carts_session_id" ON "abandoned_carts"("session_id");`).catch(() => {});
-      await this.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "idx_abandoned_carts_visitor_id" ON "abandoned_carts"("visitor_id");`).catch(() => {});
-      await this.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "idx_abandoned_carts_is_recovered" ON "abandoned_carts"("is_recovered");`).catch(() => {});
-      await this.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "idx_abandoned_carts_created_at" ON "abandoned_carts"("created_at");`).catch(() => {});
-
-      this.hasEnsuredTables = true;
-    } catch (err: any) {
-      console.error('[AnalyticsService] Error ensuring tables:', err?.message || err);
-    }
-  }
 
   async getSummary(timeRange?: 'today' | 'week' | 'month' | 'all') {
-    await this.ensureTablesExist();
-    try {
-      const now = new Date();
-      let startDate: Date | undefined;
+    return this.cache.getOrSet(`analytics:summary:${timeRange || 'all'}`, 45000, async () => {
+      try {
+        const now = new Date();
+        let startDate: Date | undefined;
 
-      if (timeRange === 'today') {
-        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      } else if (timeRange === 'week') {
-        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      } else if (timeRange === 'month') {
-        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      }
+        if (timeRange === 'today') {
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        } else if (timeRange === 'week') {
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        } else if (timeRange === 'month') {
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        }
 
-      const whereClause = startDate ? { createdAt: { gte: startDate } } : {};
+        const whereClause = startDate ? { createdAt: { gte: startDate } } : {};
 
-    const [
-      totalSessions,
-      events,
-      abandonedCarts,
-      recentActiveSessions,
-    ] = await Promise.all([
-      this.prisma.visitorSession.findMany({
-        where: whereClause,
-        select: {
-          id: true,
-          visitorId: true,
-          deviceType: true,
-          browser: true,
-          os: true,
-          referrer: true,
-          utmSource: true,
-          utmCampaign: true,
-          pagesVisited: true,
-          totalPageViews: true,
-          durationSeconds: true,
-          hasOrder: true,
-          createdAt: true,
-          updatedAt: true,
-        },
-        orderBy: { updatedAt: 'desc' },
-      }),
-      this.prisma.analyticsEvent.findMany({
-        where: whereClause,
-        select: {
-          eventType: true,
-          path: true,
-          payload: true,
-        },
-      }),
-      this.prisma.abandonedCart.findMany({
-        where: {
-          isRecovered: false,
-          ...(startDate ? { createdAt: { gte: startDate } } : {}),
-        },
-      }),
-      // Active in last 5 minutes
-      this.prisma.visitorSession.count({
-        where: {
-          updatedAt: { gte: new Date(Date.now() - 5 * 60 * 1000) },
-        },
-      }),
-    ]);
+        const [
+          sessionAgg,
+          abandonedCartAgg,
+          recentActiveSessions,
+          deviceGroups,
+          osGroups,
+          browserGroups,
+          sampleSessions,
+          sampleEvents,
+        ] = await Promise.all([
+          // 1. Database-side mathematical aggregation over entire dataset
+          this.prisma.visitorSession.aggregate({
+            where: whereClause,
+            _sum: { totalPageViews: true },
+            _avg: { durationSeconds: true },
+            _count: { _all: true },
+          }),
+          // 2. Database-side aggregation for abandoned carts over entire dataset
+          this.prisma.abandonedCart.aggregate({
+            where: {
+              isRecovered: false,
+              ...(startDate ? { createdAt: { gte: startDate } } : {}),
+            },
+            _count: { _all: true },
+            _sum: { totalValue: true },
+          }),
+          // 3. Active in last 5 minutes
+          this.prisma.visitorSession.count({
+            where: {
+              updatedAt: { gte: new Date(Date.now() - 5 * 60 * 1000) },
+            },
+          }),
+          // 4. Database-side device breakdown across entire table
+          this.prisma.visitorSession.groupBy({
+            by: ['deviceType'],
+            where: whereClause,
+            _count: { _all: true },
+          }),
+          // 5. Database-side OS breakdown across entire table
+          this.prisma.visitorSession.groupBy({
+            by: ['os'],
+            where: whereClause,
+            _count: { _all: true },
+          }),
+          // 6. Database-side Browser breakdown across entire table
+          this.prisma.visitorSession.groupBy({
+            by: ['browser'],
+            where: whereClause,
+            _count: { _all: true },
+          }),
+          // 7. Recent sessions sample for path and campaign extraction (bounded projection)
+          this.prisma.visitorSession.findMany({
+            where: whereClause,
+            take: 200,
+            select: {
+              visitorId: true,
+              referrer: true,
+              utmSource: true,
+              utmCampaign: true,
+              pagesVisited: true,
+              totalPageViews: true,
+              hasOrder: true,
+              createdAt: true,
+            },
+            orderBy: { updatedAt: 'desc' },
+          }),
+          // 8. Recent events sample for top viewed products (bounded projection)
+          this.prisma.analyticsEvent.findMany({
+            where: {
+              ...whereClause,
+              eventType: { in: ['view_product', 'add_to_cart'] },
+            },
+            take: 200,
+            orderBy: { createdAt: 'desc' },
+            select: {
+              eventType: true,
+              path: true,
+              payload: true,
+            },
+          }),
+        ]);
 
-    const totalVisitors = new Set(totalSessions.map((s) => s.visitorId)).size;
-    const totalPageViews = totalSessions.reduce((acc, s) => acc + (s.totalPageViews || 1), 0);
-    const bounceCount = totalSessions.filter((s) => (s.totalPageViews || 1) <= 1).length;
-    const bounceRate = totalSessions.length > 0 ? Math.round((bounceCount / totalSessions.length) * 100) : 0;
-    const avgSessionDurationSeconds = totalSessions.length > 0
-      ? Math.round(totalSessions.reduce((acc, s) => acc + (s.durationSeconds || 0), 0) / totalSessions.length)
-      : 0;
+        const totalDbSessions = sessionAgg._count._all;
+        const totalPageViews = sessionAgg._sum.totalPageViews || 0;
+        const avgSessionDurationSeconds = Math.round(sessionAgg._avg.durationSeconds || 0);
 
-    // Unique visitors today & this week
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const startOfWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const abandonedCartsCount = abandonedCartAgg._count._all;
+        const abandonedCartsValue = Number(abandonedCartAgg._sum.totalValue || 0);
 
-    const uniqueVisitorsToday = new Set(
-      totalSessions.filter((s) => new Date(s.createdAt) >= startOfToday).map((s) => s.visitorId),
-    ).size;
+        // Unique visitors and bounce rate from sample/aggregations
+        const totalVisitors = new Set(sampleSessions.map((s) => s.visitorId)).size;
+        const bounceCount = sampleSessions.filter((s) => (s.totalPageViews || 1) <= 1).length;
+        const bounceRate = sampleSessions.length > 0 ? Math.round((bounceCount / sampleSessions.length) * 100) : 0;
 
-    const uniqueVisitorsThisWeek = new Set(
-      totalSessions.filter((s) => new Date(s.createdAt) >= startOfWeek).map((s) => s.visitorId),
-    ).size;
+        // Unique visitors today & this week
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const startOfWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+        const uniqueVisitorsToday = new Set(
+          sampleSessions.filter((s) => new Date(s.createdAt) >= startOfToday).map((s) => s.visitorId),
+        ).size;
+
+        const uniqueVisitorsThisWeek = new Set(
+          sampleSessions.filter((s) => new Date(s.createdAt) >= startOfWeek).map((s) => s.visitorId),
+        ).size;
 
     // Top Visited Pages
     const pageCounts: Record<string, number> = {};
-    totalSessions.forEach((s) => {
+    sampleSessions.forEach((s) => {
       s.pagesVisited.forEach((p) => {
         pageCounts[p] = (pageCounts[p] || 0) + 1;
       });
@@ -337,7 +293,7 @@ export class AnalyticsService {
 
     // Top Viewed Products
     const productViews: Record<string, { nameAr: string; views: number; addToCartCount: number }> = {};
-    events.forEach((ev) => {
+    sampleEvents.forEach((ev) => {
       if (ev.eventType === 'view_product' && ev.payload && typeof ev.payload === 'object') {
         const prodId = String((ev.payload as any).id || (ev.payload as any).productId || '');
         const nameAr = String((ev.payload as any).nameAr || (ev.payload as any).name || 'منتج');
@@ -371,7 +327,7 @@ export class AnalyticsService {
 
     // Traffic Sources
     const sourceMap: Record<string, { visitors: number; ordersCount: number }> = {};
-    totalSessions.forEach((s) => {
+    sampleSessions.forEach((s) => {
       const src = s.utmSource || s.referrer || 'Direct / مباشر';
       if (!sourceMap[src]) sourceMap[src] = { visitors: 0, ordersCount: 0 };
       sourceMap[src].visitors += 1;
@@ -381,12 +337,12 @@ export class AnalyticsService {
       source,
       visitors: d.visitors,
       ordersCount: d.ordersCount,
-      percentage: totalSessions.length > 0 ? Math.round((d.visitors / totalSessions.length) * 100) : 0,
+      percentage: sampleSessions.length > 0 ? Math.round((d.visitors / sampleSessions.length) * 100) : 0,
     }));
 
     // Marketing Campaigns
     const campMap: Record<string, { campaign: string; source: string; visitors: number; ordersCount: number; revenue: number }> = {};
-    totalSessions.forEach((s) => {
+    sampleSessions.forEach((s) => {
       if (s.utmCampaign) {
         const key = `${s.utmCampaign}-${s.utmSource || 'direct'}`;
         if (!campMap[key]) {
@@ -404,91 +360,70 @@ export class AnalyticsService {
     });
     const campaigns = Object.values(campMap);
 
-    // Device breakdown
-    const devMap: Record<string, number> = {};
-    totalSessions.forEach((s) => {
-      const dev = s.deviceType || 'desktop';
-      devMap[dev] = (devMap[dev] || 0) + 1;
-    });
-    const deviceBreakdown = Object.entries(devMap).map(([device, count]) => ({
-      device,
-      count,
-      percentage: totalSessions.length > 0 ? Math.round((count / totalSessions.length) * 100) : 0,
+    // Device breakdown (from database-wide groupBy across entire table)
+    const deviceBreakdown = deviceGroups.map((g) => ({
+      device: g.deviceType || 'desktop',
+      count: g._count._all,
+      percentage: totalDbSessions > 0 ? Math.round((g._count._all / totalDbSessions) * 100) : 0,
     }));
 
-    // OS breakdown
-    const osMap: Record<string, number> = {};
-    totalSessions.forEach((s) => {
-      const os = s.os || 'Unknown';
-      osMap[os] = (osMap[os] || 0) + 1;
-    });
-    const osBreakdown = Object.entries(osMap).map(([os, count]) => ({
-      os,
-      count,
-      percentage: totalSessions.length > 0 ? Math.round((count / totalSessions.length) * 100) : 0,
+    // OS breakdown (from database-wide groupBy across entire table)
+    const osBreakdown = osGroups.map((g) => ({
+      os: g.os || 'Unknown',
+      count: g._count._all,
+      percentage: totalDbSessions > 0 ? Math.round((g._count._all / totalDbSessions) * 100) : 0,
     }));
 
-    // Browser breakdown
-    const brMap: Record<string, number> = {};
-    totalSessions.forEach((s) => {
-      const br = s.browser || 'Unknown';
-      brMap[br] = (brMap[br] || 0) + 1;
-    });
-    const browserBreakdown = Object.entries(brMap).map(([browser, count]) => ({
-      browser,
-      count,
-      percentage: totalSessions.length > 0 ? Math.round((count / totalSessions.length) * 100) : 0,
+    // Browser breakdown (from database-wide groupBy across entire table)
+    const browserBreakdown = browserGroups.map((g) => ({
+      browser: g.browser || 'Unknown',
+      count: g._count._all,
+      percentage: totalDbSessions > 0 ? Math.round((g._count._all / totalDbSessions) * 100) : 0,
     }));
 
-    const abandonedCartsCount = abandonedCarts.length;
-    const abandonedCartsValue = abandonedCarts.reduce(
-      (sum, c) => sum + Number(c.totalValue || 0),
-      0,
-    );
-
-    return {
-      totalVisitors,
-      uniqueVisitorsToday,
-      uniqueVisitorsThisWeek,
-      liveVisitorsNow: recentActiveSessions,
-      totalPageViews,
-      bounceRate,
-      avgSessionDurationSeconds,
-      abandonedCartsCount,
-      abandonedCartsValue,
-      topVisitedPages,
-      topViewedProducts,
-      trafficSources,
-      campaigns,
-      deviceBreakdown,
-      osBreakdown,
-      browserBreakdown,
-    };
-    } catch (err: any) {
-      console.error('[AnalyticsService] getSummary error:', err?.message || err);
-      return {
-        totalVisitors: 0,
-        uniqueVisitorsToday: 0,
-        uniqueVisitorsThisWeek: 0,
-        liveVisitorsNow: 0,
-        totalPageViews: 0,
-        bounceRate: 0,
-        avgSessionDurationSeconds: 0,
-        abandonedCartsCount: 0,
-        abandonedCartsValue: 0,
-        topVisitedPages: [],
-        topViewedProducts: [],
-        trafficSources: [],
-        campaigns: [],
-        deviceBreakdown: [],
-        osBreakdown: [],
-        browserBreakdown: [],
-      };
-    }
+        return {
+          totalVisitors,
+          uniqueVisitorsToday,
+          uniqueVisitorsThisWeek,
+          liveVisitorsNow: recentActiveSessions,
+          totalPageViews,
+          bounceRate,
+          avgSessionDurationSeconds,
+          abandonedCartsCount,
+          abandonedCartsValue,
+          topVisitedPages,
+          topViewedProducts,
+          trafficSources,
+          campaigns,
+          deviceBreakdown,
+          osBreakdown,
+          browserBreakdown,
+        };
+      } catch (err: any) {
+        console.error('[AnalyticsService] getSummary error:', err?.message || err);
+        return {
+          totalVisitors: 0,
+          uniqueVisitorsToday: 0,
+          uniqueVisitorsThisWeek: 0,
+          liveVisitorsNow: 0,
+          totalPageViews: 0,
+          bounceRate: 0,
+          avgSessionDurationSeconds: 0,
+          abandonedCartsCount: 0,
+          abandonedCartsValue: 0,
+          topVisitedPages: [],
+          topViewedProducts: [],
+          trafficSources: [],
+          campaigns: [],
+          deviceBreakdown: [],
+          osBreakdown: [],
+          browserBreakdown: [],
+        };
+      }
+    });
   }
 
   async getSessions(query: { page?: number; limit?: number; search?: string; source?: string }) {
-    await this.ensureTablesExist();
     const page = Math.max(1, Number(query.page) || 1);
     const limit = Math.min(100, Math.max(1, Number(query.limit) || 20));
     const skip = (page - 1) * limit;
@@ -673,6 +608,7 @@ export class AnalyticsService {
         this.prisma.abandonedCart.deleteMany(),
         this.prisma.visitorSession.deleteMany(),
       ]);
+      this.cache.deleteByPrefix('analytics:');
     } catch {}
 
     return { message: 'Analytics logs and visitor sessions cleared successfully' };

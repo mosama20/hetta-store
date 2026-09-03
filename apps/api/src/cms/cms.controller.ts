@@ -1,4 +1,4 @@
-import { Controller, Get, Put, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Put, Body, Param, UseGuards, Header } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { CmsService } from './cms.service';
 import { Public } from '../common/decorators/public.decorator';
@@ -14,6 +14,7 @@ export class CmsController {
 
   @Public()
   @Get('sections')
+  @Header('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300')
   @ApiOperation({ summary: 'Get active storefront CMS homepage sections' })
   async getActiveSections() {
     return this.cmsService.getActiveSections();

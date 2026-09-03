@@ -40,27 +40,38 @@ function getInitialSettings(): StoreSettings {
 let listeners: (() => void)[] = [];
 let settings: StoreSettings = getInitialSettings();
 let isLoaded = false;
+let fetchPromise: Promise<void> | null = null;
 
 function notify() {
   listeners.forEach((l) => l());
 }
 
 export async function reloadSettings() {
-  try {
-    const data = await settingsApi.getPublic();
-    if (data && typeof data === 'object') {
-      settings = { ...settings, ...data };
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem(SETTINGS_CACHE_KEY, JSON.stringify(settings));
-        } catch {}
-      }
-    }
-    isLoaded = true;
-    notify();
-  } catch {
-    isLoaded = true;
+  if (fetchPromise) {
+    return fetchPromise;
   }
+
+  fetchPromise = (async () => {
+    try {
+      const data = await settingsApi.getPublic();
+      if (data && typeof data === 'object') {
+        settings = { ...settings, ...data };
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem(SETTINGS_CACHE_KEY, JSON.stringify(settings));
+          } catch {}
+        }
+      }
+      isLoaded = true;
+      notify();
+    } catch {
+      isLoaded = true;
+    } finally {
+      fetchPromise = null;
+    }
+  })();
+
+  return fetchPromise;
 }
 
 if (typeof window !== 'undefined') {

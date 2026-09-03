@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, Suspense, lazy } from 'react';
 import { Routes, Route, Navigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../store/authStore.js';
 import { AnnouncementBar } from '../components/storefront/AnnouncementBar.js';
@@ -6,40 +6,44 @@ import { Header } from '../components/storefront/Header.js';
 import { Footer } from '../components/storefront/Footer.js';
 import { MobileAppInstallPrompt } from '../components/storefront/MobileAppInstallPrompt.js';
 import { AdminLayout } from '../components/admin/AdminLayout.js';
-
-// Storefront Pages
-import { HomePage } from '../pages/storefront/HomePage.js';
-import { ShopPage } from '../pages/storefront/ShopPage.js';
-import { NewArrivalsPage } from '../pages/storefront/NewArrivalsPage.js';
-import { CategoryPage } from '../pages/storefront/CategoryPage.js';
-import { ProductDetailsPage } from '../pages/storefront/ProductDetailsPage.js';
-import { CartPage } from '../pages/storefront/CartPage.js';
-import { CheckoutPage } from '../pages/storefront/CheckoutPage.js';
-import { OrderSuccessPage } from '../pages/storefront/OrderSuccessPage.js';
-import { SearchPage } from '../pages/storefront/SearchPage.js';
-import { AboutPage } from '../pages/storefront/AboutPage.js';
-import { ShippingPolicyPage } from '../pages/storefront/ShippingPolicyPage.js';
-import { ReturnsPolicyPage } from '../pages/storefront/ReturnsPolicyPage.js';
-import { FaqPage } from '../pages/storefront/FaqPage.js';
-import { NotFoundPage } from '../pages/storefront/NotFoundPage.js';
-
-// Admin Pages
-import { AdminLoginPage } from '../pages/admin/AdminLoginPage.js';
-import { AdminDashboardPage } from '../pages/admin/AdminDashboardPage.js';
-import { AdminProductsPage } from '../pages/admin/AdminProductsPage.js';
-import { AdminProductFormPage } from '../pages/admin/AdminProductFormPage.js';
-import { AdminCategoriesPage } from '../pages/admin/AdminCategoriesPage.js';
-import { AdminAttributesPage } from '../pages/admin/AdminAttributesPage.js';
-import { AdminDiscountsPage } from '../pages/admin/AdminDiscountsPage.js';
-import { AdminOrdersPage } from '../pages/admin/AdminOrdersPage.js';
-import { AdminOrderDetailsPage } from '../pages/admin/AdminOrderDetailsPage.js';
-import { AdminUsersPage } from '../pages/admin/AdminUsersPage.js';
-import { AdminCmsPage } from '../pages/admin/AdminCmsPage.js';
-import { AdminSettingsPage } from '../pages/admin/AdminSettingsPage.js';
-import { AdminMediaPage } from '../pages/admin/AdminMediaPage.js';
-import { AdminAuditLogsPage } from '../pages/admin/AdminAuditLogsPage.js';
-import { AdminAnalyticsPage } from '../pages/admin/AdminAnalyticsPage.js';
 import { useAnalyticsTracker } from '../hooks/useAnalyticsTracker.js';
+
+// 1. Critical above-the-fold page loaded synchronously
+import { HomePage } from '../pages/storefront/HomePage.js';
+
+// 2. Secondary Storefront Pages — Lazy Loaded with route-level code splitting
+const ShopPage = lazy(() => import('../pages/storefront/ShopPage.js').then((m) => ({ default: m.ShopPage })));
+const NewArrivalsPage = lazy(() => import('../pages/storefront/NewArrivalsPage.js').then((m) => ({ default: m.NewArrivalsPage })));
+const CategoryPage = lazy(() => import('../pages/storefront/CategoryPage.js').then((m) => ({ default: m.CategoryPage })));
+const ProductDetailsPage = lazy(() => import('../pages/storefront/ProductDetailsPage.js').then((m) => ({ default: m.ProductDetailsPage })));
+const CartPage = lazy(() => import('../pages/storefront/CartPage.js').then((m) => ({ default: m.CartPage })));
+const CheckoutPage = lazy(() => import('../pages/storefront/CheckoutPage.js').then((m) => ({ default: m.CheckoutPage })));
+const OrderSuccessPage = lazy(() => import('../pages/storefront/OrderSuccessPage.js').then((m) => ({ default: m.OrderSuccessPage })));
+const SearchPage = lazy(() => import('../pages/storefront/SearchPage.js').then((m) => ({ default: m.SearchPage })));
+const AboutPage = lazy(() => import('../pages/storefront/AboutPage.js').then((m) => ({ default: m.AboutPage })));
+const ShippingPolicyPage = lazy(() => import('../pages/storefront/ShippingPolicyPage.js').then((m) => ({ default: m.ShippingPolicyPage })));
+const ReturnsPolicyPage = lazy(() => import('../pages/storefront/ReturnsPolicyPage.js').then((m) => ({ default: m.ReturnsPolicyPage })));
+const FaqPage = lazy(() => import('../pages/storefront/FaqPage.js').then((m) => ({ default: m.FaqPage })));
+const SheinOrderPage = lazy(() => import('../pages/storefront/SheinOrderPage.js').then((m) => ({ default: m.SheinOrderPage })));
+const NotFoundPage = lazy(() => import('../pages/storefront/NotFoundPage.js').then((m) => ({ default: m.NotFoundPage })));
+
+// 3. Admin Pages — Strictly Lazy Loaded (Never bundled into storefront initial JS)
+const AdminLoginPage = lazy(() => import('../pages/admin/AdminLoginPage.js').then((m) => ({ default: m.AdminLoginPage })));
+const AdminDashboardPage = lazy(() => import('../pages/admin/AdminDashboardPage.js').then((m) => ({ default: m.AdminDashboardPage })));
+const AdminProductsPage = lazy(() => import('../pages/admin/AdminProductsPage.js').then((m) => ({ default: m.AdminProductsPage })));
+const AdminProductFormPage = lazy(() => import('../pages/admin/AdminProductFormPage.js').then((m) => ({ default: m.AdminProductFormPage })));
+const AdminCategoriesPage = lazy(() => import('../pages/admin/AdminCategoriesPage.js').then((m) => ({ default: m.AdminCategoriesPage })));
+const AdminAttributesPage = lazy(() => import('../pages/admin/AdminAttributesPage.js').then((m) => ({ default: m.AdminAttributesPage })));
+const AdminDiscountsPage = lazy(() => import('../pages/admin/AdminDiscountsPage.js').then((m) => ({ default: m.AdminDiscountsPage })));
+const AdminOrdersPage = lazy(() => import('../pages/admin/AdminOrdersPage.js').then((m) => ({ default: m.AdminOrdersPage })));
+const AdminSheinOrdersPage = lazy(() => import('../pages/admin/AdminSheinOrdersPage.js').then((m) => ({ default: m.AdminSheinOrdersPage })));
+const AdminOrderDetailsPage = lazy(() => import('../pages/admin/AdminOrderDetailsPage.js').then((m) => ({ default: m.AdminOrderDetailsPage })));
+const AdminUsersPage = lazy(() => import('../pages/admin/AdminUsersPage.js').then((m) => ({ default: m.AdminUsersPage })));
+const AdminCmsPage = lazy(() => import('../pages/admin/AdminCmsPage.js').then((m) => ({ default: m.AdminCmsPage })));
+const AdminSettingsPage = lazy(() => import('../pages/admin/AdminSettingsPage.js').then((m) => ({ default: m.AdminSettingsPage })));
+const AdminMediaPage = lazy(() => import('../pages/admin/AdminMediaPage.js').then((m) => ({ default: m.AdminMediaPage })));
+const AdminAuditLogsPage = lazy(() => import('../pages/admin/AdminAuditLogsPage.js').then((m) => ({ default: m.AdminAuditLogsPage })));
+const AdminAnalyticsPage = lazy(() => import('../pages/admin/AdminAnalyticsPage.js').then((m) => ({ default: m.AdminAnalyticsPage })));
 
 // Scroll to top helper
 function ScrollToTop() {
@@ -50,6 +54,15 @@ function ScrollToTop() {
   return null;
 }
 
+// Lightweight route transition loader
+function PageLoader() {
+  return (
+    <div className="min-h-[50vh] flex items-center justify-center">
+      <div className="w-7 h-7 border-2 border-zinc-900 dark:border-zinc-100 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+}
+
 // Storefront Root Layout
 function StorefrontLayout() {
   return (
@@ -57,7 +70,9 @@ function StorefrontLayout() {
       <AnnouncementBar />
       <Header />
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6">
-        <Outlet />
+        <Suspense fallback={<PageLoader />}>
+          <Outlet />
+        </Suspense>
       </main>
       <Footer />
       <MobileAppInstallPrompt />
@@ -87,11 +102,15 @@ function ProtectedAdminRoute() {
     return <Navigate to="/darsh50/login" state={{ from: location }} replace />;
   }
 
-  return <AdminLayout />;
+  return (
+    <Suspense fallback={<PageLoader />}>
+      <AdminLayout />
+    </Suspense>
+  );
 }
 
 export const AppRoutes: React.FC = () => {
-  // Global automatic visitor and behavioral analytics tracker
+  // Global automatic visitor and behavioral analytics tracker (fire-and-forget)
   useAnalyticsTracker();
 
   return (
@@ -113,10 +132,18 @@ export const AppRoutes: React.FC = () => {
           <Route path="/shipping" element={<ShippingPolicyPage />} />
           <Route path="/returns" element={<ReturnsPolicyPage />} />
           <Route path="/faq" element={<FaqPage />} />
+          <Route path="/shein-order" element={<SheinOrderPage />} />
         </Route>
 
         {/* Admin Login */}
-        <Route path="/darsh50/login" element={<AdminLoginPage />} />
+        <Route
+          path="/darsh50/login"
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <AdminLoginPage />
+            </Suspense>
+          }
+        />
 
         {/* Protected Admin Routes */}
         <Route path="/darsh50" element={<ProtectedAdminRoute />}>
@@ -129,6 +156,7 @@ export const AppRoutes: React.FC = () => {
           <Route path="attributes" element={<AdminAttributesPage />} />
           <Route path="discounts" element={<AdminDiscountsPage />} />
           <Route path="orders" element={<AdminOrdersPage />} />
+          <Route path="shein-orders" element={<AdminSheinOrdersPage />} />
           <Route path="orders/:id" element={<AdminOrderDetailsPage />} />
           <Route path="users" element={<AdminUsersPage />} />
           <Route path="cms" element={<AdminCmsPage />} />
@@ -138,7 +166,14 @@ export const AppRoutes: React.FC = () => {
         </Route>
 
         {/* 404 Fallback */}
-        <Route path="*" element={<NotFoundPage />} />
+        <Route
+          path="*"
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <NotFoundPage />
+            </Suspense>
+          }
+        />
       </Routes>
     </>
   );

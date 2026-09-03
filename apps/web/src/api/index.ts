@@ -19,6 +19,10 @@ import {
   AnalyticsEvent,
   AbandonedCart,
   AnalyticsSummary,
+  SheinOrder,
+  SheinOrderStatus,
+  SheinExtractResult,
+  SheinPricingConfig,
 } from '../types/index.js';
 
 export * from './client.js';
@@ -359,4 +363,61 @@ export const analyticsApi = {
       method: 'DELETE',
     }),
 };
+
+// SHEIN Concierge API
+export const sheinApi = {
+  extractMetadata: (url: string) =>
+    apiClient<SheinExtractResult>('/shein/extract', {
+      method: 'POST',
+      body: JSON.stringify({ url }),
+    }),
+
+  getPricing: () => apiClient<SheinPricingConfig>('/shein/pricing'),
+
+  createOrder: (data: {
+    customerName: string;
+    customerPhone: string;
+    customerCity?: string;
+    customerDistrict?: string;
+    customerAddress?: string;
+    paymentMethod?: string;
+    notes?: string;
+    items: {
+      productUrl: string;
+      title: string;
+      imageUrl?: string | null;
+      color?: string | null;
+      size?: string | null;
+      unitPrice: number;
+      quantity: number;
+      notes?: string | null;
+    }[];
+  }) =>
+    apiClient<{ success: boolean; order: SheinOrder; whatsappUrl: string }>('/shein/orders', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  // Admin APIs
+  getAllOrders: (params?: {
+    page?: number;
+    limit?: number;
+    status?: SheinOrderStatus;
+    search?: string;
+  }) => apiClient<PaginatedResult<SheinOrder>>('/shein/orders', { params }),
+
+  getOrder: (id: string) => apiClient<SheinOrder>(`/shein/orders/${id}`),
+
+  updateStatus: (id: string, status: SheinOrderStatus) =>
+    apiClient<SheinOrder>(`/shein/orders/${id}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    }),
+
+  deleteOrder: (id: string) =>
+    apiClient<{ success: boolean; message: string }>(`/shein/orders/${id}`, {
+      method: 'DELETE',
+    }),
+};
+
 

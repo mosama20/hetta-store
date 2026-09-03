@@ -180,6 +180,13 @@ export interface StoreSettings {
   whatsapp_order_template_ar?: string;
   social_links?: string;
   support_email?: string;
+  // SHEIN Concierge Settings
+  shein_enabled?: string;
+  shein_shipping_fee?: string;
+  shein_service_fee?: string;
+  shein_delivery_fee?: string;
+  shein_exchange_rate?: string;
+  shein_estimated_days?: string;
   announcement_bar_enabled?: string;
   announcement_text_ar?: string;
   announcement_text_en?: string;
@@ -340,4 +347,66 @@ export interface ApiResponse<T> {
   };
   timestamp: string;
 }
+
+export type SheinOrderStatus = 'PENDING' | 'CONFIRMED' | 'PURCHASED' | 'IN_TRANSIT' | 'DELIVERED' | 'CANCELLED';
+
+export interface SheinOrderItem {
+  id?: string;
+  productUrl: string;
+  title: string;
+  imageUrl?: string | null;
+  color?: string | null;
+  size?: string | null;
+  unitPrice: number;
+  quantity: number;
+  subtotal: number;
+  notes?: string | null;
+}
+
+export interface SheinOrder {
+  id: string;
+  orderNumber: string;
+  customerName: string;
+  customerPhone: string;
+  customerCity?: string | null;
+  customerDistrict?: string | null;
+  customerAddress?: string | null;
+  paymentMethod: string;
+  notes?: string | null;
+  status: SheinOrderStatus;
+  productsTotal: number;
+  sheinShippingFee: number;
+  serviceFee: number;
+  deliveryFee: number;
+  totalAmount: number;
+  currency: string;
+  createdAt: string;
+  updatedAt: string;
+  items: SheinOrderItem[];
+}
+
+export interface SheinExtractResult {
+  success: boolean;
+  url: string;
+  goodsId?: string;
+  title: string;
+  imageUrl?: string | null;
+  images?: string[];
+  originalPrice: number;
+  currency: string;
+  estimatedPriceEgp: number;
+  sizes: string[];
+  message?: string;
+}
+
+export interface SheinPricingConfig {
+  enabled: boolean;
+  shippingFee: number;
+  serviceFee: number;
+  deliveryFee: number;
+  exchangeRate: number;
+  estimatedDays: string;
+  whatsappNumber: string;
+}
+
 

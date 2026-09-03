@@ -3,18 +3,42 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { AuditService } from '../audit/audit.service';
+import { CacheService } from '../common/cache/cache.service';
 
 @Injectable()
 export class CategoriesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly cache: CacheService,
   ) {}
 
   async findAll(includeInactive = false) {
-    const where = includeInactive ? {} : { isActive: true };
+    if (!includeInactive) {
+      const cacheKey = 'categories:public';
+      const cached = this.cache.get<unknown[]>(cacheKey);
+      if (cached) return cached;
+
+      const result = await this.prisma.category.findMany({
+        where: { isActive: true },
+        orderBy: { displayOrder: 'asc' },
+        include: {
+          parent: {
+            select: { id: true, nameAr: true, nameEn: true, slug: true },
+          },
+          _count: {
+            select: { products: true },
+          },
+        },
+      });
+
+      const ttl = Number(process.env.PUBLIC_CACHE_TTL_SECONDS || '60') * 1000;
+      this.cache.set(cacheKey, result, ttl);
+      return result;
+    }
+
     return this.prisma.category.findMany({
-      where,
+      where: {},
       orderBy: { displayOrder: 'asc' },
       include: {
         parent: {
@@ -28,6 +52,10 @@ export class CategoriesService {
   }
 
   async findTree() {
+    const cacheKey = 'categories:tree';
+    const cached = this.cache.get<unknown[]>(cacheKey);
+    if (cached) return cached;
+
     const categories = await this.prisma.category.findMany({
       where: { isActive: true },
       orderBy: { displayOrder: 'asc' },
@@ -49,6 +77,9 @@ export class CategoriesService {
         tree.push(categoryMap.get(cat.id));
       }
     });
+
+    const ttl = Number(process.env.PUBLIC_CACHE_TTL_SECONDS || '60') * 1000;
+    this.cache.set(cacheKey, tree, ttl);
 
     return tree;
   }
@@ -97,6 +128,8 @@ export class CategoriesService {
       },
     });
 
+    this.cache.deleteByPrefix('categories:');
+
     await this.auditService.log({
       userId,
       action: 'CATEGORY_CREATE',
@@ -134,6 +167,8 @@ export class CategoriesService {
         slug: dto.slug ? dto.slug.toLowerCase().trim() : undefined,
       },
     });
+
+    this.cache.deleteByPrefix('categories:');
 
     await this.auditService.log({
       userId,
@@ -198,6 +233,8 @@ export class CategoriesService {
       await tx.category.delete({ where: { id } });
     });
 
+    this.cache.deleteByPrefix('categories:');
+
     await this.auditService.log({
       userId,
       action: 'CATEGORY_DELETE',
@@ -218,6 +255,8 @@ export class CategoriesService {
         }),
       ),
     );
+
+    this.cache.deleteByPrefix('categories:');
 
     await this.auditService.log({
       userId,

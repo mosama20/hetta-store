@@ -147,6 +147,15 @@ export const Header: React.FC = () => {
             </Link>
 
             <Link
+              to="/shein-order"
+              className={`py-2 hover:text-black dark:hover:text-white transition-colors ${
+                location.pathname === '/shein-order' ? 'text-black dark:text-white font-bold' : ''
+              }`}
+            >
+              <span>{isArabic ? 'اطلب من SHEIN' : 'Order From SHEIN'}</span>
+            </Link>
+
+            <Link
               to="/about"
               className={`py-2 hover:text-black dark:hover:text-white transition-colors ${
                 location.pathname === '/about' ? 'text-black dark:text-white font-bold' : ''
@@ -324,6 +333,16 @@ export const Header: React.FC = () => {
               className="py-1.5 hover:text-black dark:hover:text-white"
             >
               <span>{isArabic ? 'جديدنا' : 'New In'}</span>
+            </Link>
+
+            <Link
+              to="/shein-order"
+              onClick={() => setMobileMenuOpen(false)}
+              className={`py-1.5 hover:text-black dark:hover:text-white flex items-center justify-between ${
+                location.pathname === '/shein-order' ? 'text-black dark:text-white font-bold' : ''
+              }`}
+            >
+              <span>{isArabic ? 'اطلب من SHEIN' : 'Order From SHEIN'}</span>
             </Link>
 
             <Link

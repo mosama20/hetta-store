@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import * as XLSX from 'xlsx';
 import { Upload, Download, FileSpreadsheet, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Modal } from '../common/Modal.js';
 import { Button } from '../common/Button.js';
@@ -35,7 +34,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({ isOpen, onCl
   const [resultMsg, setResultMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // 1. Generate & Download Sample Template
-  const handleDownloadTemplate = () => {
+  const handleDownloadTemplate = async () => {
     const sampleData = [
       {
         'اسم المنتج بالعربية *': 'تيشيرت أساسي أوفرسايز',
@@ -78,6 +77,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({ isOpen, onCl
       },
     ];
 
+    const XLSX = await import('xlsx');
     const worksheet = XLSX.utils.json_to_sheet(sampleData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Products Template');
@@ -110,8 +110,9 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({ isOpen, onCl
     setResultMsg(null);
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       try {
+        const XLSX = await import('xlsx');
         const data = new Uint8Array(event.target?.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: 'array' });
         const firstSheetName = workbook.SheetNames[0];

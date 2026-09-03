@@ -48,13 +48,21 @@ async function bootstrap(): Promise<void> {
   app.useGlobalInterceptors(new TransformInterceptor());
 
   // 6. CORS Configuration
+  const isDev = configService.get<string>('NODE_ENV') !== 'production';
   const allowedOrigins = corsOrigins.split(',').map((origin) => origin.trim());
+  allowedOrigins.push(`http://localhost:${port}`, `http://127.0.0.1:${port}`);
+
   app.enableCors({
     origin: (
       origin: string | undefined,
       callback: (err: Error | null, allow?: boolean) => void,
     ) => {
-      if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+      if (
+        !origin ||
+        allowedOrigins.includes(origin) ||
+        allowedOrigins.includes('*') ||
+        (isDev && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin))
+      ) {
         callback(null, true);
       } else {
         callback(new Error(`CORS origin '${origin}' is not allowed`));

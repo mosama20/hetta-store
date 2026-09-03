@@ -669,7 +669,7 @@ export const HomePage: React.FC = () => {
         )}
         {promoPayload.imageUrl && (
           <div className="max-w-md mx-auto rounded-2xl overflow-hidden shadow my-3">
-            <img src={String(promoPayload.imageUrl)} alt="" className="w-full h-48 object-cover" />
+            <img src={String(promoPayload.imageUrl)} alt="" loading="lazy" width={448} height={192} className="w-full h-48 object-cover" />
           </div>
         )}
         <div className="pt-2">
@@ -719,6 +719,45 @@ export const HomePage: React.FC = () => {
         if (isAboutSection(section)) return renderAbout(section);
         return null;
       })}
+
+      {/* SHEIN Concierge Feature Banner */}
+      <section className="relative overflow-hidden rounded-3xl bg-zinc-900 dark:bg-zinc-900/90 border border-zinc-800 p-6 sm:p-10 shadow-xl text-white">
+        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="space-y-3 text-center md:text-right rtl:md:text-right ltr:md:text-left max-w-xl">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs font-bold">
+              <span>{isArabic ? 'خدمة وسيط شي إن' : 'SHEIN Concierge Service'}</span>
+            </div>
+            <h3 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+              {isArabic ? (
+                <>
+                  عجبك أي طقم على <span className="underline decoration-zinc-500 underline-offset-8">SHEIN</span>؟
+                </>
+              ) : (
+                <>
+                  Liked an Outfit on <span className="underline decoration-zinc-500 underline-offset-8">SHEIN</span>?
+                </>
+              )}
+            </h3>
+            <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed">
+              {isArabic
+                ? 'انسخ الرابط وسنقوم بشرائه وشحنه وتوصيله لباب بيتك بالجنيه المصري وبأفضل سعر خدمة!'
+                : 'Just copy the link and we will purchase, import, and deliver it directly to your doorstep in EGP!'}
+            </p>
+          </div>
+
+          <Link
+            to="/shein-order"
+            className="inline-flex items-center justify-center gap-2.5 px-7 py-3.5 rounded-2xl font-black text-sm text-zinc-900 bg-white hover:bg-zinc-200 dark:bg-white dark:text-black dark:hover:bg-zinc-200 transition-all shadow-md active:scale-95 shrink-0 group"
+          >
+            <span>{isArabic ? 'اطلب منتجك الآن' : 'Order Your Piece Now'}</span>
+            {isArabic ? (
+              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+            ) : (
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            )}
+          </Link>
+        </div>
+      </section>
     </div>
   );
 };
