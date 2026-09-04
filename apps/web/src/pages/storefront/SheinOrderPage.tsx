@@ -14,7 +14,6 @@ import {
   Plus,
   Trash2,
   MessageCircle,
-  Clock,
 } from 'lucide-react';
 
 const EGYPT_GOVERNORATES = [
@@ -391,11 +390,9 @@ export const SheinOrderPage: React.FC = () => {
         )}
       </div>
 
-      {/* 3. Main Grid: Left Form (2 cols) & Right Order Summary (1 col) - Matching CheckoutPage */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
-        {/* Left Column: Extracted Product Customization & Customer Delivery Form */}
-        <div className="md:col-span-2 space-y-6">
-          {/* A. Current Extracted Product Box */}
+      {/* 3. Extracted Product Customization & Customer Delivery Form */}
+      <div className="space-y-6">
+        {/* A. Current Extracted Product Box */}
           {currentProduct && (
             <div className="p-5 sm:p-6 bg-zinc-50 dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-zinc-800">
@@ -726,65 +723,6 @@ export const SheinOrderPage: React.FC = () => {
             </Button>
           </form>
         </div>
-
-        {/* Right Column: Clean Order Summary Box - Direct SAR & EGP, NO extra fees breakdown */}
-        <div className="space-y-4">
-          <div className="p-6 bg-zinc-50 dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 space-y-4 h-fit">
-            <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 pb-2 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
-              <span>{isArabic ? 'ملخص الطلب والتسعير' : 'Order & Price Summary'}</span>
-              <span className="text-[11px] font-normal text-zinc-500">
-                {cartItems.length + (hasActiveProduct ? 1 : 0)} {isArabic ? 'قطع' : 'items'}
-              </span>
-            </h3>
-
-            {/* Price in SAR & Converted to EGP */}
-            <div className="space-y-3 text-xs text-zinc-600 dark:text-zinc-400">
-              <div className="flex justify-between items-center">
-                <span>{isArabic ? 'السعر بالريال السعودي:' : 'Price in SAR:'}</span>
-                <span className="font-bold text-zinc-900 dark:text-zinc-100 font-mono text-sm">
-                  🇸🇦 {totalSar > 0 ? totalSar.toFixed(2) : '0.00'} ر.س
-                </span>
-              </div>
-
-              <div className="flex justify-between items-center text-[11px] p-2 rounded-xl bg-zinc-100 dark:bg-zinc-800/60">
-                <span>{isArabic ? 'معامل التحويل (سعر الصرف):' : 'Exchange Rate:'}</span>
-                <span className="font-bold text-zinc-800 dark:text-zinc-200 font-mono">
-                  1 ر.س = {sarRate} ج.م
-                </span>
-              </div>
-
-              <div className="flex justify-between items-center pt-1">
-                <span>{isArabic ? 'السعر المحول بالجنيه المصري:' : 'Converted to EGP:'}</span>
-                <span className="font-bold text-zinc-900 dark:text-zinc-100 font-mono">
-                  {formatPrice(productsTotal, 'EGP', isArabic)}
-                </span>
-              </div>
-            </div>
-
-            <div className="pt-3 border-t border-zinc-200 dark:border-zinc-800 flex justify-between text-sm font-black text-zinc-900 dark:text-zinc-100">
-              <span>{isArabic ? 'الإجمالي المطلوب للدفع' : 'Grand Total'}</span>
-              <div className="text-end">
-                <span className="text-base text-zinc-900 dark:text-zinc-100 block">{formatPrice(grandTotal, 'EGP', isArabic)}</span>
-                {totalSar > 0 && (
-                  <span className="text-[10px] text-zinc-400 font-mono font-bold block">
-                    (~{totalSar.toFixed(1)} ر.س)
-                  </span>
-                )}
-              </div>
-            </div>
-
-            <div className="pt-2 text-center text-[11px] text-zinc-400 flex items-center justify-center space-x-1 rtl:space-x-reverse">
-              <ShieldCheck className="w-4 h-4 text-emerald-500" />
-              <span>{isArabic ? 'معاينة عند الاستلام ودفع نقدي' : 'Cash on delivery with inspection'}</span>
-            </div>
-
-            <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800 text-[11px] text-zinc-500 flex items-center gap-2">
-              <Clock className="w-3.5 h-3.5 text-zinc-400" />
-              <span>{isArabic ? `مدة التوصيل: ${pricing.estimatedDays}` : `Delivery: ${pricing.estimatedDays}`}</span>
-            </div>
-          </div>
-        </div>
       </div>
-    </div>
   );
 };
