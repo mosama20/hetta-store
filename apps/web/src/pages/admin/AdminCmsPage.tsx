@@ -33,6 +33,7 @@ import {
   Smartphone,
   Monitor,
   ShoppingBag,
+  FolderTree,
   Sun,
   Moon,
 } from 'lucide-react';
@@ -271,6 +272,15 @@ export const AdminCmsPage: React.FC = () => {
           descEn: 'Toggle Best Sellers / Products showcase on the homepage, edit titles and max count',
         };
       case 'categories_section':
+      case 'home_categories':
+      case 'categories':
+        return {
+          titleAr: 'سكشن تصفح الأقسام (Categories Section)',
+          titleEn: 'Browse Categories Section',
+          icon: <FolderTree className="w-5 h-5 text-indigo-500" />,
+          descAr: 'التحكم في سكشن الأقسام بالصفحة الرئيسية ونمط العرض (صف دوائر أفقية تفاعلية Stories أو شبكة كروت)',
+          descEn: 'Configure categories section on homepage, toggle circular stories row or card grid',
+        };
       case 'home_products_grid':
         return {
           titleAr: 'شبكة المنتجات بالرئيسية (Home Products Grid)',
@@ -361,6 +371,23 @@ export const AdminCmsPage: React.FC = () => {
       : heroPayload.overlayDarkness === 'light'
         ? 'bg-black/25'
         : 'bg-black/50';
+
+  // Derive Categories preview data
+  const categoriesSection = sections.find(
+    (s) =>
+      s.key === 'categories_section' ||
+      s.key === 'home_categories' ||
+      s.key === 'categories' ||
+      s.type === 'CATEGORIES' ||
+      s.type === 'CATEGORY_CAROUSEL',
+  );
+  const categoriesPayload = (categoriesSection?.payload || {}) as Record<string, any>;
+  const categoriesLayout = (categoriesPayload.layoutStyle || 'circles') as 'circles' | 'grid';
+  const categoriesTitle =
+    (isArabic ? categoriesSection?.titleAr : categoriesSection?.titleEn) ||
+    categoriesSection?.titleAr ||
+    categoriesSection?.titleEn ||
+    (isArabic ? 'تصفح الأقسام' : 'Browse Categories');
 
   return (
     <div className="space-y-6 text-start max-w-5xl mx-auto pb-28">
@@ -615,6 +642,60 @@ export const AdminCmsPage: React.FC = () => {
                       ))}
                     </div>
                   </div>
+
+                  {/* 3. Categories Showcase Preview */}
+                  {categoriesSection && categoriesSection.isActive !== false && (
+                    <div className="space-y-2.5 pt-2 border-t border-zinc-200/60 dark:border-zinc-800/60">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 text-[10px] font-black text-indigo-600 dark:text-indigo-400">
+                          <FolderTree className="w-3 h-3" />
+                          <span>{categoriesTitle}</span>
+                        </div>
+                        <span className="text-[9px] font-bold text-zinc-500">
+                          {isArabic ? 'جميع الأقسام ↗' : 'All Categories ↗'}
+                        </span>
+                      </div>
+
+                      {categoriesLayout === 'circles' ? (
+                        /* Circles Layout Preview */
+                        <div className="flex items-center gap-3 overflow-x-auto pb-1.5 scrollbar-none">
+                          {[
+                            { name: isArabic ? 'هوديز' : 'Hoodies', icon: '🧥' },
+                            { name: isArabic ? 'تيشيرتات' : 'T-Shirts', icon: '👕' },
+                            { name: isArabic ? 'بناطيل' : 'Pants', icon: '👖' },
+                            { name: isArabic ? 'قمصان' : 'Shirts', icon: '👔' },
+                            { name: isArabic ? 'أحذية' : 'Shoes', icon: '👟' },
+                          ].map((cat, i) => (
+                            <div key={i} className="flex flex-col items-center gap-1 shrink-0">
+                              <div className="w-11 h-11 rounded-full p-[2px] bg-gradient-to-tr from-amber-500 via-rose-500 to-indigo-500 shadow-xs flex items-center justify-center">
+                                <div className="w-full h-full rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-xs">
+                                  {cat.icon}
+                                </div>
+                              </div>
+                              <span className="text-[9px] font-bold truncate max-w-[52px]">{cat.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        /* Cards Grid Layout Preview */
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                          {[
+                            { name: isArabic ? 'هوديز' : 'Hoodies' },
+                            { name: isArabic ? 'تيشيرتات' : 'T-Shirts' },
+                            { name: isArabic ? 'بناطيل' : 'Pants' },
+                            { name: isArabic ? 'قمصان' : 'Shirts' },
+                          ].map((cat, i) => (
+                            <div key={i} className="p-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 text-center">
+                              <div className="w-7 h-7 mx-auto rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center text-[10px] font-bold mb-1">
+                                {cat.name.charAt(0)}
+                              </div>
+                              <p className="text-[9px] font-bold truncate">{cat.name}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </Card>
@@ -677,6 +758,12 @@ export const AdminCmsPage: React.FC = () => {
                 section.key === 'best_sellers' ||
                 section.type === 'NEW_ARRIVALS' ||
                 section.type === 'FEATURED_GRID';
+              const isCategories =
+                section.key === 'categories_section' ||
+                section.key === 'home_categories' ||
+                section.key === 'categories' ||
+                section.type === 'CATEGORIES' ||
+                section.type === 'CATEGORY_CAROUSEL';
               const isPromo =
                 section.key === 'promo_banner' ||
                 section.key === 'home_promo_summer' ||
@@ -1120,6 +1207,67 @@ export const AdminCmsPage: React.FC = () => {
                                 <option value={12}>12 {isArabic ? 'منتج (الافتراضي)' : 'Products (Default)'}</option>
                                 <option value={16}>16 {isArabic ? 'منتج' : 'Products'}</option>
                                 <option value={24}>24 {isArabic ? 'منتج' : 'Products'}</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* CATEGORIES SECTION SPECIAL FIELDS */}
+                      {isCategories && (
+                        <div className="p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/20 space-y-4">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-indigo-700 dark:text-indigo-400 flex items-center gap-1.5">
+                              <FolderTree className="w-4 h-4" />
+                              <span>{isArabic ? 'إعدادات سكشن تصفح الأقسام' : 'Categories Section Settings'}</span>
+                            </span>
+                            <Link
+                              to="/darsh50/categories"
+                              className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
+                            >
+                              <span>{isArabic ? 'إدارة الأقسام والصور ↗' : 'Manage Categories ↗'}</span>
+                            </Link>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-xs font-semibold uppercase text-zinc-700 dark:text-zinc-300 mb-1.5">
+                                {isArabic ? 'نمط وتصميم عرض الأقسام' : 'Categories Display Layout'}
+                              </label>
+                              <select
+                                value={String(payload.layoutStyle || 'circles')}
+                                onChange={(e) => updatePayloadField(section.key, 'layoutStyle', e.target.value)}
+                                className="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-xl text-xs font-bold text-zinc-900 dark:text-zinc-100 outline-none"
+                              >
+                                <option value="circles">
+                                  {isArabic ? 'صف دوائر تفاعلية (Stories / Circles) - المظهر الأحدث' : 'Interactive Circles Row (Stories Style)'}
+                                </option>
+                                <option value="grid">
+                                  {isArabic ? 'شبكة كروت تقليدية (Cards Grid)' : 'Standard Cards Grid'}
+                                </option>
+                              </select>
+                              <span className="text-[10px] text-zinc-400 mt-1 block">
+                                {isArabic
+                                  ? 'نمط الدوائر يعرض صور الأقسام في صف أفقي جذاب بانتقالات ناعمة'
+                                  : 'Circles layout presents categories in a sleek horizontal scrolling row'}
+                              </span>
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-semibold uppercase text-zinc-700 dark:text-zinc-300 mb-1.5">
+                                {isArabic ? 'أقصى عدد أقسام معروضة' : 'Max Categories on Homepage'}
+                              </label>
+                              <select
+                                value={Number(payload.limit) || 0}
+                                onChange={(e) => updatePayloadField(section.key, 'limit', Number(e.target.value))}
+                                className="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-xl text-xs font-bold text-zinc-900 dark:text-zinc-100 outline-none"
+                              >
+                                <option value={0}>{isArabic ? 'عرض جميع الأقسام النشطة (الافتراضي)' : 'Show All Active Categories'}</option>
+                                <option value={4}>4 {isArabic ? 'أقسام' : 'Categories'}</option>
+                                <option value={6}>6 {isArabic ? 'أقسام' : 'Categories'}</option>
+                                <option value={8}>8 {isArabic ? 'أقسام' : 'Categories'}</option>
+                                <option value={10}>10 {isArabic ? 'أقسام' : 'Categories'}</option>
+                                <option value={12}>12 {isArabic ? 'قسم' : 'Categories'}</option>
                               </select>
                             </div>
                           </div>

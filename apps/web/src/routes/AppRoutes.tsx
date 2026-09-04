@@ -6,6 +6,7 @@ import { Header } from '../components/storefront/Header.js';
 import { Footer } from '../components/storefront/Footer.js';
 import { MobileAppInstallPrompt } from '../components/storefront/MobileAppInstallPrompt.js';
 import { AdminLayout } from '../components/admin/AdminLayout.js';
+import { ErrorBoundary } from '../components/common/ErrorBoundary.js';
 import { useAnalyticsTracker } from '../hooks/useAnalyticsTracker.js';
 
 // 1. Critical above-the-fold page loaded synchronously
@@ -103,9 +104,11 @@ function ProtectedAdminRoute() {
   }
 
   return (
-    <Suspense fallback={<PageLoader />}>
-      <AdminLayout />
-    </Suspense>
+    <ErrorBoundary>
+      <Suspense fallback={<PageLoader />}>
+        <AdminLayout />
+      </Suspense>
+    </ErrorBoundary>
   );
 }
 

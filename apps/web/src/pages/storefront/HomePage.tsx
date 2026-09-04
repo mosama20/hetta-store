@@ -523,45 +523,124 @@ export const HomePage: React.FC = () => {
   };
 
   // ========================================================
-  // 4. RENDER CATEGORIES SHOWCASE
+  // 4. RENDER CATEGORIES SHOWCASE (CIRCLES OR GRID)
   // ========================================================
   const renderCategories = (section: CMSSection) => {
     if (categories.length === 0) return null;
 
+    const payload = (section.payload || {}) as Record<string, any>;
+    const layoutStyle = (payload.layoutStyle as 'circles' | 'grid') || 'circles';
+    const limit = Number(payload.limit) || 0;
+    const displayCategories = limit > 0 ? categories.slice(0, limit) : categories;
+
     const title = getLocalized(section.titleAr, section.titleEn, isArabic) || (isArabic ? 'تصفح الأقسام' : 'Browse Categories');
+    const subtitle = getLocalized(section.subtitleAr, section.subtitleEn, isArabic);
 
     return (
       <section key={section.key} className="space-y-4 text-start">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg sm:text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
-            {title}
-          </h2>
+          <div>
+            <h2 className="text-lg sm:text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
+              {title}
+            </h2>
+            {subtitle && (
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                {subtitle}
+              </p>
+            )}
+          </div>
           <Link
             to="/shop"
-            className="text-xs font-bold text-zinc-500 hover:text-black dark:hover:text-white transition"
+            className="text-xs font-bold text-zinc-500 hover:text-black dark:hover:text-white transition shrink-0"
           >
             {isArabic ? 'جميع الأقسام ↗' : 'All Categories ↗'}
           </Link>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-          {categories.map((cat) => (
-            <Link
-              key={cat.id}
-              to={`/category/${cat.slug}`}
-              className="group p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200/70 dark:border-zinc-800 hover:border-black dark:hover:border-white transition-all text-center space-y-2 hover:shadow-md"
-            >
-              <div className="w-12 h-12 mx-auto rounded-full bg-white dark:bg-zinc-800 flex items-center justify-center font-bold text-base shadow-sm group-hover:scale-110 transition-transform">
-                {cat.nameAr?.charAt(0) || cat.nameEn?.charAt(0) || '•'}
-              </div>
-              <div>
-                <p className="font-bold text-xs text-zinc-900 dark:text-zinc-100 group-hover:underline">
-                  {getLocalized(cat.nameAr, cat.nameEn, isArabic)}
-                </p>
-                <p className="text-[10px] text-zinc-400 mt-0.5">{cat.slug}</p>
-              </div>
-            </Link>
-          ))}
-        </div>
+
+        {layoutStyle === 'circles' ? (
+          /* Circular Avatars Row (Stories Style) */
+          <div className="flex items-center gap-4 sm:gap-6 lg:gap-8 overflow-x-auto pb-4 pt-1 scrollbar-none scroll-smooth px-1">
+            {displayCategories.map((cat) => {
+              const catName = getLocalized(cat.nameAr, cat.nameEn, isArabic);
+              const initial = cat.nameAr?.charAt(0) || cat.nameEn?.charAt(0) || '•';
+
+              return (
+                <Link
+                  key={cat.id}
+                  to={`/category/${cat.slug}`}
+                  className="group flex flex-col items-center gap-2 shrink-0 select-none text-center cursor-pointer transition-transform hover:-translate-y-1"
+                >
+                  {/* Circle Avatar with Instagram-style gradient border */}
+                  <div className="relative w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 rounded-full p-[2.5px] bg-gradient-to-tr from-amber-500 via-rose-500 to-indigo-500 shadow-xs group-hover:shadow-md group-hover:scale-105 transition-all duration-300">
+                    <div className="w-full h-full rounded-full overflow-hidden bg-white dark:bg-zinc-900 flex items-center justify-center border-2 border-white dark:border-zinc-950">
+                      {cat.imageUrl ? (
+                        <img
+                          src={cat.imageUrl}
+                          alt={catName}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center font-black text-sm sm:text-base lg:text-lg text-zinc-800 dark:text-zinc-200 bg-gradient-to-br from-zinc-100 to-zinc-200 dark:from-zinc-800 dark:to-zinc-900 group-hover:text-amber-500 transition-colors">
+                          {initial}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Category Title & Item Count */}
+                  <div className="space-y-0.5 max-w-[76px] sm:max-w-[96px]">
+                    <p className="font-bold text-xs sm:text-sm text-zinc-900 dark:text-zinc-100 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors truncate">
+                      {catName}
+                    </p>
+                    {cat._count?.products !== undefined && cat._count.products > 0 && (
+                      <span className="text-[10px] text-zinc-400 block truncate">
+                        {cat._count.products} {isArabic ? 'قطعة' : 'items'}
+                      </span>
+                    )}
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        ) : (
+          /* Standard Cards Grid */
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+            {displayCategories.map((cat) => {
+              const catName = getLocalized(cat.nameAr, cat.nameEn, isArabic);
+              const initial = cat.nameAr?.charAt(0) || cat.nameEn?.charAt(0) || '•';
+
+              return (
+                <Link
+                  key={cat.id}
+                  to={`/category/${cat.slug}`}
+                  className="group p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200/70 dark:border-zinc-800 hover:border-black dark:hover:border-white transition-all text-center space-y-2.5 hover:shadow-md"
+                >
+                  <div className="w-16 h-16 mx-auto rounded-2xl overflow-hidden bg-white dark:bg-zinc-800 flex items-center justify-center shadow-xs border border-zinc-200/50 dark:border-zinc-700/50 group-hover:scale-105 transition-transform duration-300">
+                    {cat.imageUrl ? (
+                      <img
+                        src={cat.imageUrl}
+                        alt={catName}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <span className="font-black text-lg text-zinc-700 dark:text-zinc-300">
+                        {initial}
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <p className="font-bold text-xs sm:text-sm text-zinc-900 dark:text-zinc-100 group-hover:underline truncate">
+                      {catName}
+                    </p>
+                    <p className="text-[10px] text-zinc-400 mt-0.5 truncate">{cat.slug}</p>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </section>
     );
   };

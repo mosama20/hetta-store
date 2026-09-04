@@ -324,10 +324,11 @@ export class SheinService implements OnModuleInit {
       };
     });
 
-    const sheinShippingFee = pricing.shippingFee;
-    const serviceFee = pricing.serviceFee;
-    const deliveryFee = pricing.deliveryFee;
-    const totalAmount = productsTotal + sheinShippingFee + serviceFee + deliveryFee;
+    // No extra fee inflations: total is direct converted amount of products
+    const sheinShippingFee = 0;
+    const serviceFee = 0;
+    const deliveryFee = 0;
+    const totalAmount = productsTotal;
 
     // Save order in PostgreSQL database via Prisma (with self-healing fallback)
     const orderData = {
@@ -372,39 +373,69 @@ export class SheinService implements OnModuleInit {
 
     this.logger.log(`Created SHEIN order ${order.orderNumber} for customer ${order.customerName}`);
 
-    // Build WhatsApp confirmation message
-    let whatsappText = `🛍️ *طلب استيراد جديد من SHEIN - حته ستور*\n`;
-    whatsappText += `📋 *رقم الطلب:* #${order.orderNumber}\n\n`;
-    whatsappText += `👤 *اسم العميل:* ${order.customerName}\n`;
-    whatsappText += `📱 *رقم الهاتف:* ${order.customerPhone}\n`;
-    if (order.customerCity) {
-      whatsappText += `📍 *المحافظة والعنوان:* ${order.customerCity} - ${order.customerAddress || ''}\n`;
-    }
-    if (order.notes) {
-      whatsappText += `📝 *ملاحظات الشحن:* ${order.notes}\n`;
-    }
+    // Fetch dynamic WhatsApp SHEIN template & store name from StoreSettings
+    const [sheinTemplateSetting, storeNameSetting] = await Promise.all([
+      this.prisma.storeSetting.findUnique({ where: { key: 'whatsapp_shein_template_ar' } }),
+      this.prisma.storeSetting.findUnique({ where: { key: 'store_name_ar' } }),
+    ]);
 
-    whatsappText += `\n👗 *المنتجات المطلوبة من شي إن:* (${order.items.length})\n`;
+    const storeName = storeNameSetting?.value || 'حته ستور';
+    const exchangeRate = pricing.exchangeRate > 0 ? pricing.exchangeRate : 13.2;
+    const totalSar = Math.round((productsTotal / exchangeRate) * 100) / 100;
 
-    order.items.forEach((item: any, idx: number) => {
-      whatsappText += `\n${idx + 1}. *${item.title}*\n`;
-      whatsappText += `🔗 *الرابط:* ${item.productUrl}\n`;
-      if (item.size) whatsappText += `📏 *المقاس:* ${item.size}  |  `;
-      if (item.color) whatsappText += `🎨 *اللون:* ${item.color}  |  `;
-      whatsappText += `🔢 *الكمية:* ${item.quantity}\n`;
-      whatsappText += `💰 *السعر:* ${item.subtotal} ج.م\n`;
-      if (item.notes) whatsappText += `📌 *ملاحظات القطعة:* ${item.notes}\n`;
-    });
+    const itemsSummary = order.items
+      .map((item: any, idx: number) => {
+        const itemSar = Math.round((Number(item.subtotal) / exchangeRate) * 100) / 100;
+        let line = `${idx + 1}. *${item.title}*\n🔗 ${item.productUrl}`;
+        const specs = [];
+        if (item.size) specs.push(`المقاس: ${item.size}`);
+        if (item.color) specs.push(`اللون: ${item.color}`);
+        specs.push(`الكمية: ${item.quantity}`);
+        line += `\n📏 ${specs.join(' | ')}`;
+        line += `\n💰 السعر: ${item.subtotal} ج.م (~${itemSar} ر.س)`;
+        if (item.notes) line += `\n📌 ملاحظات: ${item.notes}`;
+        return line;
+      })
+      .join('\n\n');
 
-    whatsappText += `\n─────────────────\n`;
-    whatsappText += `💵 *إجمالي المنتجات:* ${order.productsTotal} ج.م\n`;
-    whatsappText += `📦 *الشحن الدولي:* ${order.sheinShippingFee} ج.م\n`;
-    whatsappText += `⚡ *رسوم الخدمة والتخليص:* ${order.serviceFee} ج.م\n`;
-    whatsappText += `🚚 *التوصيل الداخلي:* ${order.deliveryFee} ج.م\n`;
-    whatsappText += `💳 *الإجمالي النهائي التقديري:* ${order.totalAmount} ج.م\n`;
+    const defaultTemplate =
+      '🛍️ *طلب استيراد جديد من SHEIN - {storeName}*\n' +
+      '📋 *رقم الطلب:* #{orderNumber}\n\n' +
+      '👤 *اسم العميل:* {customerName}\n' +
+      '📱 *رقم الهاتف:* {customerPhone}\n' +
+      '📍 *العنوان:* {customerAddress}\n' +
+      '📝 *ملاحظات الشحن:* {notes}\n\n' +
+      '👗 *المنتجات المطلوبة من شي إن:* ({itemsCount})\n\n' +
+      '{itemsSummary}\n\n' +
+      '─────────────────\n' +
+      '🇸🇦 *الإجمالي بالريال السعودي:* {totalSar} ر.س\n' +
+      '💵 *الإجمالي المحول بالجنيه المصري:* {total} {currency}\n' +
+      '⏱️ *مدة التوصيل:* {estimatedDays}';
+
+    const rawTemplate = sheinTemplateSetting?.value?.trim() || defaultTemplate;
+    const fullAddress = [order.customerCity, order.customerAddress].filter(Boolean).join(' - ') || 'غير محدد';
+
+    const generatedMessage = rawTemplate
+      .replace(/\{storeName\}/gi, storeName)
+      .replace(/\{orderNumber\}/gi, order.orderNumber)
+      .replace(/\{customerName\}/gi, order.customerName || '')
+      .replace(/\{customerPhone\}/gi, order.customerPhone || '')
+      .replace(/\{customerAddress\}/gi, fullAddress)
+      .replace(/\{address\}/gi, fullAddress)
+      .replace(/\{city\}/gi, order.customerCity || '')
+      .replace(/\{itemsCount\}/gi, String(order.items.length))
+      .replace(/\{itemsSummary\}/gi, itemsSummary)
+      .replace(/\{items\}/gi, itemsSummary)
+      .replace(/\{products\}/gi, itemsSummary)
+      .replace(/\{totalSar\}/gi, String(totalSar))
+      .replace(/\{total\}/gi, String(order.totalAmount))
+      .replace(/\{currency\}/gi, order.currency || 'EGP')
+      .replace(/\{notes\}/gi, order.notes || 'لا يوجد')
+      .replace(/\{exchangeRate\}/gi, String(exchangeRate))
+      .replace(/\{estimatedDays\}/gi, pricing.estimatedDays || '10-15 يوم عمل');
 
     const cleanPhone = (pricing.whatsappNumber || '').replace(/[^0-9]/g, '');
-    const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(whatsappText)}`;
+    const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(generatedMessage)}`;
 
     return {
       success: true,

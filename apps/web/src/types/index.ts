@@ -182,6 +182,7 @@ export interface StoreSettings {
   support_email?: string;
   // SHEIN Concierge Settings
   shein_enabled?: string;
+  whatsapp_shein_template_ar?: string;
   shein_shipping_fee?: string;
   shein_service_fee?: string;
   shein_delivery_fee?: string;

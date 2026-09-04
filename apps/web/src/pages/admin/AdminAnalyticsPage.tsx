@@ -11,6 +11,7 @@ import { Pagination } from '../../components/common/Pagination.js';
 import { LoadingState } from '../../components/common/LoadingState.js';
 import { EmptyState } from '../../components/common/EmptyState.js';
 import { Modal } from '../../components/common/Modal.js';
+import { ErrorBoundary } from '../../components/common/ErrorBoundary.js';
 import {
   Users,
   Eye,
@@ -27,12 +28,79 @@ import {
   Laptop,
   Compass,
   AlertCircle,
+  Package,
 } from 'lucide-react';
 import {
   AnalyticsSummary,
   VisitorSession,
   AbandonedCart,
 } from '../../types/index.js';
+
+// Safe parser and extractor helpers to ensure abandoned cart items never crash the component
+const parseCartItems = (rawItems: unknown): any[] => {
+  if (!rawItems) return [];
+  if (Array.isArray(rawItems)) return rawItems;
+  if (typeof rawItems === 'string') {
+    try {
+      const parsed = JSON.parse(rawItems);
+      return Array.isArray(parsed) ? parsed : [parsed];
+    } catch {
+      return [];
+    }
+  }
+  if (typeof rawItems === 'object') return [rawItems];
+  return [];
+};
+
+const getItemName = (it: any, isArabic: boolean): string => {
+  if (!it) return isArabic ? 'منتج غير محدد' : 'Unknown item';
+  return (
+    it.product?.nameAr ||
+    it.product?.nameEn ||
+    it.productNameAr ||
+    it.productNameEn ||
+    it.title ||
+    it.name ||
+    (isArabic ? 'منتج بدون اسم' : 'Unnamed item')
+  );
+};
+
+const getItemVariantDetails = (it: any): string => {
+  if (!it) return '';
+  const parts: string[] = [];
+
+  const color =
+    it.selectedColor?.nameAr ||
+    it.selectedColor?.nameEn ||
+    (typeof it.selectedColor === 'string' ? it.selectedColor : null) ||
+    (typeof it.color === 'string' ? it.color : null);
+  if (color) parts.push(color);
+
+  const size =
+    it.selectedSize?.nameAr ||
+    it.selectedSize?.nameEn ||
+    (typeof it.selectedSize === 'string' ? it.selectedSize : null) ||
+    (typeof it.size === 'string' ? it.size : null);
+  if (size) parts.push(size);
+
+  return parts.length > 0 ? parts.join(' - ') : '';
+};
+
+const safeFormatDate = (dateStr: unknown, isArabic: boolean): string => {
+  if (!dateStr || typeof dateStr !== 'string') return '—';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '—';
+    return formatDate(dateStr, isArabic);
+  } catch {
+    return '—';
+  }
+};
+
+const safeFormatPrice = (val: unknown, currency = 'EGP', isArabic = false): string => {
+  const num = typeof val === 'number' ? val : parseFloat(String(val)) || 0;
+  return formatPrice(num, currency, isArabic);
+};
 
 export const AdminAnalyticsPage: React.FC = () => {
   const { isArabic } = useTheme();
@@ -46,6 +114,7 @@ export const AdminAnalyticsPage: React.FC = () => {
   });
   const [sessions, setSessions] = useState<VisitorSession[]>([]);
   const [abandonedCarts, setAbandonedCarts] = useState<AbandonedCart[]>([]);
+  const [selectedCartModal, setSelectedCartModal] = useState<AbandonedCart | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'sessions' | 'behavior' | 'abandoned'>('overview');
   const [timeRange, setTimeRange] = useState<'today' | 'week' | 'month' | 'all'>('all');
   const [autoRefresh, setAutoRefresh] = useState(false);
@@ -75,7 +144,8 @@ export const AdminAnalyticsPage: React.FC = () => {
       } catch {}
       setSessions(sessRes?.items || []);
       setTotalPages(sessRes?.totalPages || 1);
-      setAbandonedCarts(abnRes?.items || []);
+      const abnList = Array.isArray(abnRes) ? abnRes : (abnRes?.items || []);
+      setAbandonedCarts(Array.isArray(abnList) ? abnList : []);
     } catch (err: any) {
       setFetchError(err?.message || (isArabic ? 'حدث خطأ أثناء تحميل بيانات التحليلات' : 'Failed to fetch analytics data'));
     } finally {
@@ -674,60 +744,95 @@ export const AdminAnalyticsPage: React.FC = () => {
 
           {/* TAB 4: ABANDONED CARTS */}
           {activeTab === 'abandoned' && (
-            <div className="space-y-4">
-              <Card className="overflow-hidden">
-                {abandonedCarts.length === 0 ? (
-                  <div className="p-8 text-center">
-                    <EmptyState
-                      title={isArabic ? 'لا توجد سلات متروكة' : 'No Abandoned Carts'}
-                      message={isArabic ? 'رائع! لا توجد سلات تسوق متروكة حالياً دون إتمام الطلب.' : 'No shopping carts have been abandoned yet.'}
-                      icon={<CheckCircle2 className="w-12 h-12 text-emerald-500" />}
-                    />
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs">
-                      <thead className="bg-zinc-50 dark:bg-zinc-800/80 text-zinc-500 font-bold uppercase border-b border-zinc-200 dark:border-zinc-800">
-                        <tr>
-                          <th className="p-3.5 text-start">{isArabic ? 'التوقيت' : 'Time'}</th>
-                          <th className="p-3.5 text-start">IP Address</th>
-                          <th className="p-3.5 text-start">{isArabic ? 'الجهاز' : 'Device'}</th>
-                          <th className="p-3.5 text-start">{isArabic ? 'المنتجات في السلة' : 'Items Left in Cart'}</th>
-                          <th className="p-3.5 text-start">{isArabic ? 'قيمة السلة' : 'Cart Value'}</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                        {abandonedCarts.map((c) => (
-                          <tr key={c.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition">
-                            <td className="p-3.5 text-zinc-500 whitespace-nowrap font-mono text-[11px]">
-                              {formatDate(c.lastActiveAt || c.createdAt, isArabic)}
-                            </td>
-                            <td className="p-3.5 font-mono text-[11px] font-bold text-zinc-800 dark:text-zinc-200">
-                              {c.ipAddress}
-                            </td>
-                            <td className="p-3.5 capitalize font-medium">
-                              {c.deviceType === 'mobile' ? 'Mobile' : 'Desktop'}
-                            </td>
-                            <td className="p-3.5">
-                              <div className="space-y-1">
-                                {c.items?.map((it, idx) => (
-                                  <div key={idx} className="text-[11px] text-zinc-700 dark:text-zinc-300">
-                                    • {it.product.nameAr} ({it.selectedColor?.nameAr} - {it.selectedSize?.nameAr}) ×{it.quantity}
-                                  </div>
-                                ))}
-                              </div>
-                            </td>
-                            <td className="p-3.5 font-bold font-mono text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
-                              {formatPrice(c.totalValue, c.currency || 'EGP', isArabic)}
-                            </td>
+            <ErrorBoundary isArabic={isArabic} fallbackTitleAr="تعذر عرض السلات المتروكة مؤقتاً">
+              <div className="space-y-4">
+                <Card className="overflow-hidden">
+                  {abandonedCarts.length === 0 ? (
+                    <div className="p-8 text-center">
+                      <EmptyState
+                        title={isArabic ? 'لا توجد سلات متروكة' : 'No Abandoned Carts'}
+                        message={isArabic ? 'رائع! لا توجد سلات تسوق متروكة حالياً دون إتمام الطلب.' : 'No shopping carts have been abandoned yet.'}
+                        icon={<CheckCircle2 className="w-12 h-12 text-emerald-500" />}
+                      />
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead className="bg-zinc-50 dark:bg-zinc-800/80 text-zinc-500 font-bold uppercase border-b border-zinc-200 dark:border-zinc-800">
+                          <tr>
+                            <th className="p-3.5 text-start">{isArabic ? 'التوقيت' : 'Time'}</th>
+                            <th className="p-3.5 text-start">IP Address</th>
+                            <th className="p-3.5 text-start">{isArabic ? 'الجهاز' : 'Device'}</th>
+                            <th className="p-3.5 text-start">{isArabic ? 'المنتجات في السلة' : 'Items Left in Cart'}</th>
+                            <th className="p-3.5 text-start">{isArabic ? 'قيمة السلة' : 'Cart Value'}</th>
+                            <th className="p-3.5 text-end">{isArabic ? 'إجراءات' : 'Actions'}</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </Card>
-            </div>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                          {abandonedCarts.map((c) => {
+                            const itemsList = parseCartItems(c.items);
+                            return (
+                              <tr key={c.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition">
+                                <td className="p-3.5 text-zinc-500 whitespace-nowrap font-mono text-[11px]">
+                                  {safeFormatDate(c.lastActiveAt || c.createdAt, isArabic)}
+                                </td>
+                                <td className="p-3.5 font-mono text-[11px] font-bold text-zinc-800 dark:text-zinc-200">
+                                  {c.ipAddress || '—'}
+                                </td>
+                                <td className="p-3.5 capitalize font-medium">
+                                  <span className="px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-[11px]">
+                                    {c.deviceType === 'mobile' ? (isArabic ? 'هاتف محمول' : 'Mobile') : (isArabic ? 'كمبيوتر' : 'Desktop')}
+                                  </span>
+                                </td>
+                                <td className="p-3.5">
+                                  {itemsList.length === 0 ? (
+                                    <span className="text-zinc-400 italic text-[11px]">{isArabic ? 'سلة بدون عناصر' : 'No items recorded'}</span>
+                                  ) : (
+                                    <div className="space-y-1 max-w-xs">
+                                      {itemsList.slice(0, 3).map((it, idx) => {
+                                        const name = getItemName(it, isArabic);
+                                        const variantInfo = getItemVariantDetails(it);
+                                        const qty = it.quantity || 1;
+                                        return (
+                                          <div key={idx} className="text-[11px] text-zinc-700 dark:text-zinc-300 leading-tight">
+                                            <span className="font-semibold text-zinc-900 dark:text-zinc-100">• {name}</span>
+                                            {variantInfo ? <span className="text-zinc-500 font-normal"> ({variantInfo})</span> : null}
+                                            <span className="text-amber-600 dark:text-amber-400 font-bold"> ×{qty}</span>
+                                          </div>
+                                        );
+                                      })}
+                                      {itemsList.length > 3 && (
+                                        <span className="text-[10px] text-zinc-400 block font-medium">
+                                          +{itemsList.length - 3} {isArabic ? 'منتجات إضافية...' : 'more items...'}
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="p-3.5 font-bold font-mono text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                                  {safeFormatPrice(c.totalValue, c.currency || 'EGP', isArabic)}
+                                </td>
+                                <td className="p-3.5 text-end">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-[11px] py-1 px-2.5"
+                                    onClick={() => setSelectedCartModal(c)}
+                                  >
+                                    <Eye className="w-3 h-3 mr-1 rtl:ml-1 rtl:mr-0" />
+                                    <span>{isArabic ? 'تفاصيل السلة' : 'View Cart'}</span>
+                                  </Button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </Card>
+              </div>
+            </ErrorBoundary>
           )}
         </>
       )}
@@ -763,6 +868,102 @@ export const AdminAnalyticsPage: React.FC = () => {
             </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* Abandoned Cart Details Inspection Modal */}
+      <Modal
+        isOpen={Boolean(selectedCartModal)}
+        onClose={() => setSelectedCartModal(null)}
+        title={isArabic ? 'تفاصيل السلة المتروكة' : 'Abandoned Cart Details'}
+      >
+        {selectedCartModal && (
+          <div className="space-y-4 text-start">
+            <div className="p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700/60 text-xs space-y-2">
+              <div className="flex justify-between">
+                <span className="text-zinc-500">{isArabic ? 'عنوان الـ IP:' : 'IP Address:'}</span>
+                <span className="font-mono font-bold text-zinc-900 dark:text-zinc-100">{selectedCartModal.ipAddress || '—'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-zinc-500">{isArabic ? 'نوع الجهاز:' : 'Device:'}</span>
+                <span className="font-semibold text-zinc-800 dark:text-zinc-200">
+                  {selectedCartModal.deviceType === 'mobile' ? (isArabic ? 'هاتف محمول' : 'Mobile') : (isArabic ? 'كمبيوتر / ديسكتوب' : 'Desktop')}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-zinc-500">{isArabic ? 'آخر نشاط:' : 'Last Active:'}</span>
+                <span className="font-mono text-zinc-700 dark:text-zinc-300">
+                  {safeFormatDate(selectedCartModal.lastActiveAt || selectedCartModal.createdAt, isArabic)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-zinc-500">{isArabic ? 'معرّف الجلسة:' : 'Session ID:'}</span>
+                <span className="font-mono text-[10px] text-zinc-400 truncate max-w-[180px]">
+                  {selectedCartModal.sessionId}
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
+                {isArabic ? 'المنتجات التي كانت في السلة:' : 'Products in Cart:'}
+              </h4>
+
+              <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                {parseCartItems(selectedCartModal.items).map((it, idx) => {
+                  const name = getItemName(it, isArabic);
+                  const variantInfo = getItemVariantDetails(it);
+                  const qty = it.quantity || 1;
+                  const price = it.unitPrice || it.price || it.variant?.price || 0;
+                  const img = it.product?.imageUrl || it.imageUrl || it.product?.images?.[0]?.url;
+
+                  return (
+                    <div
+                      key={idx}
+                      className="p-2.5 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center gap-3 text-xs"
+                    >
+                      {img ? (
+                        <img src={img} alt={name} className="w-10 h-10 object-cover rounded-lg shrink-0 border border-zinc-200 dark:border-zinc-800" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-400 shrink-0">
+                          <Package className="w-5 h-5" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-zinc-900 dark:text-zinc-100 truncate">{name}</p>
+                        {variantInfo && (
+                          <p className="text-[11px] text-zinc-500">{variantInfo}</p>
+                        )}
+                        <p className="text-[11px] text-amber-600 dark:text-amber-400 font-bold">
+                          {isArabic ? `الكمية: ${qty}` : `Qty: ${qty}`}
+                        </p>
+                      </div>
+                      {price > 0 && (
+                        <span className="font-mono font-bold text-zinc-900 dark:text-zinc-100 shrink-0">
+                          {safeFormatPrice(price * qty, selectedCartModal.currency || 'EGP', isArabic)}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
+              <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300">
+                {isArabic ? 'إجمالي قيمة السلة:' : 'Total Cart Value:'}
+              </span>
+              <span className="text-base font-black text-emerald-600 dark:text-emerald-400 font-mono">
+                {safeFormatPrice(selectedCartModal.totalValue, selectedCartModal.currency || 'EGP', isArabic)}
+              </span>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <Button variant="secondary" size="sm" onClick={() => setSelectedCartModal(null)}>
+                {isArabic ? 'إغلاق' : 'Close'}
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

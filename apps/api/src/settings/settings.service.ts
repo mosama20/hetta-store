@@ -588,6 +588,11 @@ export class SettingsService {
         group: SettingGroup.WHATSAPP,
       },
       {
+        key: 'whatsapp_shein_template_ar',
+        value: '🛍️ *طلب استيراد جديد من SHEIN - {storeName}*\n📋 *رقم الطلب:* #{orderNumber}\n\n👤 *اسم العميل:* {customerName}\n📱 *رقم الهاتف:* {customerPhone}\n📍 *العنوان:* {customerAddress}\n📝 *ملاحظات الشحن:* {notes}\n\n👗 *المنتجات المطلوبة من شي إن:* ({itemsCount})\n\n{itemsSummary}\n\n─────────────────\n🇸🇦 *الإجمالي بالريال السعودي:* {totalSar} ر.س\n💵 *الإجمالي المحول بالجنيه المصري:* {total} {currency}\n⏱️ *مدة التوصيل:* {estimatedDays}',
+        group: SettingGroup.WHATSAPP,
+      },
+      {
         key: 'social_links',
         value: JSON.stringify({
           instagram: 'https://instagram.com/craft.wear',

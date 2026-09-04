@@ -47,6 +47,7 @@ export const AdminSettingsPage: React.FC = () => {
   const [sheinDeliveryFee, setSheinDeliveryFee] = useState('60');
   const [sheinExchangeRate, setSheinExchangeRate] = useState('1');
   const [sheinEstimatedDays, setSheinEstimatedDays] = useState('10-15 يوم عمل');
+  const [whatsappSheinTemplate, setWhatsappSheinTemplate] = useState('');
 
   // Announcement Bar Settings
   const [announcementEnabled, setAnnouncementEnabled] = useState(true);
@@ -110,6 +111,7 @@ export const AdminSettingsPage: React.FC = () => {
         if (s.key === 'shein_delivery_fee') setSheinDeliveryFee(s.value);
         if (s.key === 'shein_exchange_rate') setSheinExchangeRate(s.value);
         if (s.key === 'shein_estimated_days') setSheinEstimatedDays(s.value);
+        if (s.key === 'whatsapp_shein_template_ar') setWhatsappSheinTemplate(s.value);
         if (s.key === 'social_links') {
           try {
             const parsed = JSON.parse(s.value);
@@ -169,6 +171,7 @@ export const AdminSettingsPage: React.FC = () => {
         settingsApi.update('shein_delivery_fee', sheinDeliveryFee, 'GENERAL'),
         settingsApi.update('shein_exchange_rate', sheinExchangeRate, 'GENERAL'),
         settingsApi.update('shein_estimated_days', sheinEstimatedDays, 'GENERAL'),
+        settingsApi.update('whatsapp_shein_template_ar', whatsappSheinTemplate, 'WHATSAPP'),
         settingsApi.update('social_links', JSON.stringify(socialLinks), 'GENERAL'),
       ]);
       triggerStoreSync();
@@ -938,6 +941,69 @@ export const AdminSettingsPage: React.FC = () => {
                 onChange={(e) => setSheinEstimatedDays(e.target.value)}
                 placeholder="من 10 إلى 15 يوم عمل"
               />
+            </div>
+          </div>
+
+          {/* SHEIN WhatsApp Order Message Template */}
+          <div className="space-y-3 pt-4 border-t border-zinc-200 dark:border-zinc-800">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-zinc-900 dark:text-zinc-100">
+                  {isArabic ? 'قالب رسالة طلبات SHEIN على واتساب' : 'SHEIN WhatsApp Order Message Template'}
+                </label>
+                <p className="text-[11px] text-zinc-500">
+                  {isArabic
+                    ? 'التحكم في نص رسالة تأكيد الطلب المرسلة للواتساب مع دعم كافة متغيرات الأسعار بالريال والجنيه وروابط المنتجات'
+                    : 'Customize message template sent via WhatsApp for SHEIN orders with SAR/EGP dynamic variables'}
+                </p>
+              </div>
+              <span className="text-[10px] text-zinc-400 font-mono self-start sm:self-auto">
+                whatsapp_shein_template_ar
+              </span>
+            </div>
+
+            <textarea
+              rows={8}
+              value={whatsappSheinTemplate}
+              onChange={(e) => setWhatsappSheinTemplate(e.target.value)}
+              placeholder={
+                isArabic
+                  ? 'تأكيد طلب منتجات SHEIN جديدة من متجر {storeName}...\nرقم الطلب: #{orderNumber}\nالاسم: {customerName}\n...'
+                  : 'Order confirmation template for SHEIN...'
+              }
+              className="w-full font-mono text-xs px-3.5 py-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded-xl text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500 transition leading-relaxed"
+            />
+
+            <div className="p-3 bg-zinc-50 dark:bg-zinc-900 rounded-xl space-y-1.5 border border-zinc-200 dark:border-zinc-800">
+              <span className="text-[11px] font-bold text-zinc-700 dark:text-zinc-300 block">
+                {isArabic ? 'المتغيرات التلقائية المتاحة لطلبات SHEIN (انقر للإدراج):' : 'Available Dynamic Variables for SHEIN (Click to insert):'}
+              </span>
+              <div className="flex flex-wrap gap-1.5 font-mono text-[10px]">
+                {[
+                  '{storeName}',
+                  '{orderNumber}',
+                  '{customerName}',
+                  '{customerPhone}',
+                  '{customerAddress}',
+                  '{itemsSummary}',
+                  '{totalSar}',
+                  '{total}',
+                  '{currency}',
+                  '{notes}',
+                  '{exchangeRate}',
+                  '{estimatedDays}',
+                ].map((token) => (
+                  <button
+                    key={token}
+                    type="button"
+                    onClick={() => setWhatsappSheinTemplate((prev) => prev + ` ${token} `)}
+                    className="px-2 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 hover:bg-amber-500 hover:text-black transition"
+                    title={isArabic ? 'انقر للإضافة إلى النص' : 'Click to insert'}
+                  >
+                    {token}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </Card>
